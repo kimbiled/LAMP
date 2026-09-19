@@ -13,10 +13,13 @@ export const metadata: Metadata = { title: "Редактирование кан�
 
 export default async function EditCandidatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ parsed?: string }>;
 }) {
   const { id } = await params;
+  const { parsed } = await searchParams;
   const scope = await getScope();
 
   if (!scope.can("candidates.edit")) {
@@ -58,6 +61,19 @@ export default async function EditCandidatePage({
         Редактирование карточки
       </h1>
       <p className="mt-1 text-sm text-ink-soft">{candidate.fullName}</p>
+
+      {parsed && (
+        <div className="mt-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
+          <p className="text-sm font-medium text-ink">
+            Данные распознаны из резюме
+          </p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Проверьте поля и исправьте, если система ошиблась. Контакты обычно
+            определяются точно, а опыт и образование — не всегда. Файл резюме
+            уже прикреплён к карточке.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
         <CandidateForm

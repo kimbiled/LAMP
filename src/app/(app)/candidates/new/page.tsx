@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
 import { createCandidate } from "@/app/actions/candidates";
+import { createCandidateFromResume } from "@/app/actions/resumes";
+import { ResumeUploadForm } from "@/components/resume-upload-form";
 import { CandidateForm } from "../candidate-form";
 
 export const metadata: Metadata = { title: "Новый кандидат — LAMP" };
@@ -40,10 +42,32 @@ export default async function NewCandidatePage({
     <div className="mx-auto max-w-2xl">
       <h1 className="text-xl font-semibold text-ink-strong">Новый кандидат</h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Обязательное поле только одно — ФИО. Остальное можно дополнить позже
+        Загрузите резюме — или заполните карточку вручную
       </p>
 
-      <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
+      <section className="mt-6 rounded-xl border border-muted bg-surface p-6">
+        <h2 className="text-sm font-medium text-ink">Загрузка резюме</h2>
+        <p className="mt-1 mb-4 text-xs text-ink-soft">
+          Система прочитает файл и сама заполнит карточку. После этого вы
+          проверите распознанные данные и при необходимости исправите их.
+        </p>
+
+        <ResumeUploadForm
+          action={createCandidateFromResume}
+          submitLabel="Загрузить и распознать"
+          pendingLabel="Читаем резюме…"
+          jobId={job}
+          compact
+        />
+      </section>
+
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-muted" />
+        <span className="text-xs text-ink-soft">или заполните вручную</span>
+        <span className="h-px flex-1 bg-muted" />
+      </div>
+
+      <div className="rounded-xl border border-muted bg-surface p-6">
         <CandidateForm
           action={createCandidate}
           jobs={jobs}
@@ -69,11 +93,6 @@ export default async function NewCandidatePage({
           }}
         />
       </div>
-
-      <p className="mt-4 text-xs text-ink-soft">
-        Загрузка резюме в PDF и DOCX с автоматическим распознаванием данных
-        появится на следующем шаге.
-      </p>
     </div>
   );
 }

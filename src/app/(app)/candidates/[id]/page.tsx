@@ -9,6 +9,7 @@ import { StageBadge } from "@/components/stage-badge";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { HISTORY_LABELS } from "@/lib/labels";
 import { ContactButtons } from "./contact-buttons";
+import { ResumeSection } from "./resume-section";
 import { StageSelect } from "./stage-select";
 import { DeleteCandidateButton } from "./delete-button";
 
@@ -32,6 +33,12 @@ export default async function CandidatePage({
       job: { select: { id: true, title: true } },
       stage: { select: { id: true, name: true, key: true } },
       createdBy: { select: { fullName: true } },
+      experience: { orderBy: { sortOrder: "asc" } },
+      education: { orderBy: { sortOrder: "asc" } },
+      resumes: {
+        orderBy: { uploadedAt: "desc" },
+        include: { uploadedBy: { select: { fullName: true } } },
+      },
       history: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -226,10 +233,58 @@ export default async function CandidatePage({
             )}
           </section>
 
+          {candidate.experience.length > 0 && (
+            <section className="rounded-xl border border-muted bg-surface p-5">
+              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
+              <ul className="mt-3 space-y-3">
+                {candidate.experience.map((item) => (
+                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                    <p className="text-sm font-medium text-ink">
+                      {item.companyName}
+                    </p>
+                    {item.position && (
+                      <p className="text-sm text-ink-soft">{item.position}</p>
+                    )}
+                    {item.period && (
+                      <p className="text-xs text-ink-soft">{item.period}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {candidate.education.length > 0 && (
+            <section className="rounded-xl border border-muted bg-surface p-5">
+              <h2 className="text-sm font-medium text-ink">Образование</h2>
+              <ul className="mt-3 space-y-3">
+                {candidate.education.map((item) => (
+                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                    <p className="text-sm font-medium text-ink">
+                      {item.institution}
+                    </p>
+                    {item.specialty && (
+                      <p className="text-sm text-ink-soft">{item.specialty}</p>
+                    )}
+                    {item.years && (
+                      <p className="text-xs text-ink-soft">{item.years}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <ResumeSection
+            candidateId={candidate.id}
+            resumes={candidate.resumes}
+            canUpload={canEdit}
+          />
+
           <section className="rounded-xl border border-dashed border-muted bg-surface p-8 text-center">
             <p className="text-sm text-ink-soft">
-              Резюме, интервью, фидбэки и кнопка «Поделиться» появятся на
-              следующих этапах.
+              Интервью, фидбэки и кнопка «Поделиться» появятся на следующих
+              этапах.
             </p>
           </section>
         </div>

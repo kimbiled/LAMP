@@ -8,6 +8,7 @@ import { jobVisibilityFilter } from "@/lib/permissions";
 import { candidateSchema, fieldErrorsFrom } from "@/lib/validation";
 import { addHistory } from "@/lib/history";
 import { normalizeTelegram } from "@/lib/contacts";
+import { removeFile } from "@/lib/storage";
 
 export type CandidateFormState = {
   formError?: string;
@@ -254,7 +255,7 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
 
   const candidate = await db.candidate.findFirst({
     where: { id: candidateId, companyId: scope.companyId },
-    select: { id: true },
+    select: { id: true, resumes: { select: { storageKey: true } } },
   });
 
   if (!candidate) {
@@ -262,6 +263,12 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
   }
 
   await db.candidate.delete({ where: { id: candidate.id } });
+
+  // Записи в базе удалились каскадом, а файлы резюме лежат отдельно —
+  // их нужно убрать с диска вручную.
+  for (const resume of candidate.resumes) {
+    await removeFile(resume.storageKey);
+  }
 
   redirect("/candidates");
 }

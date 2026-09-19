@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { rm } from "node:fs/promises";
+import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 
@@ -15,6 +17,19 @@ const db = new PrismaClient({
 });
 
 async function main() {
+  const companies = await db.company.findMany({
+    where: { name: QA_COMPANY_NAME },
+    select: { id: true },
+  });
+
+  // Сначала убираем загруженные файлы, потом записи в базе.
+  for (const company of companies) {
+    await rm(path.join(process.cwd(), "storage", company.id), {
+      recursive: true,
+      force: true,
+    });
+  }
+
   const removed = await db.company.deleteMany({
     where: { name: QA_COMPANY_NAME },
   });

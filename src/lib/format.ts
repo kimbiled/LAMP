@@ -46,3 +46,9 @@ export function formatSalary(
   const fmt = new Intl.NumberFormat("ru-RU");
   return `${fmt.format(min as number)} – ${fmt.format(max as number)} ${symbol}`;
 }
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
