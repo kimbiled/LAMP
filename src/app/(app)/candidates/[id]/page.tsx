@@ -6,7 +6,7 @@ import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
-import { formatDateTime, formatMoney } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import {
   FEEDBACK_RESULT_LABELS,
   HISTORY_LABELS,
@@ -19,6 +19,7 @@ import { ResumeSection } from "./resume-section";
 import { StagePipeline } from "@/components/stage-pipeline";
 import { InterviewsBlock } from "./interviews-block";
 import { FeedbackBlock } from "./feedback-block";
+import { ShareBlock } from "./share-block";
 import { DeleteCandidateButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Кандидат — LAMP" };
@@ -56,6 +57,13 @@ export default async function CandidatePage({
         include: {
           stage: { select: { name: true } },
           author: { select: { fullName: true } },
+        },
+      },
+      shareLinks: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          createdBy: { select: { fullName: true } },
+          _count: { select: { feedbacks: true } },
         },
       },
       history: {
@@ -112,6 +120,19 @@ export default async function CandidatePage({
     result: feedback.result,
     resultLabel: FEEDBACK_RESULT_LABELS[feedback.result],
     comment: feedback.comment,
+  }));
+
+  const shareLinkViews = candidate.shareLinks.map((link) => ({
+    id: link.id,
+    token: link.token,
+    createdByName: link.createdBy.fullName,
+    createdText: formatDate(link.createdAt),
+    expiresText: link.expiresAt ? formatDate(link.expiresAt) : null,
+    isExpired: Boolean(
+      link.revokedAt || (link.expiresAt && link.expiresAt < new Date()),
+    ),
+    viewCount: link.viewCount,
+    feedbackCount: link._count.feedbacks,
   }));
 
   const interviewOptions = candidate.interviews.map((interview) => ({
@@ -359,11 +380,11 @@ export default async function CandidatePage({
             canCreate={scope.can("feedback.create")}
           />
 
-          <section className="rounded-xl border border-dashed border-muted bg-surface p-8 text-center">
-            <p className="text-sm text-ink-soft">
-              Кнопка «Поделиться» появится на этапе 18.
-            </p>
-          </section>
+          <ShareBlock
+            candidateId={candidate.id}
+            links={shareLinkViews}
+            canShare={scope.can("share.create")}
+          />
         </div>
 
         <section className="rounded-xl border border-muted bg-surface p-5">
