@@ -1,10 +1,14 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { QA_COMPANY_NAME } from "./qa-seed";
 
 // Удаляет тестовую компанию со всеми её данными.
 // Запуск: npm run qa:clean
+//
+// Название намеренно продублировано, а не импортировано из qa-seed.ts:
+// импорт запускал бы скрипт создания и компания создавалась бы заново.
+
+const QA_COMPANY_NAME = "QA Тест Компания";
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
