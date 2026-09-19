@@ -150,7 +150,7 @@ export default async function SharePage({
             {facts.map((fact) => (
               <div key={fact.label}>
                 <dt className="text-xs text-ink-soft">{fact.label}</dt>
-                <dd className="text-sm text-ink">{fact.value}</dd>
+                <dd className="text-sm break-words text-ink">{fact.value}</dd>
               </div>
             ))}
           </dl>

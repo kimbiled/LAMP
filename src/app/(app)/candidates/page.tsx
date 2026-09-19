@@ -179,7 +179,7 @@ export default async function CandidatesPage({
         {scope.can("candidates.create") && (
           <Link
             href="/candidates/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-accent-hover"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-accent-hover sm:w-auto"
           >
             <Plus className="h-4 w-4" strokeWidth={2} />
             Добавить кандидата

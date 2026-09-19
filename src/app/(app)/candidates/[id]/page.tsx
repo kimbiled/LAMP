@@ -247,7 +247,7 @@ export default async function CandidatePage({
               {candidate.phone && (
                 <div>
                   <dt className="text-xs text-ink-soft">Телефон</dt>
-                  <dd className="text-sm text-ink">{candidate.phone}</dd>
+                  <dd className="text-sm break-words text-ink">{candidate.phone}</dd>
                 </div>
               )}
               {candidate.email && (
@@ -261,13 +261,13 @@ export default async function CandidatePage({
               {candidate.telegram && (
                 <div>
                   <dt className="text-xs text-ink-soft">Telegram</dt>
-                  <dd className="text-sm text-ink">@{candidate.telegram}</dd>
+                  <dd className="text-sm break-words text-ink">@{candidate.telegram}</dd>
                 </div>
               )}
               {facts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="text-xs text-ink-soft">{fact.label}</dt>
-                  <dd className="text-sm text-ink">{fact.value}</dd>
+                  <dd className="text-sm break-words text-ink">{fact.value}</dd>
                 </div>
               ))}
             </dl>

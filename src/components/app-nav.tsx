@@ -20,10 +20,17 @@ import type { Role } from "@/generated/prisma/enums";
 export const NAV_ITEMS: {
   href: string;
   label: string;
+  // Короткое название для нижнего меню на телефоне, где мало места.
+  shortLabel?: string;
   icon: typeof LayoutDashboard;
   permission?: Permission;
 }[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    shortLabel: "Главная",
+    icon: LayoutDashboard,
+  },
   { href: "/jobs", label: "Вакансии", icon: Briefcase },
   { href: "/candidates", label: "Кандидаты", icon: Users },
   { href: "/interviews", label: "Интервью", icon: CalendarDays },
@@ -36,6 +43,7 @@ export const NAV_ITEMS: {
   {
     href: "/users",
     label: "Пользователи",
+    shortLabel: "Люди",
     icon: UserCog,
     permission: "users.manage",
   },
@@ -59,7 +67,7 @@ export function AppNav({
 
   if (variant === "bottom") {
     return (
-      <nav className="flex overflow-x-auto">
+      <nav className="flex">
         {items.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -67,12 +75,14 @@ export function AppNav({
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-w-18 flex-1 flex-col items-center gap-1 px-2 py-2.5 text-[11px] ${
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 ${
                 active ? "text-accent" : "text-sidebar-text"
               }`}
             >
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
-              {item.label}
+              <Icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+              <span className="w-full truncate text-center text-[10px]">
+                {item.shortLabel ?? item.label}
+              </span>
             </Link>
           );
         })}
