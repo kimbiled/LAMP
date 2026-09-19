@@ -4,7 +4,22 @@ import { PrismaClient } from "@/generated/prisma/client";
 // Единственная точка подключения к базе данных.
 // Все остальные файлы проекта обращаются к базе только через db.
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+// Настройки пула соединений.
+//
+// База находится во Франкфурте, и установка защищённого соединения с ней
+// занимает около полусекунды. Поэтому открытые соединения нужно держать
+// и переиспользовать, а не открывать заново на каждый запрос:
+//   max — сколько соединений держать одновременно (страницы делают
+//         до пяти запросов сразу);
+//   idleTimeoutMillis — как долго держать незанятое соединение;
+//   keepAlive — не давать сети «усыпить» соединение в паузах.
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+  max: 8,
+  idleTimeoutMillis: 5 * 60 * 1000,
+  connectionTimeoutMillis: 15 * 1000,
+  keepAlive: true,
+});
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

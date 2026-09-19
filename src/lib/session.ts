@@ -26,6 +26,9 @@ export type CurrentSession = {
     id: string;
     name: string;
   };
+  // Считается тем же запросом, что и сессия: лишнее обращение к базе
+  // на каждой странице стоило бы примерно 80 миллисекунд.
+  unreadNotifications: number;
 };
 
 function hashToken(token: string): string {
@@ -70,7 +73,14 @@ export const getSession = cache(async (): Promise<CurrentSession | null> => {
 
   const session = await db.session.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { user: { include: { company: true } } },
+    include: {
+      user: {
+        include: {
+          company: true,
+          _count: { select: { notifications: { where: { isRead: false } } } },
+        },
+      },
+    },
   });
 
   if (!session) {
@@ -95,6 +105,7 @@ export const getSession = cache(async (): Promise<CurrentSession | null> => {
       id: session.user.company.id,
       name: session.user.company.name,
     },
+    unreadNotifications: session.user._count.notifications,
   };
 });
 

@@ -21,59 +21,63 @@ export default async function DashboardPage() {
   const jobFilter = jobVisibilityFilter(scope.session.user);
   const candidateFilter = candidateVisibilityFilter(scope.session.user);
 
-  const stages = await db.stage.findMany({
-    where: { companyId },
-    select: { id: true, key: true },
-  });
-
-  const stageIdByKey = new Map(
-    stages.filter((stage) => stage.key).map((stage) => [stage.key!, stage.id]),
-  );
-
-  const countByStage = (key: StageKey) => {
-    const stageId = stageIdByKey.get(key);
-    if (!stageId) return Promise.resolve(0);
-    return db.candidate.count({
-      where: { companyId, stageId, ...candidateFilter },
-    });
-  };
-
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
+  // Все запросы идут одновременно. Так страница ждёт самый долгий из них,
+  // а не их сумму: база во Франкфурте, каждое обращение стоит ~80 мс.
   const [
-    openJobs,
-    candidates,
+    stages,
+    byStage,
     newCandidates,
-    scheduledInterviews,
-    completedInterviews,
-    offers,
-    hired,
-    rejected,
-    noResponse,
+    byInterviewStatus,
     activeJobs,
   ] = await Promise.all([
-    db.job.count({ where: { companyId, status: "OPEN", ...jobFilter } }),
-    db.candidate.count({ where: { companyId, ...candidateFilter } }),
+    db.stage.findMany({
+      where: { companyId },
+      select: { id: true, key: true },
+    }),
+    // Один запрос вместо пяти: сколько кандидатов на каждом этапе.
+    db.candidate.groupBy({
+      by: ["stageId"],
+      where: { companyId, ...candidateFilter },
+      _count: { _all: true },
+    }),
     db.candidate.count({
       where: { companyId, createdAt: { gte: weekAgo }, ...candidateFilter },
     }),
-    db.interview.count({
-      where: { companyId, status: "SCHEDULED", candidate: candidateFilter },
+    // Один запрос вместо двух: интервью по статусам.
+    db.interview.groupBy({
+      by: ["status"],
+      where: { companyId, candidate: candidateFilter },
+      _count: { _all: true },
     }),
-    db.interview.count({
-      where: { companyId, status: "COMPLETED", candidate: candidateFilter },
-    }),
-    countByStage("OFFER"),
-    countByStage("HIRED"),
-    countByStage("REJECTED"),
-    countByStage("NO_RESPONSE"),
     db.job.findMany({
       where: { companyId, status: "OPEN", ...jobFilter },
       include: { _count: { select: { candidates: true } } },
       orderBy: { createdAt: "desc" },
-      take: 8,
     }),
   ]);
+
+  const countByStageId = new Map(
+    byStage.map((row) => [row.stageId, row._count._all]),
+  );
+
+  const countByStage = (key: StageKey) => {
+    const stage = stages.find((item) => item.key === key);
+    return stage ? (countByStageId.get(stage.id) ?? 0) : 0;
+  };
+
+  const countByStatus = (status: string) =>
+    byInterviewStatus.find((row) => row.status === status)?._count._all ?? 0;
+
+  const candidates = byStage.reduce((sum, row) => sum + row._count._all, 0);
+  const openJobs = activeJobs.length;
+  const scheduledInterviews = countByStatus("SCHEDULED");
+  const completedInterviews = countByStatus("COMPLETED");
+  const offers = countByStage("OFFER");
+  const hired = countByStage("HIRED");
+  const rejected = countByStage("REJECTED");
+  const noResponse = countByStage("NO_RESPONSE");
 
   const metrics = [
     { label: "Активные вакансии", value: openJobs },
@@ -147,7 +151,7 @@ export default async function DashboardPage() {
             </p>
           ) : (
             <ul className="divide-y divide-muted">
-              {activeJobs.map((job) => (
+              {activeJobs.slice(0, 8).map((job) => (
                 <li key={job.id}>
                   <Link
                     href={`/jobs/${job.id}`}

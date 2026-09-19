@@ -37,19 +37,6 @@ export default async function AnalyticsPage({
   const days = PERIODS.find((item) => item.value === (period ?? ""))?.days ?? 0;
   const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
 
-  const [jobs, recruiters] = await Promise.all([
-    db.job.findMany({
-      where: { companyId: scope.companyId },
-      select: { id: true, title: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.user.findMany({
-      where: { companyId: scope.companyId, role: { in: ["ADMIN", "RECRUITER"] } },
-      select: { id: true, fullName: true },
-      orderBy: { fullName: "asc" },
-    }),
-  ]);
-
   // Отбираем кандидатов, попадающих под фильтры. Дальше считаем только по ним.
   const candidateWhere = {
     companyId: scope.companyId,
@@ -59,29 +46,55 @@ export default async function AnalyticsPage({
     ...(recruiter ? { job: { recruiterId: recruiter } } : {}),
   };
 
-  const candidates = await db.candidate.findMany({
-    where: candidateWhere,
-    select: { id: true, stage: { select: { key: true } } },
-  });
-
-  const candidateIds = candidates.map((candidate) => candidate.id);
-
-  // Через историю видно, до какого этапа кандидат доходил,
-  // даже если сейчас он уже в «Отказе».
-  const history =
-    candidateIds.length > 0
-      ? await db.candidateHistory.findMany({
-          where: {
-            companyId: scope.companyId,
-            candidateId: { in: candidateIds },
-            toStageId: { not: null },
-          },
-          select: {
-            candidateId: true,
-            toStage: { select: { key: true } },
-          },
-        })
-      : [];
+  // Все запросы уходят одновременно: история и интервью отбираются
+  // по тем же условиям, что и кандидаты, поэтому ждать их не нужно.
+  const [jobs, recruiters, candidates, history, completedInterviews, technicalInterviews] =
+    await Promise.all([
+      db.job.findMany({
+        where: { companyId: scope.companyId },
+        select: { id: true, title: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      db.user.findMany({
+        where: {
+          companyId: scope.companyId,
+          role: { in: ["ADMIN", "RECRUITER"] },
+        },
+        select: { id: true, fullName: true },
+        orderBy: { fullName: "asc" },
+      }),
+      db.candidate.findMany({
+        where: candidateWhere,
+        select: { id: true, stage: { select: { key: true } } },
+      }),
+      // Через историю видно, до какого этапа кандидат доходил,
+      // даже если сейчас он уже в «Отказе».
+      db.candidateHistory.findMany({
+        where: {
+          companyId: scope.companyId,
+          toStageId: { not: null },
+          candidate: candidateWhere,
+        },
+        select: {
+          candidateId: true,
+          toStage: { select: { key: true } },
+        },
+      }),
+      db.interview.count({
+        where: {
+          companyId: scope.companyId,
+          status: "COMPLETED",
+          candidate: candidateWhere,
+        },
+      }),
+      db.interview.count({
+        where: {
+          companyId: scope.companyId,
+          type: "TECHNICAL",
+          candidate: candidateWhere,
+        },
+      }),
+    ]);
 
   const reached = new Map<string, Set<string>>();
   const remember = (key: string | null | undefined, candidateId: string) => {
@@ -118,18 +131,6 @@ export default async function AnalyticsPage({
   }));
 
   const total = funnel[0].value;
-
-  const interviewWhere = {
-    companyId: scope.companyId,
-    ...(candidateIds.length > 0
-      ? { candidateId: { in: candidateIds } }
-      : { candidateId: "—" }),
-  };
-
-  const [completedInterviews, technicalInterviews] = await Promise.all([
-    db.interview.count({ where: { ...interviewWhere, status: "COMPLETED" } }),
-    db.interview.count({ where: { ...interviewWhere, type: "TECHNICAL" } }),
-  ]);
 
   const metrics = [
     { label: "Всего кандидатов", value: total },

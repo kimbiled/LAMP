@@ -19,33 +19,35 @@ export default async function JobPage({
   const { id } = await params;
   const scope = await getScope();
 
-  const job = await db.job.findFirst({
-    where: {
-      id,
-      companyId: scope.companyId,
-      // Нанимающий менеджер не откроет чужую вакансию даже по прямой ссылке.
-      ...jobVisibilityFilter(scope.session.user),
-    },
-    include: {
-      recruiter: { select: { fullName: true } },
-      hiringManager: { select: { fullName: true } },
-      createdBy: { select: { fullName: true } },
-      _count: { select: { candidates: true } },
-    },
-  });
-
-  // Если вакансии нет или она чужая — 404.
-  assertOwnCompany(job, scope.companyId);
-  if (!job) return null;
-
-  const [stages, candidates] = await Promise.all([
+  // Три запроса одновременно: кандидатов и этапы можно запрашивать,
+  // не дожидаясь самой вакансии.
+  const [job, stages, candidates] = await Promise.all([
+    db.job.findFirst({
+      where: {
+        id,
+        companyId: scope.companyId,
+        // Нанимающий менеджер не откроет чужую вакансию даже по прямой ссылке.
+        ...jobVisibilityFilter(scope.session.user),
+      },
+      include: {
+        recruiter: { select: { fullName: true } },
+        hiringManager: { select: { fullName: true } },
+        createdBy: { select: { fullName: true } },
+        _count: { select: { candidates: true } },
+      },
+    }),
     db.stage.findMany({
       where: { companyId: scope.companyId },
       select: { id: true, name: true, key: true },
       orderBy: { position: "asc" },
     }),
     db.candidate.findMany({
-      where: { companyId: scope.companyId, jobId: job.id },
+      where: {
+        companyId: scope.companyId,
+        jobId: id,
+        // Та же проверка доступа, что и для самой вакансии.
+        job: jobVisibilityFilter(scope.session.user),
+      },
       select: {
         id: true,
         fullName: true,
@@ -57,6 +59,10 @@ export default async function JobPage({
       orderBy: { stageChangedAt: "desc" },
     }),
   ]);
+
+  // Если вакансии нет или она чужая — 404.
+  assertOwnCompany(job, scope.companyId);
+  if (!job) return null;
 
   const canManage = scope.can("jobs.manage");
 

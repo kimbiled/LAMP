@@ -45,7 +45,24 @@ export default async function CandidatesPage({
   const filters = await searchParams;
   const query = (filters.q ?? "").trim();
 
-  const [jobs, stages, recruiters, cityRows] = await Promise.all([
+  // Условия по вакансии собираем в один объект: иначе ограничение
+  // для нанимающего менеджера затёрлось бы фильтром по рекрутеру.
+  const jobConditions: Record<string, string> = {};
+  if (!can(scope.session.user.role, "candidates.viewAll")) {
+    jobConditions.hiringManagerId = scope.session.user.id;
+  }
+  if (filters.recruiter) {
+    jobConditions.recruiterId = filters.recruiter;
+  }
+
+  const days =
+    PERIODS.find((item) => item.value === (filters.period ?? ""))?.days ?? 0;
+  const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
+
+  const minExperience = Number(filters.experience);
+
+  // Все пять запросов уходят одновременно.
+  const [jobs, stages, recruiters, cityRows, candidates] = await Promise.all([
     db.job.findMany({
       where: {
         companyId: scope.companyId,
@@ -73,29 +90,7 @@ export default async function CandidatesPage({
       distinct: ["city"],
       orderBy: { city: "asc" },
     }),
-  ]);
-
-  const cities = cityRows
-    .map((row) => row.city)
-    .filter((city): city is string => Boolean(city));
-
-  // Условия по вакансии собираем в один объект: иначе ограничение
-  // для нанимающего менеджера затёрлось бы фильтром по рекрутеру.
-  const jobConditions: Record<string, string> = {};
-  if (!can(scope.session.user.role, "candidates.viewAll")) {
-    jobConditions.hiringManagerId = scope.session.user.id;
-  }
-  if (filters.recruiter) {
-    jobConditions.recruiterId = filters.recruiter;
-  }
-
-  const days =
-    PERIODS.find((item) => item.value === (filters.period ?? ""))?.days ?? 0;
-  const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
-
-  const minExperience = Number(filters.experience);
-
-  const candidates = await db.candidate.findMany({
+    db.candidate.findMany({
     where: {
       companyId: scope.companyId,
       ...(Object.keys(jobConditions).length > 0
@@ -146,9 +141,14 @@ export default async function CandidatesPage({
         take: 1,
       },
     },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
+  ]);
+
+  const cities = cityRows
+    .map((row) => row.city)
+    .filter((city): city is string => Boolean(city));
 
   const hasFilters = Boolean(
     query ||

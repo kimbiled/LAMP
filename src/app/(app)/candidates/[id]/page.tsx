@@ -32,7 +32,9 @@ export default async function CandidatePage({
   const { id } = await params;
   const scope = await getScope();
 
-  const candidate = await db.candidate.findFirst({
+  // Три независимых запроса запускаем одновременно, а не по очереди.
+  const [candidate, stages, users] = await Promise.all([
+    db.candidate.findFirst({
     where: {
       id,
       companyId: scope.companyId,
@@ -66,36 +68,35 @@ export default async function CandidatePage({
           _count: { select: { feedbacks: true } },
         },
       },
-      history: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          fromStage: { select: { name: true } },
-          toStage: { select: { name: true } },
+        history: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            fromStage: { select: { name: true } },
+            toStage: { select: { name: true } },
+          },
         },
       },
-    },
-  });
+    }),
+    db.stage.findMany({
+      where: { companyId: scope.companyId },
+      select: { id: true, name: true, key: true, position: true },
+      orderBy: { position: "asc" },
+    }),
+    scope.can("interviews.manage")
+      ? db.user.findMany({
+          where: { companyId: scope.companyId, isActive: true },
+          select: { id: true, fullName: true },
+          orderBy: { fullName: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
   assertOwnCompany(candidate, scope.companyId);
   if (!candidate) return null;
 
-  const stages = await db.stage.findMany({
-    where: { companyId: scope.companyId },
-    select: { id: true, name: true, key: true, position: true },
-    orderBy: { position: "asc" },
-  });
-
   const canEdit = scope.can("candidates.edit");
   const canMove = scope.can("candidates.move");
   const canManageInterviews = scope.can("interviews.manage");
-
-  const users = canManageInterviews
-    ? await db.user.findMany({
-        where: { companyId: scope.companyId, isActive: true },
-        select: { id: true, fullName: true },
-        orderBy: { fullName: "asc" },
-      })
-    : [];
 
   // Готовим данные для блоков заранее: даты форматируем на сервере,
   // чтобы в браузере не было расхождений часовых поясов.
