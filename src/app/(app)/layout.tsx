@@ -17,27 +17,29 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen md:flex">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-muted bg-surface p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-sidebar p-4 md:flex">
         <div className="mb-6 flex items-center gap-3 px-1">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-base font-semibold text-ink">
             L
           </span>
-          <span className="text-base font-semibold text-ink-strong">LAMP</span>
+          <span className="text-base font-semibold text-sidebar-text-active">
+            LAMP
+          </span>
         </div>
 
         <AppNav variant="sidebar" />
 
-        <div className="mt-auto border-t border-muted pt-4">
-          <p className="truncate px-1 text-sm font-medium text-ink">
+        <div className="mt-auto border-t border-sidebar-border pt-4">
+          <p className="truncate px-1 text-sm font-medium text-sidebar-text-active">
             {session.user.fullName}
           </p>
-          <p className="truncate px-1 text-xs text-ink-soft">
+          <p className="truncate px-1 text-xs text-sidebar-text">
             {ROLE_LABELS[session.user.role]}
           </p>
           <form action={logout} className="mt-3">
             <button
               type="submit"
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink-soft transition hover:bg-muted hover:text-ink"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-text transition hover:bg-sidebar-hover hover:text-sidebar-text-active"
             >
               <LogOut className="h-4 w-4" strokeWidth={1.8} />
               Выйти
@@ -77,7 +79,7 @@ export default async function AppLayout({
           {children}
         </main>
 
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-muted bg-surface md:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-10 bg-sidebar md:hidden">
           <AppNav variant="bottom" />
         </div>
       </div>

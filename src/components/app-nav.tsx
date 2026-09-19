@@ -39,13 +39,10 @@ export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
               key={item.href}
               href={item.href}
               className={`flex min-w-18 flex-1 flex-col items-center gap-1 px-2 py-2.5 text-[11px] ${
-                active ? "text-ink" : "text-ink-soft"
+                active ? "text-accent" : "text-sidebar-text"
               }`}
             >
-              <Icon
-                className={`h-5 w-5 ${active ? "text-ink" : "text-ink-soft"}`}
-                strokeWidth={active ? 2.2 : 1.8}
-              />
+              <Icon className="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
               {item.label}
             </Link>
           );
@@ -65,8 +62,8 @@ export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
             href={item.href}
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
               active
-                ? "bg-accent/20 font-medium text-ink"
-                : "text-ink-soft hover:bg-muted hover:text-ink"
+                ? "bg-accent font-medium text-ink"
+                : "text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-active"
             }`}
           >
             <Icon className="h-4.5 w-4.5" strokeWidth={1.8} />

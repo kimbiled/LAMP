@@ -10,6 +10,13 @@
   --color-surface: #FFFFFF;
   --color-muted: #F3F4F6;
 
+  /* Тёмное боковое меню */
+  --color-sidebar: #18181B;
+  --color-sidebar-hover: #27272A;
+  --color-sidebar-border: #2E2E33;
+  --color-sidebar-text: #A1A1AA;
+  --color-sidebar-text-active: #FAFAF7;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
