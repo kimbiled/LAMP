@@ -8,6 +8,12 @@ import { createSession, destroySession, getSession } from "@/lib/session";
 import { DEFAULT_STAGES } from "@/lib/stages";
 import { logAction } from "@/lib/audit";
 import { fieldErrorsFrom, loginSchema, registerSchema } from "@/lib/validation";
+import {
+  LOGIN_WINDOW_MINUTES,
+  clearLoginAttempts,
+  isLoginBlocked,
+  recordLoginAttempt,
+} from "@/lib/rate-limit";
 
 // Серверные действия: код, который выполняется на сервере,
 // когда пользователь отправляет форму.
@@ -132,6 +138,16 @@ export async function login(
     return { fieldErrors: fieldErrorsFrom(parsed.error), values };
   }
 
+  const meta = await requestMeta();
+
+  // Слишком много неудачных попыток — пауза, даже если пароль верный.
+  if (await isLoginBlocked({ email: parsed.data.email, ip: meta.ip })) {
+    return {
+      formError: `Слишком много попыток входа. Попробуйте через ${LOGIN_WINDOW_MINUTES} минут.`,
+      values,
+    };
+  }
+
   const user = await db.user.findUnique({
     where: { email: parsed.data.email },
   });
@@ -144,10 +160,20 @@ export async function login(
   };
 
   if (!user) {
+    await recordLoginAttempt({
+      email: parsed.data.email,
+      ip: meta.ip,
+      success: false,
+    });
     return invalid;
   }
 
   if (!verifyPassword(parsed.data.password, user.passwordHash)) {
+    await recordLoginAttempt({
+      email: parsed.data.email,
+      ip: meta.ip,
+      success: false,
+    });
     await logAction({
       companyId: user.companyId,
       userId: user.id,
@@ -170,6 +196,13 @@ export async function login(
     data: { lastLoginAt: new Date() },
   });
 
+  await clearLoginAttempts(parsed.data.email);
+
+  // Заодно подчищаем просроченные сессии этого человека.
+  await db.session.deleteMany({
+    where: { userId: user.id, expiresAt: { lt: new Date() } },
+  });
+
   await logAction({
     companyId: user.companyId,
     userId: user.id,
@@ -178,7 +211,7 @@ export async function login(
     entityId: user.id,
   });
 
-  await createSession(user.id, await requestMeta());
+  await createSession(user.id, meta);
 
   redirect("/dashboard");
 }

@@ -414,3 +414,17 @@ model AuditLog {
 
   @@index([companyId, createdAt])
 }
+
+// Попытки входа — для защиты от подбора пароля.
+// Храним и успешные, и неудачные: по ним считаем, не слишком ли
+// часто с одного адреса пытаются войти.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+}

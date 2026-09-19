@@ -8,6 +8,7 @@ import { candidateVisibilityFilter } from "@/lib/permissions";
 import { addHistory } from "@/lib/history";
 import { findValidShareLink } from "@/lib/share";
 import { jobWatchers, notify } from "@/lib/notifications";
+import { logAction } from "@/lib/audit";
 
 export type ShareFormState = {
   formError?: string;
@@ -81,6 +82,15 @@ export async function createShareLink(
     actorName: scope.session.user.fullName,
   });
 
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "SHARE_LINK_CREATED",
+    entityType: "Candidate",
+    entityId: candidate.id,
+    meta: { expiresAt: expiresAt ? expiresAt.toISOString() : "без срока" },
+  });
+
   revalidatePath(`/candidates/${candidate.id}`);
 
   return { success: "Ссылка создана" };
@@ -105,6 +115,14 @@ export async function revokeShareLink(formData: FormData): Promise<void> {
   await db.shareLink.update({
     where: { id: link.id },
     data: { revokedAt: new Date() },
+  });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "SHARE_LINK_REVOKED",
+    entityType: "Candidate",
+    entityId: link.candidateId,
   });
 
   revalidatePath(`/candidates/${link.candidateId}`);

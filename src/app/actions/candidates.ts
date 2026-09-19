@@ -10,6 +10,7 @@ import { addHistory } from "@/lib/history";
 import { normalizeTelegram } from "@/lib/contacts";
 import { removeFile } from "@/lib/storage";
 import { jobWatchers, notify } from "@/lib/notifications";
+import { logAction } from "@/lib/audit";
 
 export type CandidateFormState = {
   formError?: string;
@@ -288,7 +289,11 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
 
   const candidate = await db.candidate.findFirst({
     where: { id: candidateId, companyId: scope.companyId },
-    select: { id: true, resumes: { select: { storageKey: true } } },
+    select: {
+      id: true,
+      fullName: true,
+      resumes: { select: { storageKey: true } },
+    },
   });
 
   if (!candidate) {
@@ -296,6 +301,15 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
   }
 
   await db.candidate.delete({ where: { id: candidate.id } });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "CANDIDATE_DELETED",
+    entityType: "Candidate",
+    entityId: candidate.id,
+    meta: { fullName: candidate.fullName },
+  });
 
   // Записи в базе удалились каскадом, а файлы резюме лежат отдельно —
   // их нужно убрать с диска вручную.

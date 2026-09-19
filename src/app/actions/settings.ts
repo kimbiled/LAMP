@@ -5,7 +5,11 @@ import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { logAction } from "@/lib/audit";
-import { companySettingsSchema, fieldErrorsFrom } from "@/lib/validation";
+import {
+  companySettingsSchema,
+  fieldErrorsFrom,
+  isWeakPassword,
+} from "@/lib/validation";
 
 export type SettingsFormState = {
   formError?: string;
@@ -71,6 +75,14 @@ export async function changeOwnPassword(
     };
   }
 
+  if (isWeakPassword(newPassword)) {
+    return {
+      fieldErrors: {
+        newPassword: "Этот пароль слишком простой — его подбирают первым",
+      },
+    };
+  }
+
   if (newPassword !== newPasswordConfirm) {
     return { fieldErrors: { newPasswordConfirm: "Пароли не совпадают" } };
   }
@@ -92,6 +104,14 @@ export async function changeOwnPassword(
   // из-за подозрения на утечку, чужая сессия не должна остаться активной.
   await db.session.deleteMany({
     where: { userId: user.id, id: { not: scope.session.sessionId } },
+  });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: user.id,
+    action: "PASSWORD_CHANGED",
+    entityType: "User",
+    entityId: user.id,
   });
 
   return { success: "Пароль изменён" };

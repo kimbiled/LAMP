@@ -14,7 +14,12 @@ export type AuditAction =
   | "USER_CREATED"
   | "USER_ROLE_CHANGED"
   | "USER_BLOCKED"
-  | "USER_UNBLOCKED";
+  | "USER_UNBLOCKED"
+  | "PASSWORD_CHANGED"
+  | "CANDIDATE_DELETED"
+  | "RESUME_DELETED"
+  | "SHARE_LINK_CREATED"
+  | "SHARE_LINK_REVOKED";
 
 export async function logAction(params: {
   companyId: string;

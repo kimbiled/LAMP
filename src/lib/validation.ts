@@ -1,5 +1,36 @@
 import { z } from "zod";
 
+// Пароли, которые подбирают в первую очередь. Их запрещаем,
+// даже если по длине они подходят.
+const WEAK_PASSWORDS = new Set([
+  "12345678",
+  "123456789",
+  "1234567890",
+  "password",
+  "password1",
+  "qwerty123",
+  "qwertyui",
+  "11111111",
+  "00000000",
+  "iloveyou",
+  "admin123",
+  "parol123",
+  "пароль123",
+  "lamp1234",
+]);
+
+export function isWeakPassword(value: string): boolean {
+  return WEAK_PASSWORDS.has(value.toLowerCase().trim());
+}
+
+const passwordField = z
+  .string()
+  .min(8, "Пароль должен быть не короче 8 символов")
+  .max(200, "Слишком длинный пароль")
+  .refine((value) => !isWeakPassword(value), {
+    message: "Этот пароль слишком простой — его подбирают первым",
+  });
+
 // Правила проверки данных из форм.
 // Эти проверки работают НА СЕРВЕРЕ: даже если кто-то обойдёт форму
 // в браузере, некорректные данные в базу не попадут.
@@ -15,10 +46,7 @@ export const registerSchema = z
       .min(2, "Укажите имя и фамилию")
       .max(100, "Слишком длинное имя"),
     email: z.email("Введите корректный адрес почты"),
-    password: z
-      .string()
-      .min(8, "Пароль должен быть не короче 8 символов")
-      .max(200, "Слишком длинный пароль"),
+    password: passwordField,
     passwordConfirm: z.string(),
   })
   .refine((data) => data.password === data.passwordConfirm, {
@@ -32,10 +60,7 @@ export const createUserSchema = z.object({
     .min(2, "Укажите имя и фамилию")
     .max(100, "Слишком длинное имя"),
   email: z.email("Введите корректный адрес почты"),
-  password: z
-    .string()
-    .min(8, "Пароль должен быть не короче 8 символов")
-    .max(200, "Слишком длинный пароль"),
+  password: passwordField,
   role: z.enum(["ADMIN", "RECRUITER", "HIRING_MANAGER"], {
     message: "Выберите роль",
   }),
