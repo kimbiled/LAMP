@@ -8,27 +8,29 @@ import { PrismaClient } from "@/generated/prisma/client";
 //
 // База находится во Франкфурте, и установка защищённого соединения с ней
 // занимает около полусекунды. Поэтому открытые соединения нужно держать
-// и переиспользовать, а не открывать заново на каждый запрос:
-//   max — сколько соединений держать одновременно (страницы делают
-//         до пяти запросов сразу);
-//   idleTimeoutMillis — как долго держать незанятое соединение;
-//   keepAlive — не давать сети «усыпить» соединение в паузах.
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
-  max: 8,
-  idleTimeoutMillis: 5 * 60 * 1000,
-  connectionTimeoutMillis: 15 * 1000,
-  keepAlive: true,
-});
+// и переиспользовать, а не открывать заново на каждый запрос.
+function createClient(): PrismaClient {
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
+    max: 5, // страницы делают до пяти запросов одновременно
+    idleTimeoutMillis: 5 * 60 * 1000,
+    connectionTimeoutMillis: 15 * 1000,
+    keepAlive: true,
+  });
+
+  return new PrismaClient({ adapter });
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const db = globalForPrisma.prisma ?? new PrismaClient({ adapter });
-
+// Важно: клиент создаётся ТОЛЬКО если его ещё нет.
 // В режиме разработки Next.js перезапускает код при каждом изменении файла.
-// Без этой строки каждый перезапуск открывал бы новое соединение с базой.
+// Если создавать пул соединений при каждом перезапуске, старые пулы
+// остаются висеть, соединения к базе заканчиваются и страницы зависают.
+export const db = globalForPrisma.prisma ?? createClient();
+
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;
 }
