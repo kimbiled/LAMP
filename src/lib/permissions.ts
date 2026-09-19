@@ -47,6 +47,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "interviews.manage",
     "feedback.create",
     "share.create",
+    "analytics.view",
   ],
   // Нанимающий менеджер видит только назначенные ему вакансии и кандидатов.
   // Это ограничение задаётся не списком прав, а фильтром запросов ниже.
