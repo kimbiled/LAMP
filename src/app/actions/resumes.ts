@@ -122,6 +122,7 @@ export async function createCandidateFromResume(
     companyId: scope.companyId,
     data: prepared.data,
     extension: prepared.extension,
+    mimeType: prepared.mimeType,
   });
 
   const candidate = await db.candidate.create({
@@ -222,6 +223,7 @@ export async function attachResume(
     companyId: scope.companyId,
     data: prepared.data,
     extension: prepared.extension,
+    mimeType: prepared.mimeType,
   });
 
   // Прошлые резюме остаются в истории, текущим становится новое.

@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LAMP — система подбора персонала
 
-## Getting Started
+Мультитенантная ATS: несколько компаний работают в одной системе, но данные
+каждой полностью изолированы. Вакансии, кандидаты, резюме с распознаванием,
+этапы подбора, интервью, фидбэки, ссылки «Поделиться», аналитика и
+внутренние уведомления.
 
-First, run the development server:
+## Что нужно на компьютере
+
+- **Node.js 20 или новее** — https://nodejs.org (версия LTS)
+- **База PostgreSQL** — проще всего бесплатный проект в https://neon.com
+- Редактор кода, например Visual Studio Code
+
+## Запуск на своём компьютере
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Скопируйте `.env.example` в файл `.env` и заполните адреса базы данных.
+Затем создайте таблицы и запустите:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:migrate
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Откройте http://localhost:3000 — появится страница входа. Первая
+регистрация создаёт компанию и делает вас администратором.
 
-## Learn More
+## Команды
 
-To learn more about Next.js, take a look at the following resources:
+| Команда | Что делает |
+|---|---|
+| `npm run dev` | Запускает систему на своём компьютере |
+| `npm run build` | Собирает версию для публикации |
+| `npm start` | Запускает собранную версию |
+| `npm test` | Прогоняет автоматические проверки |
+| `npm run db:migrate` | Применяет изменения структуры базы |
+| `npm run db:studio` | Открывает окно просмотра базы |
+| `npm run db:check` | Показывает, сколько записей в каждой таблице |
+| `npm run qa:seed` | Создаёт тестовую компанию с данными |
+| `npm run qa:clean` | Удаляет тестовую компанию |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+После любого изменения файла `prisma/schema.prisma` нужны две команды
+подряд: `npm run db:migrate`, затем `npx prisma generate`. Вторая обновляет
+код, через который приложение обращается к базе.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Публикация в интернет
 
-## Deploy on Vercel
+### Что нужно подготовить
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **База данных.** Neon уже подходит: тот же адрес, что и при разработке.
+2. **Хранилище резюме.** На Vercel, Railway и подобных площадках диск
+   очищается при каждом обновлении, поэтому файлы должны лежать в облаке.
+   Подойдёт любое S3-совместимое хранилище: Neon Object Storage,
+   Cloudflare R2, Yandex Object Storage, VK Cloud. В настройках указывается
+   `STORAGE_DRIVER=s3` и пять значений `S3_*` из `.env.example`.
+3. **Настройки.** Все переменные из `.env` нужно перенести в панель хостинга.
+   Сам файл `.env` никуда не загружается.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Вариант 1: Vercel (проще всего)
+
+1. Загрузите проект в репозиторий GitHub.
+2. На vercel.com выберите Import Project и укажите этот репозиторий.
+3. В разделе Environment Variables добавьте все переменные из `.env`.
+4. Нажмите Deploy.
+
+Обновления после этого выкатываются сами при каждом изменении в GitHub.
+
+### Вариант 2: свой сервер (VPS)
+
+Подходит, если данные должны оставаться в Казахстане или России.
+
+```bash
+npm ci
+npm run build
+npm start
+```
+
+Систему нужно держать запущенной постоянно — через `pm2` или systemd,
+а снаружи поставить nginx с сертификатом HTTPS. В этом варианте хранилище
+файлов может остаться локальным (`STORAGE_DRIVER=local`), но папку
+`storage` обязательно включить в резервное копирование.
+
+### После публикации
+
+- Проверьте, что сайт открывается только по `https://`.
+- Зарегистрируйте компанию заново на рабочем адресе.
+- Настройте резервные копии базы. В Neon они включены по умолчанию.
+
+## Безопасность
+
+- Пароли хранятся в виде необратимого отпечатка (scrypt со случайной солью).
+- Вход по ключу сессии в защищённом cookie; в базе лежит только его отпечаток.
+- Данные компаний изолированы: `companyId` берётся из сессии, а не из адреса
+  страницы, и подставляется в каждый запрос.
+- Права проверяются на сервере, а не только скрытием кнопок.
+- Восемь неудачных попыток входа подряд блокируют вход на 15 минут.
+- Резюме отдаются только через проверку прав, имена файлов случайные.
+- Ссылки «Поделиться» — 64 случайных символа, со сроком действия и отзывом.
+- Важные действия пишутся в журнал (таблица `AuditLog`).
+
+## Устройство проекта
+
+```
+prisma/schema.prisma   описание всех таблиц базы
+scripts/               служебные команды (проверка базы, тестовые данные)
+tests/                 автоматические проверки
+src/app/(auth)/        вход и регистрация
+src/app/(app)/         внутренние страницы, вход обязателен
+src/app/share/         публичная страница по ссылке «Поделиться»
+src/app/actions/       серверные действия форм
+src/app/api/           выдача файлов резюме
+src/components/        общие элементы интерфейса
+src/lib/               логика: сессии, права, хранилище, разбор резюме
+```
+
+## Чего в первой версии нет
+
+Сознательно не сделано: интеграции с HeadHunter, LinkedIn, WhatsApp API,
+Telegram API, Gmail и календарями. Кнопки WhatsApp и Telegram в карточке
+кандидата — обычные ссылки, переписка нигде не хранится.
