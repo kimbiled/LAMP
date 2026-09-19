@@ -1,4 +1,4 @@
-import type { JobStatus, Role } from "@/generated/prisma/enums";
+import type { HistoryType, JobStatus, Role } from "@/generated/prisma/enums";
 
 // Человеческие названия для значений, которые в базе хранятся по-английски.
 
@@ -26,4 +26,15 @@ export const CURRENCY_SYMBOLS: Record<string, string> = {
   RUB: "₽",
   USD: "$",
   EUR: "€",
+};
+
+export const HISTORY_LABELS: Record<HistoryType, string> = {
+  CANDIDATE_CREATED: "Кандидат добавлен",
+  CANDIDATE_UPDATED: "Карточка обновлена",
+  STAGE_CHANGED: "Смена этапа",
+  RESUME_UPLOADED: "Загружено резюме",
+  INTERVIEW_SCHEDULED: "Назначено интервью",
+  INTERVIEW_COMPLETED: "Интервью проведено",
+  FEEDBACK_ADDED: "Добавлен фидбэк",
+  SHARE_LINK_CREATED: "Создана ссылка «Поделиться»",
 };

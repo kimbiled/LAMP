@@ -79,6 +79,37 @@ export const jobSchema = z
     },
   );
 
+export const candidateSchema = z.object({
+  fullName: z
+    .string()
+    .min(2, "Укажите фамилию и имя")
+    .max(150, "Слишком длинное имя"),
+  jobId: z.string().nullable(),
+  stageId: z.string().min(1, "Выберите этап"),
+  phone: z.string().max(40, "Слишком длинный номер"),
+  email: z.union([z.literal(""), z.email("Введите корректный адрес почты")]),
+  city: z.string().max(100, "Слишком длинное название города"),
+  currentPosition: z.string().max(150, "Слишком длинное название должности"),
+  experienceYears: z
+    .number()
+    .int()
+    .min(0, "Опыт не может быть отрицательным")
+    .max(70, "Проверьте количество лет")
+    .nullable(),
+  salaryExpectation: z
+    .number()
+    .int()
+    .min(0, "Сумма не может быть отрицательной")
+    .max(1_000_000_000, "Слишком большая сумма")
+    .nullable(),
+  currency: z.string().min(1).max(8),
+  telegram: z.string().max(64, "Слишком длинный ник"),
+  skills: z.array(z.string()),
+  languages: z.array(z.string()),
+  source: z.string().max(100, "Слишком длинное значение"),
+  note: z.string().max(5000, "Слишком длинный комментарий"),
+});
+
 export const companySettingsSchema = z.object({
   name: z
     .string()

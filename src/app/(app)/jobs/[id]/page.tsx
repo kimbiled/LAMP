@@ -119,8 +119,24 @@ export default async function JobPage({
 
       <div className="mt-4 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
         <p className="text-sm text-ink-soft">
-          Здесь появится Kanban-доска кандидатов — этапы 9 и 13.
+          Здесь появится Kanban-доска кандидатов — этап 13.
         </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <Link
+            href={`/candidates?job=${job.id}`}
+            className="rounded-lg border border-muted px-4 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          >
+            Кандидаты вакансии
+          </Link>
+          {scope.can("candidates.create") && (
+            <Link
+              href={`/candidates/new?job=${job.id}`}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
+            >
+              Добавить кандидата
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
