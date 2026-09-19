@@ -32,6 +32,10 @@ export default async function EditCandidatePage({
       companyId: scope.companyId,
       ...candidateVisibilityFilter(scope.session.user),
     },
+    include: {
+      experience: { orderBy: { sortOrder: "asc" } },
+      education: { orderBy: { sortOrder: "asc" } },
+    },
   });
 
   assertOwnCompany(candidate, scope.companyId);
@@ -73,6 +77,53 @@ export default async function EditCandidatePage({
             уже прикреплён к карточке.
           </p>
         </div>
+      )}
+
+      {(candidate.experience.length > 0 || candidate.education.length > 0) && (
+        <section className="mt-4 rounded-xl border border-muted bg-surface p-5">
+          <h2 className="text-sm font-medium text-ink">Распознано из резюме</h2>
+          <p className="mt-1 text-xs text-ink-soft">
+            Эти записи уже сохранены и видны в карточке кандидата.
+          </p>
+
+          {candidate.experience.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs text-ink-soft">Опыт работы</p>
+              <ul className="mt-1.5 space-y-2">
+                {candidate.experience.map((item) => (
+                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                    <p className="text-sm font-medium text-ink">
+                      {item.companyName}
+                    </p>
+                    <p className="text-sm text-ink-soft">
+                      {item.position ?? "должность не распознана"}
+                      {item.period ? ` · ${item.period}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {candidate.education.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs text-ink-soft">Образование</p>
+              <ul className="mt-1.5 space-y-2">
+                {candidate.education.map((item) => (
+                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                    <p className="text-sm font-medium text-ink">
+                      {item.institution}
+                    </p>
+                    <p className="text-sm text-ink-soft">
+                      {item.specialty ?? ""}
+                      {item.years ? ` · ${item.years}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
       )}
 
       <div className="mt-6 rounded-xl border border-muted bg-surface p-6">

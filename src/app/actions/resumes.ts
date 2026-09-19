@@ -8,6 +8,7 @@ import { candidateVisibilityFilter, jobVisibilityFilter } from "@/lib/permission
 import {
   MAX_FILE_BYTES,
   extensionFor,
+  loadFile,
   removeFile,
   saveFile,
 } from "@/lib/storage";
@@ -291,4 +292,92 @@ export async function deleteResume(formData: FormData): Promise<void> {
   }
 
   revalidatePath(`/candidates/${resume.candidateId}`);
+}
+
+// Повторное распознавание уже загруженного резюме.
+// Нужно, когда разборщик стал умнее: файл перезагружать не требуется.
+export async function reparseResume(formData: FormData): Promise<void> {
+  const scope = await getScope();
+
+  if (!scope.can("candidates.edit")) {
+    return;
+  }
+
+  const candidateId = formData.get("candidateId");
+  if (typeof candidateId !== "string") return;
+
+  const candidate = await db.candidate.findFirst({
+    where: {
+      id: candidateId,
+      companyId: scope.companyId,
+      ...candidateVisibilityFilter(scope.session.user),
+    },
+    include: {
+      resumes: { where: { isCurrent: true }, orderBy: { uploadedAt: "desc" }, take: 1 },
+    },
+  });
+
+  const resume = candidate?.resumes[0];
+  if (!candidate || !resume) return;
+
+  // Текст сохраняется при загрузке. Если его почему-то нет — читаем файл.
+  let text = resume.parsedText ?? "";
+  if (text.trim().length < 30) {
+    const data = await loadFile(resume.storageKey);
+    text = await extractText(data, resume.mimeType);
+    await db.resume.update({
+      where: { id: resume.id },
+      data: { parsedText: text.slice(0, 100_000) },
+    });
+  }
+
+  const parsed = parseResume(text);
+
+  // Опыт и образование заменяем целиком: это результат разбора файла.
+  await db.candidateExperience.deleteMany({ where: { candidateId: candidate.id } });
+  await db.candidateEducation.deleteMany({ where: { candidateId: candidate.id } });
+
+  // Остальные поля трогаем, только если рекрутер их ещё не заполнил.
+  await db.candidate.update({
+    where: { id: candidate.id },
+    data: {
+      phone: candidate.phone ?? parsed.phone,
+      email: candidate.email ?? parsed.email,
+      city: candidate.city ?? parsed.city,
+      currentPosition: candidate.currentPosition ?? parsed.currentPosition,
+      experienceYears: candidate.experienceYears ?? parsed.experienceYears,
+      salaryExpectation: candidate.salaryExpectation ?? parsed.salaryExpectation,
+      telegram: candidate.telegram ?? parsed.telegram,
+      skills: candidate.skills.length > 0 ? candidate.skills : parsed.skills,
+      languages:
+        candidate.languages.length > 0 ? candidate.languages : parsed.languages,
+      experience: {
+        create: parsed.experience.map((item, index) => ({
+          companyName: item.companyName,
+          position: item.position,
+          period: item.period,
+          sortOrder: index,
+        })),
+      },
+      education: {
+        create: parsed.education.map((item, index) => ({
+          institution: item.institution,
+          specialty: item.specialty,
+          years: item.years,
+          sortOrder: index,
+        })),
+      },
+    },
+  });
+
+  await addHistory({
+    companyId: scope.companyId,
+    candidateId: candidate.id,
+    type: "CANDIDATE_UPDATED",
+    comment: `Повторное распознавание резюме: мест работы — ${parsed.experience.length}`,
+    actorId: scope.session.user.id,
+    actorName: scope.session.user.fullName,
+  });
+
+  revalidatePath(`/candidates/${candidate.id}`);
 }

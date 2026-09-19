@@ -1,5 +1,5 @@
-import { Download, ExternalLink, FileText } from "lucide-react";
-import { attachResume } from "@/app/actions/resumes";
+import { Download, ExternalLink, FileText, RefreshCw } from "lucide-react";
+import { attachResume, reparseResume } from "@/app/actions/resumes";
 import { ResumeUploadForm } from "@/components/resume-upload-form";
 import { formatBytes, formatDateTime } from "@/lib/format";
 
@@ -63,6 +63,20 @@ export function ResumeSection({
               <Download className="h-4 w-4" strokeWidth={1.8} />
               Скачать
             </a>
+
+            {canUpload && (
+              <form action={reparseResume}>
+                <input type="hidden" name="candidateId" value={candidateId} />
+                <button
+                  type="submit"
+                  title="Перечитать файл и заполнить опыт работы и образование"
+                  className="inline-flex items-center gap-2 rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                >
+                  <RefreshCw className="h-4 w-4" strokeWidth={1.8} />
+                  Распознать заново
+                </button>
+              </form>
+            )}
           </div>
         </div>
       ) : (

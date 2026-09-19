@@ -286,10 +286,47 @@ function findLanguages(lines: string[] | undefined): string[] {
 
 // ---------- места работы ----------
 
-const PERIOD = new RegExp(
-  `^(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4})\\s*[—–-]\\s*(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4}|настоящее время|по настоящее время|сейчас)`,
-  "i",
-);
+const PERIOD_START = `(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4})`;
+const PERIOD_END = `(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4}|настоящее время|по настоящее время|сейчас)`;
+
+const PERIOD = new RegExp(`^${PERIOD_START}\\s*[—–-]\\s*${PERIOD_END}`, "i");
+
+// В выгрузках с сайтов вакансий период часто переносится на две строки:
+//   «Июнь 2023 —»          + «Сентябрь 2026»
+//   «Март 2023 — Май»      + «2023»
+// Склеиваем такие пары обратно в одну строку.
+const ENDS_WITH_DASH = /[—–-]\s*$/;
+const ENDS_WITH_DASH_AND_MONTH = new RegExp(`[—–-]\\s*(?:${MONTHS})\\s*$`, "i");
+const STARTS_PERIOD_END = new RegExp(`^${PERIOD_END}\\b`, "i");
+const IS_YEAR = /^\d{4}$/;
+const STARTS_PERIOD = new RegExp(`^${PERIOD_START}\\b`, "i");
+
+function joinWrappedPeriods(lines: string[]): string[] {
+  const result: string[] = [];
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    const next = lines[index + 1];
+
+    if (next && STARTS_PERIOD.test(line)) {
+      const endsWithDash = ENDS_WITH_DASH.test(line);
+      const endsWithMonth = ENDS_WITH_DASH_AND_MONTH.test(line);
+
+      if (
+        (endsWithDash && STARTS_PERIOD_END.test(next)) ||
+        (endsWithMonth && IS_YEAR.test(next))
+      ) {
+        result.push(`${line} ${next}`.replace(/\s+/g, " "));
+        index++;
+        continue;
+      }
+    }
+
+    result.push(line);
+  }
+
+  return result;
+}
 
 // [а-яё]* вместо \w*: \w в JavaScript не включает кириллицу.
 const DURATION =
@@ -304,12 +341,25 @@ function isLocationLine(line: string): boolean {
   return CITIES.some((city) => cleaned.toLowerCase() === city.toLowerCase());
 }
 
+// Обязанности в резюме перечисляют через тире.
+const IS_DUTY = /^[-–—]\s*\S/;
+
+// Отрасли компании перечисляют через точки-маркеры — это не должность.
+const IS_MARKER = /^[•·*]\s*\S/;
+
+// Строка с перечислением отраслей компании: длинная, через запятые.
+// В выгрузках с сайтов вакансий она стоит между названием и должностью.
+function looksLikeIndustryList(line: string): boolean {
+  const commas = (line.match(/,/g) ?? []).length;
+  return line.length > 55 && commas >= 2;
+}
+
 function findExperience(lines: string[] | undefined): ParsedExperience[] {
   if (!lines) return [];
 
   const blocks: { period: string; body: string[] }[] = [];
 
-  for (const line of lines) {
+  for (const line of joinWrappedPeriods(lines)) {
     if (PERIOD.test(line)) {
       blocks.push({ period: line, body: [] });
     } else if (blocks.length > 0) {
@@ -318,9 +368,10 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
   }
 
   return blocks
-    .slice(0, 6)
+    .slice(0, 8)
     .map((block): ParsedExperience | null => {
-      const meaningful = block.body.filter(
+      // Отсекаем то, что заведомо не является ни компанией, ни должностью.
+      const body = block.body.filter(
         (line) =>
           !DURATION.test(line) &&
           !NOISE.test(line) &&
@@ -328,12 +379,32 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
           line.length > 1,
       );
 
-      const companyName = meaningful[0];
+      const companyName = body.find(
+        (line) =>
+          !IS_DUTY.test(line) &&
+          !IS_MARKER.test(line) &&
+          !looksLikeIndustryList(line),
+      );
       if (!companyName) return null;
 
-      const position = meaningful[1] && meaningful[1].length < 120
-        ? meaningful[1]
-        : null;
+      // Должность стоит последней строкой перед описанием обязанностей.
+      const dutyIndex = body.findIndex((line) => IS_DUTY.test(line));
+
+      const candidates = (
+        dutyIndex > 0 ? body.slice(0, dutyIndex) : body
+      ).filter(
+        (line) =>
+          line !== companyName &&
+          !IS_DUTY.test(line) &&
+          !IS_MARKER.test(line) &&
+          !looksLikeIndustryList(line) &&
+          line.length < 120,
+      );
+
+      const position =
+        dutyIndex > 0
+          ? (candidates[candidates.length - 1] ?? null)
+          : (candidates[0] ?? null);
 
       return {
         companyName: companyName.slice(0, 150),
