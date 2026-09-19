@@ -7,6 +7,7 @@ import { jobVisibilityFilter } from "@/lib/permissions";
 import { JobStatusBadge } from "@/components/job-status-badge";
 import { formatDate, formatSalary } from "@/lib/format";
 import { JobStatusSelect } from "./status-select";
+import { CandidatesByStage } from "./candidates-by-stage";
 
 export const metadata: Metadata = { title: "Вакансия — LAMP" };
 
@@ -36,6 +37,26 @@ export default async function JobPage({
   // Если вакансии нет или она чужая — 404.
   assertOwnCompany(job, scope.companyId);
   if (!job) return null;
+
+  const [stages, candidates] = await Promise.all([
+    db.stage.findMany({
+      where: { companyId: scope.companyId },
+      select: { id: true, name: true, key: true },
+      orderBy: { position: "asc" },
+    }),
+    db.candidate.findMany({
+      where: { companyId: scope.companyId, jobId: job.id },
+      select: {
+        id: true,
+        fullName: true,
+        currentPosition: true,
+        city: true,
+        stageId: true,
+        stageChangedAt: true,
+      },
+      orderBy: { stageChangedAt: "desc" },
+    }),
+  ]);
 
   const canManage = scope.can("jobs.manage");
 
@@ -117,26 +138,20 @@ export default async function JobPage({
         </div>
       )}
 
-      <div className="mt-4 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
-        <p className="text-sm text-ink-soft">
-          Здесь появится Kanban-доска кандидатов — этап 13.
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-ink">Кандидаты по этапам</h2>
+        {scope.can("candidates.create") && (
           <Link
-            href={`/candidates?job=${job.id}`}
-            className="rounded-lg border border-muted px-4 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            href={`/candidates/new?job=${job.id}`}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
           >
-            Кандидаты вакансии
+            Добавить кандидата
           </Link>
-          {scope.can("candidates.create") && (
-            <Link
-              href={`/candidates/new?job=${job.id}`}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
-            >
-              Добавить кандидата
-            </Link>
-          )}
-        </div>
+        )}
+      </div>
+
+      <div className="mt-3">
+        <CandidatesByStage stages={stages} candidates={candidates} />
       </div>
     </div>
   );

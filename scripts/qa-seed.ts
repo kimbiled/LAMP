@@ -65,7 +65,79 @@ async function main() {
     })),
   });
 
-  console.log("Тестовая компания создана.");
+  const users = await db.user.findMany({ where: { companyId: company.id } });
+  const byEmail = (email: string) => users.find((user) => user.email === email)!;
+  const admin = byEmail("qa-admin@example.com");
+  const recruiter = byEmail("qa-recruiter@example.com");
+  const manager = byEmail("qa-manager@example.com");
+
+  const stages = await db.stage.findMany({
+    where: { companyId: company.id },
+    orderBy: { position: "asc" },
+  });
+
+  const job = await db.job.create({
+    data: {
+      companyId: company.id,
+      title: "Frontend-разработчик",
+      description: "Разработка интерфейсов внутренних сервисов.",
+      requirements: "React, TypeScript, опыт от 3 лет.",
+      salaryMin: 800_000,
+      salaryMax: 1_200_000,
+      recruiterId: recruiter.id,
+      hiringManagerId: manager.id,
+      createdById: admin.id,
+    },
+  });
+
+  await db.job.create({
+    data: {
+      companyId: company.id,
+      title: "Главный бухгалтер",
+      recruiterId: admin.id,
+      createdById: admin.id,
+    },
+  });
+
+  const people = [
+    { fullName: "Петров Иван Сергеевич", email: "ivan@mail.kz", position: "Frontend-разработчик", stage: 0 },
+    { fullName: "Сидорова Мария Павловна", email: "maria@mail.kz", position: "React-разработчик", stage: 1 },
+    { fullName: "Ким Алексей Викторович", email: "alexey@mail.kz", position: "Senior Frontend", stage: 4 },
+    { fullName: "Жумабаева Айгуль Ерлановна", email: "aigul@mail.kz", position: "Team Lead", stage: 6 },
+  ];
+
+  for (const person of people) {
+    const candidate = await db.candidate.create({
+      data: {
+        companyId: company.id,
+        jobId: job.id,
+        stageId: stages[person.stage].id,
+        fullName: person.fullName,
+        phone: "+7 701 123 45 67",
+        email: person.email,
+        city: "Астана",
+        currentPosition: person.position,
+        experienceYears: 5,
+        salaryExpectation: 900_000,
+        skills: ["React", "TypeScript"],
+        languages: ["Русский — родной", "Английский — B2"],
+        createdById: recruiter.id,
+      },
+    });
+
+    await db.candidateHistory.create({
+      data: {
+        companyId: company.id,
+        candidateId: candidate.id,
+        type: "CANDIDATE_CREATED",
+        toStageId: stages[person.stage].id,
+        actorId: recruiter.id,
+        actorName: recruiter.fullName,
+      },
+    });
+  }
+
+  console.log("Тестовая компания создана: 2 вакансии, 4 кандидата.");
   console.log("  qa-admin@example.com      — администратор");
   console.log("  qa-recruiter@example.com  — рекрутер");
   console.log("  qa-manager@example.com    — нанимающий менеджер");

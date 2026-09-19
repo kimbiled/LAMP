@@ -10,7 +10,7 @@ import { formatDateTime, formatMoney } from "@/lib/format";
 import { HISTORY_LABELS } from "@/lib/labels";
 import { ContactButtons } from "./contact-buttons";
 import { ResumeSection } from "./resume-section";
-import { StageSelect } from "./stage-select";
+import { StagePipeline } from "@/components/stage-pipeline";
 import { DeleteCandidateButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Кандидат — LAMP" };
@@ -54,7 +54,7 @@ export default async function CandidatePage({
 
   const stages = await db.stage.findMany({
     where: { companyId: scope.companyId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, key: true, position: true },
     orderBy: { position: "asc" },
   });
 
@@ -120,13 +120,6 @@ export default async function CandidatePage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {canMove && (
-            <StageSelect
-              candidateId={candidate.id}
-              stageId={candidate.stage.id}
-              stages={stages}
-            />
-          )}
           {canEdit && (
             <Link
               href={`/candidates/${candidate.id}/edit`}
@@ -146,6 +139,15 @@ export default async function CandidatePage({
       </div>
 
       <div className="mt-5">
+        <StagePipeline
+          candidateId={candidate.id}
+          currentStageId={candidate.stage.id}
+          stages={stages}
+          canMove={canMove}
+        />
+      </div>
+
+      <div className="mt-4">
         <ContactButtons
           candidateName={candidate.fullName}
           phone={candidate.phone}
@@ -306,6 +308,11 @@ export default async function CandidatePage({
                       </span>
                     )}
                   </p>
+                  {item.comment && (
+                    <p className="mt-0.5 text-sm text-ink-soft italic">
+                      «{item.comment}»
+                    </p>
+                  )}
                   <p className="text-xs text-ink-soft">
                     {formatDateTime(item.createdAt)}
                     {item.actorName ? ` · ${item.actorName}` : ""}

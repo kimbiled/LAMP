@@ -212,6 +212,7 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
 
   const candidateId = text(formData, "candidateId");
   const stageId = text(formData, "stageId");
+  const comment = text(formData, "comment").slice(0, 1000);
 
   const candidate = await db.candidate.findFirst({
     where: { id: candidateId, companyId: scope.companyId },
@@ -237,12 +238,16 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
     type: "STAGE_CHANGED",
     fromStageId: candidate.stageId,
     toStageId: validStage,
+    comment: comment || null,
     actorId: scope.session.user.id,
     actorName: scope.session.user.fullName,
   });
 
   revalidatePath(`/candidates/${candidate.id}`);
   revalidatePath("/candidates");
+  if (candidate.jobId) {
+    revalidatePath(`/jobs/${candidate.jobId}`);
+  }
 }
 
 export async function deleteCandidate(formData: FormData): Promise<void> {
