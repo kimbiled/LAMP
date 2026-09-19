@@ -2,7 +2,7 @@
 // Часовой пояс задаётся в файле .env — чтобы после публикации в интернет
 // время показывалось ваше, а не время сервера.
 
-const TIME_ZONE = process.env.APP_TIMEZONE || "Europe/Moscow";
+import { APP_TIMEZONE as TIME_ZONE } from "@/lib/time";
 
 export function formatDate(value: Date | null | undefined): string {
   if (!value) return "—";
@@ -52,3 +52,23 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
 }
+
+// Правильное окончание после числа: 1 кандидат, 2 кандидата, 5 кандидатов.
+export function plural(
+  count: number,
+  forms: [string, string, string],
+): string {
+  const mod100 = count % 100;
+  const mod10 = count % 10;
+
+  if (mod100 >= 11 && mod100 <= 14) return forms[2];
+  if (mod10 === 1) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4) return forms[1];
+  return forms[2];
+}
+
+export const CANDIDATE_FORMS: [string, string, string] = [
+  "кандидат",
+  "кандидата",
+  "кандидатов",
+];

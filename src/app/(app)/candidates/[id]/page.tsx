@@ -7,10 +7,18 @@ import { candidateVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { HISTORY_LABELS } from "@/lib/labels";
+import {
+  FEEDBACK_RESULT_LABELS,
+  HISTORY_LABELS,
+  INTERVIEW_STATUS_LABELS,
+  INTERVIEW_TYPE_LABELS,
+} from "@/lib/labels";
+import { todayLocal } from "@/lib/time";
 import { ContactButtons } from "./contact-buttons";
 import { ResumeSection } from "./resume-section";
 import { StagePipeline } from "@/components/stage-pipeline";
+import { InterviewsBlock } from "./interviews-block";
+import { FeedbackBlock } from "./feedback-block";
 import { DeleteCandidateButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Кандидат — LAMP" };
@@ -39,6 +47,17 @@ export default async function CandidatePage({
         orderBy: { uploadedAt: "desc" },
         include: { uploadedBy: { select: { fullName: true } } },
       },
+      interviews: {
+        orderBy: { scheduledAt: "desc" },
+        include: { interviewer: { select: { fullName: true } } },
+      },
+      feedbacks: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          stage: { select: { name: true } },
+          author: { select: { fullName: true } },
+        },
+      },
       history: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -60,6 +79,45 @@ export default async function CandidatePage({
 
   const canEdit = scope.can("candidates.edit");
   const canMove = scope.can("candidates.move");
+  const canManageInterviews = scope.can("interviews.manage");
+
+  const users = canManageInterviews
+    ? await db.user.findMany({
+        where: { companyId: scope.companyId, isActive: true },
+        select: { id: true, fullName: true },
+        orderBy: { fullName: "asc" },
+      })
+    : [];
+
+  // Готовим данные для блоков заранее: даты форматируем на сервере,
+  // чтобы в браузере не было расхождений часовых поясов.
+  const interviewViews = candidate.interviews.map((interview) => ({
+    id: interview.id,
+    typeLabel: INTERVIEW_TYPE_LABELS[interview.type],
+    statusLabel: INTERVIEW_STATUS_LABELS[interview.status],
+    status: interview.status,
+    whenText: formatDateTime(interview.scheduledAt),
+    durationText: interview.durationMinutes
+      ? `${interview.durationMinutes} мин`
+      : null,
+    interviewerName: interview.interviewer?.fullName ?? null,
+    comment: interview.comment,
+  }));
+
+  const feedbackViews = candidate.feedbacks.map((feedback) => ({
+    id: feedback.id,
+    authorName: feedback.author?.fullName ?? feedback.authorName ?? "Гость",
+    whenText: formatDateTime(feedback.createdAt),
+    stageName: feedback.stage?.name ?? null,
+    result: feedback.result,
+    resultLabel: FEEDBACK_RESULT_LABELS[feedback.result],
+    comment: feedback.comment,
+  }));
+
+  const interviewOptions = candidate.interviews.map((interview) => ({
+    id: interview.id,
+    label: `${INTERVIEW_TYPE_LABELS[interview.type]} · ${formatDateTime(interview.scheduledAt)}`,
+  }));
 
   const facts = [
     { label: "Город", value: candidate.city },
@@ -283,10 +341,27 @@ export default async function CandidatePage({
             canUpload={canEdit}
           />
 
+          <InterviewsBlock
+            candidateId={candidate.id}
+            interviews={interviewViews}
+            users={users}
+            canManage={canManageInterviews}
+            defaultDate={todayLocal()}
+            defaultInterviewerId={scope.session.user.id}
+          />
+
+          <FeedbackBlock
+            candidateId={candidate.id}
+            feedbacks={feedbackViews}
+            stages={stages}
+            interviews={interviewOptions}
+            currentStageId={candidate.stage.id}
+            canCreate={scope.can("feedback.create")}
+          />
+
           <section className="rounded-xl border border-dashed border-muted bg-surface p-8 text-center">
             <p className="text-sm text-ink-soft">
-              Интервью, фидбэки и кнопка «Поделиться» появятся на следующих
-              этапах.
+              Кнопка «Поделиться» появится на этапе 18.
             </p>
           </section>
         </div>

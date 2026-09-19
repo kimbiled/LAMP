@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
 import { JobStatusBadge } from "@/components/job-status-badge";
-import { formatDate, formatSalary } from "@/lib/format";
+import { CANDIDATE_FORMS, formatDate, formatSalary, plural } from "@/lib/format";
 import type { JobStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Вакансии — LAMP" };
@@ -127,7 +127,9 @@ export default async function JobsPage({
                 <p className="text-lg font-semibold text-ink-strong">
                   {job._count.candidates}
                 </p>
-                <p className="text-xs text-ink-soft">кандидатов</p>
+                <p className="text-xs text-ink-soft">
+                  {plural(job._count.candidates, CANDIDATE_FORMS)}
+                </p>
               </div>
             </Link>
           ))}

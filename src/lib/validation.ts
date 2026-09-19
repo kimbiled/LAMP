@@ -110,6 +110,29 @@ export const candidateSchema = z.object({
   note: z.string().max(5000, "Слишком длинный комментарий"),
 });
 
+export const interviewSchema = z.object({
+  type: z.enum(["HR", "TECHNICAL", "MANAGER", "FINAL", "OTHER"], {
+    message: "Выберите тип интервью",
+  }),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите дату"),
+  time: z.string().regex(/^\d{2}:\d{2}$/, "Укажите время"),
+  durationMinutes: z.number().int().min(15).max(480).nullable(),
+  interviewerId: z.string().nullable(),
+  comment: z.string().max(2000, "Слишком длинный комментарий"),
+});
+
+export const feedbackSchema = z.object({
+  stageId: z.string().nullable(),
+  interviewId: z.string().nullable(),
+  result: z.enum(["POSITIVE", "NEGATIVE", "EXTRA_STAGE"], {
+    message: "Выберите результат",
+  }),
+  comment: z
+    .string()
+    .min(3, "Напишите хотя бы пару слов")
+    .max(4000, "Слишком длинный комментарий"),
+});
+
 export const companySettingsSchema = z.object({
   name: z
     .string()

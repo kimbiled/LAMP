@@ -1,4 +1,11 @@
-import type { HistoryType, JobStatus, Role } from "@/generated/prisma/enums";
+import type {
+  FeedbackResult,
+  HistoryType,
+  InterviewStatus,
+  InterviewType,
+  JobStatus,
+  Role,
+} from "@/generated/prisma/enums";
 
 // Человеческие названия для значений, которые в базе хранятся по-английски.
 
@@ -37,4 +44,24 @@ export const HISTORY_LABELS: Record<HistoryType, string> = {
   INTERVIEW_COMPLETED: "Интервью проведено",
   FEEDBACK_ADDED: "Добавлен фидбэк",
   SHARE_LINK_CREATED: "Создана ссылка «Поделиться»",
+};
+
+export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
+  HR: "HR-интервью",
+  TECHNICAL: "Техническое интервью",
+  MANAGER: "Интервью с руководителем",
+  FINAL: "Финальное интервью",
+  OTHER: "Другое",
+};
+
+export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = {
+  SCHEDULED: "Назначено",
+  COMPLETED: "Проведено",
+  CANCELED: "Отменено",
+};
+
+export const FEEDBACK_RESULT_LABELS: Record<FeedbackResult, string> = {
+  POSITIVE: "Положительный",
+  NEGATIVE: "Отрицательный",
+  EXTRA_STAGE: "Нужен дополнительный этап",
 };

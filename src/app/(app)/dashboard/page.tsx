@@ -1,45 +1,105 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/session";
+import { getScope } from "@/lib/tenant";
+import {
+  candidateVisibilityFilter,
+  jobVisibilityFilter,
+} from "@/lib/permissions";
+import { JobStatusBadge } from "@/components/job-status-badge";
+import { CANDIDATE_FORMS, plural } from "@/lib/format";
+import type { StageKey } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Dashboard — LAMP" };
 
 export default async function DashboardPage() {
-  const session = await requireSession();
-  const companyId = session.user.companyId;
+  const scope = await getScope();
+  const companyId = scope.companyId;
 
-  // Обратите внимание: в каждом запросе стоит companyId.
-  // Это и есть разделение компаний — увидеть чужие данные невозможно.
-  const [openJobs, candidates, newCandidates, scheduledInterviews] =
-    await Promise.all([
-      db.job.count({ where: { companyId, status: "OPEN" } }),
-      db.candidate.count({ where: { companyId } }),
-      db.candidate.count({
-        where: {
-          companyId,
-          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        },
-      }),
-      db.interview.count({ where: { companyId, status: "SCHEDULED" } }),
-    ]);
+  // Важно: те же фильтры видимости, что и в разделах.
+  // Нанимающий менеджер видит цифры только по своим вакансиям.
+  const jobFilter = jobVisibilityFilter(scope.session.user);
+  const candidateFilter = candidateVisibilityFilter(scope.session.user);
+
+  const stages = await db.stage.findMany({
+    where: { companyId },
+    select: { id: true, key: true },
+  });
+
+  const stageIdByKey = new Map(
+    stages.filter((stage) => stage.key).map((stage) => [stage.key!, stage.id]),
+  );
+
+  const countByStage = (key: StageKey) => {
+    const stageId = stageIdByKey.get(key);
+    if (!stageId) return Promise.resolve(0);
+    return db.candidate.count({
+      where: { companyId, stageId, ...candidateFilter },
+    });
+  };
+
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [
+    openJobs,
+    candidates,
+    newCandidates,
+    scheduledInterviews,
+    completedInterviews,
+    offers,
+    hired,
+    rejected,
+    noResponse,
+    activeJobs,
+  ] = await Promise.all([
+    db.job.count({ where: { companyId, status: "OPEN", ...jobFilter } }),
+    db.candidate.count({ where: { companyId, ...candidateFilter } }),
+    db.candidate.count({
+      where: { companyId, createdAt: { gte: weekAgo }, ...candidateFilter },
+    }),
+    db.interview.count({
+      where: { companyId, status: "SCHEDULED", candidate: candidateFilter },
+    }),
+    db.interview.count({
+      where: { companyId, status: "COMPLETED", candidate: candidateFilter },
+    }),
+    countByStage("OFFER"),
+    countByStage("HIRED"),
+    countByStage("REJECTED"),
+    countByStage("NO_RESPONSE"),
+    db.job.findMany({
+      where: { companyId, status: "OPEN", ...jobFilter },
+      include: { _count: { select: { candidates: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+  ]);
 
   const metrics = [
     { label: "Активные вакансии", value: openJobs },
     { label: "Всего кандидатов", value: candidates },
     { label: "Новые за неделю", value: newCandidates },
     { label: "Назначенные интервью", value: scheduledInterviews },
+    { label: "Проведённые интервью", value: completedInterviews },
+    { label: "Офферы", value: offers },
+    { label: "Наняты", value: hired },
+    { label: "Отказы", value: rejected },
+    { label: "Не отвечают", value: noResponse },
   ];
+
+  const isEmpty = candidates === 0 && openJobs === 0;
 
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="text-xl font-semibold text-ink-strong">
-        Здравствуйте, {session.user.fullName.split(" ")[0]}
+        {/* Пользователи вводят «Имя Фамилия», поэтому имя — первое слово. */}
+        Здравствуйте, {scope.session.user.fullName.split(" ")[0]}
       </h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Рабочее пространство компании «{session.company.name}»
+        Рабочее пространство компании «{scope.session.company.name}»
       </p>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
         {metrics.map((metric) => (
           <div
             key={metric.label}
@@ -53,14 +113,61 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="mt-6 rounded-xl border border-muted bg-surface p-5">
-        <h2 className="text-sm font-medium text-ink">С чего начать</h2>
-        <p className="mt-2 text-sm text-ink-soft">
-          Рабочее пространство создано, этапы подбора готовы. Следующим шагом
-          появятся разделы «Вакансии» и «Кандидаты» — тогда эти показатели
-          начнут заполняться.
-        </p>
-      </div>
+      {isEmpty ? (
+        <div className="mt-6 rounded-xl border border-muted bg-surface p-5">
+          <h2 className="text-sm font-medium text-ink">С чего начать</h2>
+          <p className="mt-2 text-sm text-ink-soft">
+            Создайте первую вакансию, а затем добавьте кандидатов — вручную или
+            загрузив резюме. Показатели начнут заполняться сами.
+          </p>
+          {scope.can("jobs.manage") && (
+            <Link
+              href="/jobs/new"
+              className="mt-4 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
+            >
+              Создать вакансию
+            </Link>
+          )}
+        </div>
+      ) : (
+        <section className="mt-6 overflow-hidden rounded-xl border border-muted bg-surface">
+          <div className="flex items-center justify-between border-b border-muted px-4 py-2.5">
+            <h2 className="text-sm font-medium text-ink">Активные вакансии</h2>
+            <Link
+              href="/jobs"
+              className="text-xs text-ink-soft underline transition hover:text-ink"
+            >
+              Все вакансии
+            </Link>
+          </div>
+
+          {activeJobs.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-ink-soft">
+              Открытых вакансий нет.
+            </p>
+          ) : (
+            <ul className="divide-y divide-muted">
+              {activeJobs.map((job) => (
+                <li key={job.id}>
+                  <Link
+                    href={`/jobs/${job.id}`}
+                    className="flex items-center justify-between gap-3 px-4 py-3 transition hover:bg-canvas"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-sm text-ink">{job.title}</p>
+                      <JobStatusBadge status={job.status} />
+                    </div>
+                    <span className="shrink-0 text-sm text-ink-soft">
+                      {job._count.candidates}{" "}
+                      {plural(job._count.candidates, CANDIDATE_FORMS)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
   );
 }
