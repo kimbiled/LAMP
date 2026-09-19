@@ -127,6 +127,31 @@ async function main() {
         skills: ["React", "TypeScript"],
         languages: ["Русский — родной", "Английский — B2"],
         createdById: recruiter.id,
+        experience: {
+          create: [
+            {
+              companyName: "ТОО «Кселл Диджитал»",
+              position: person.position,
+              period: "Март 2021 — настоящее время",
+              sortOrder: 0,
+            },
+            {
+              companyName: "ТОО «Чокопай Софт»",
+              position: "Верстальщик",
+              period: "Июнь 2018 — Февраль 2021",
+              sortOrder: 1,
+            },
+          ],
+        },
+        education: {
+          create: [
+            {
+              institution: "Евразийский национальный университет",
+              specialty: "Информационные системы",
+              years: "2016",
+            },
+          ],
+        },
       },
     });
 

@@ -3,23 +3,49 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
-import { candidateVisibilityFilter, jobVisibilityFilter } from "@/lib/permissions";
+import { can, jobVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
 import { formatDate } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Кандидаты — LAMP" };
 
+const PERIODS = [
+  { value: "", label: "За всё время", days: 0 },
+  { value: "7", label: "За 7 дней", days: 7 },
+  { value: "30", label: "За 30 дней", days: 30 },
+  { value: "90", label: "За 90 дней", days: 90 },
+];
+
+const EXPERIENCE = [
+  { value: "", label: "Любой опыт" },
+  { value: "1", label: "От 1 года" },
+  { value: "3", label: "От 3 лет" },
+  { value: "5", label: "От 5 лет" },
+  { value: "7", label: "От 7 лет" },
+];
+
+const selectClass =
+  "rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
+
 export default async function CandidatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; job?: string; stage?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    job?: string;
+    stage?: string;
+    recruiter?: string;
+    city?: string;
+    period?: string;
+    experience?: string;
+  }>;
 }) {
   const scope = await getScope();
-  const { q, job, stage } = await searchParams;
-  const query = (q ?? "").trim();
+  const filters = await searchParams;
+  const query = (filters.q ?? "").trim();
 
-  const [jobs, stages] = await Promise.all([
+  const [jobs, stages, recruiters, cityRows] = await Promise.all([
     db.job.findMany({
       where: {
         companyId: scope.companyId,
@@ -33,15 +59,55 @@ export default async function CandidatesPage({
       select: { id: true, name: true },
       orderBy: { position: "asc" },
     }),
+    db.user.findMany({
+      where: {
+        companyId: scope.companyId,
+        role: { in: ["ADMIN", "RECRUITER"] },
+      },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+    }),
+    db.candidate.findMany({
+      where: { companyId: scope.companyId, city: { not: null } },
+      select: { city: true },
+      distinct: ["city"],
+      orderBy: { city: "asc" },
+    }),
   ]);
+
+  const cities = cityRows
+    .map((row) => row.city)
+    .filter((city): city is string => Boolean(city));
+
+  // Условия по вакансии собираем в один объект: иначе ограничение
+  // для нанимающего менеджера затёрлось бы фильтром по рекрутеру.
+  const jobConditions: Record<string, string> = {};
+  if (!can(scope.session.user.role, "candidates.viewAll")) {
+    jobConditions.hiringManagerId = scope.session.user.id;
+  }
+  if (filters.recruiter) {
+    jobConditions.recruiterId = filters.recruiter;
+  }
+
+  const days =
+    PERIODS.find((item) => item.value === (filters.period ?? ""))?.days ?? 0;
+  const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
+
+  const minExperience = Number(filters.experience);
 
   const candidates = await db.candidate.findMany({
     where: {
       companyId: scope.companyId,
-      // Нанимающий менеджер видит только кандидатов своих вакансий.
-      ...candidateVisibilityFilter(scope.session.user),
-      ...(job ? { jobId: job } : {}),
-      ...(stage ? { stageId: stage } : {}),
+      ...(Object.keys(jobConditions).length > 0
+        ? { job: jobConditions }
+        : {}),
+      ...(filters.job ? { jobId: filters.job } : {}),
+      ...(filters.stage ? { stageId: filters.stage } : {}),
+      ...(filters.city ? { city: filters.city } : {}),
+      ...(since ? { createdAt: { gte: since } } : {}),
+      ...(Number.isFinite(minExperience) && minExperience > 0
+        ? { experienceYears: { gte: minExperience } }
+        : {}),
       ...(query
         ? {
             OR: [
@@ -54,6 +120,17 @@ export default async function CandidatesPage({
                   mode: "insensitive" as const,
                 },
               },
+              // Поиск по компаниям из опыта работы кандидата.
+              {
+                experience: {
+                  some: {
+                    companyName: {
+                      contains: query,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                },
+              },
             ],
           }
         : {}),
@@ -61,10 +138,31 @@ export default async function CandidatesPage({
     include: {
       job: { select: { title: true } },
       stage: { select: { name: true, key: true } },
+      experience: {
+        where: query
+          ? { companyName: { contains: query, mode: "insensitive" } }
+          : undefined,
+        select: { companyName: true },
+        take: 1,
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
+
+  const hasFilters = Boolean(
+    query ||
+      filters.job ||
+      filters.stage ||
+      filters.recruiter ||
+      filters.city ||
+      filters.period ||
+      filters.experience,
+  );
+
+  const extraFiltersUsed = Boolean(
+    filters.recruiter || filters.city || filters.period || filters.experience,
+  );
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -89,62 +187,135 @@ export default async function CandidatesPage({
         )}
       </div>
 
-      <form className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft"
-            strokeWidth={1.8}
-          />
-          <input
-            type="search"
-            name="q"
-            defaultValue={query}
-            placeholder="Имя, телефон, почта, должность"
-            aria-label="Поиск кандидатов"
-            className="w-full rounded-lg border border-muted bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
-          />
+      <form className="mt-5 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft"
+              strokeWidth={1.8}
+            />
+            <input
+              type="search"
+              name="q"
+              defaultValue={query}
+              placeholder="Имя, телефон, почта, должность, компания"
+              aria-label="Поиск кандидатов"
+              className="w-full rounded-lg border border-muted bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
+            />
+          </div>
+
+          <select
+            name="job"
+            defaultValue={filters.job ?? ""}
+            aria-label="Вакансия"
+            className={selectClass}
+          >
+            <option value="">Все вакансии</option>
+            {jobs.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title}
+              </option>
+            ))}
+          </select>
+
+          <select
+            name="stage"
+            defaultValue={filters.stage ?? ""}
+            aria-label="Этап"
+            className={selectClass}
+          >
+            <option value="">Все этапы</option>
+            {stages.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="submit"
+            className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          >
+            Найти
+          </button>
         </div>
 
-        <select
-          name="job"
-          defaultValue={job ?? ""}
-          aria-label="Вакансия"
-          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-        >
-          <option value="">Все вакансии</option>
-          {jobs.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title}
-            </option>
-          ))}
-        </select>
+        <details open={extraFiltersUsed} className="group">
+          <summary className="cursor-pointer text-sm text-ink-soft transition hover:text-ink">
+            Ещё фильтры
+          </summary>
 
-        <select
-          name="stage"
-          defaultValue={stage ?? ""}
-          aria-label="Этап"
-          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-        >
-          <option value="">Все этапы</option>
-          {stages.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
+          <div className="mt-3 grid gap-3 sm:grid-cols-4">
+            <select
+              name="recruiter"
+              defaultValue={filters.recruiter ?? ""}
+              aria-label="Рекрутер"
+              className={selectClass}
+            >
+              <option value="">Все рекрутеры</option>
+              {recruiters.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.fullName}
+                </option>
+              ))}
+            </select>
 
-        <button
-          type="submit"
-          className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
-        >
-          Найти
-        </button>
+            <select
+              name="city"
+              defaultValue={filters.city ?? ""}
+              aria-label="Город"
+              className={selectClass}
+            >
+              <option value="">Все города</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="period"
+              defaultValue={filters.period ?? ""}
+              aria-label="Дата добавления"
+              className={selectClass}
+            >
+              {PERIODS.map((item) => (
+                <option key={item.label} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              name="experience"
+              defaultValue={filters.experience ?? ""}
+              aria-label="Опыт"
+              className={selectClass}
+            >
+              {EXPERIENCE.map((item) => (
+                <option key={item.label} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </details>
+
+        {hasFilters && (
+          <Link
+            href="/candidates"
+            className="inline-block text-xs text-ink-soft underline transition hover:text-ink"
+          >
+            Сбросить фильтры
+          </Link>
+        )}
       </form>
 
       {candidates.length === 0 ? (
         <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
           <p className="text-sm text-ink-soft">
-            {query || job || stage
+            {hasFilters
               ? "По этому запросу никого не нашлось."
               : scope.can("candidates.create")
                 ? "Добавьте первого кандидата — вручную или загрузив резюме."
@@ -179,6 +350,11 @@ export default async function CandidatesPage({
                   {candidate.job?.title ?? "Без вакансии"} · добавлен{" "}
                   {formatDate(candidate.createdAt)}
                 </p>
+                {query && candidate.experience.length > 0 && (
+                  <p className="truncate text-xs text-ink-soft">
+                    Опыт работы: {candidate.experience[0].companyName}
+                  </p>
+                )}
               </div>
             </Link>
           ))}

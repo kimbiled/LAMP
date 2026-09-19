@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/session";
 import { logout } from "@/app/actions/auth";
 import { AppNav } from "@/components/app-nav";
 import { ROLE_LABELS } from "@/lib/labels";
+import { GlobalSearch } from "@/components/global-search";
 
 // Оболочка всех внутренних страниц.
 // requireSession() проверяет вход НА СЕРВЕРЕ: без сессии страница
@@ -49,8 +50,8 @@ export default async function AppLayout({
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-muted bg-surface px-4 py-3 md:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="flex items-center gap-3 border-b border-muted bg-surface px-4 py-3 md:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-3 md:flex-none">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-ink md:hidden">
               L
             </span>
@@ -62,6 +63,10 @@ export default async function AppLayout({
                 {session.user.fullName}
               </p>
             </div>
+          </div>
+
+          <div className="ml-auto hidden md:block">
+            <GlobalSearch />
           </div>
 
           <form action={logout} className="md:hidden">
