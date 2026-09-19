@@ -1,0 +1,415 @@
+// Описание базы данных LAMP.
+// Каждая таблица (model) — это список однотипных записей.
+// companyId есть почти везде: именно он разделяет компании между собой.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Справочники значений ----------
+
+enum Role {
+  ADMIN
+  RECRUITER
+  HIRING_MANAGER
+}
+
+enum JobStatus {
+  OPEN
+  PAUSED
+  CLOSED
+}
+
+enum StageKey {
+  NEW
+  CONTACT
+  INTERVIEW_SCHEDULED
+  INTERVIEW_DONE
+  TECH_INTERVIEW
+  FINAL_INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+  NO_RESPONSE
+}
+
+enum InterviewType {
+  HR
+  TECHNICAL
+  MANAGER
+  FINAL
+  OTHER
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELED
+}
+
+enum FeedbackResult {
+  POSITIVE
+  NEGATIVE
+  EXTRA_STAGE
+}
+
+enum HistoryType {
+  CANDIDATE_CREATED
+  CANDIDATE_UPDATED
+  STAGE_CHANGED
+  RESUME_UPLOADED
+  INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETED
+  FEEDBACK_ADDED
+  SHARE_LINK_CREATED
+}
+
+enum NotificationType {
+  INTERVIEW_SCHEDULED
+  CANDIDATE_ASSIGNED
+  FEEDBACK_REQUESTED
+  STAGE_CHANGED
+}
+
+// ---------- Компания и люди ----------
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  stages        Stage[]
+  jobs          Job[]
+  candidates    Candidate[]
+  resumes       Resume[]
+  interviews    Interview[]
+  feedbacks     Feedback[]
+  history       CandidateHistory[]
+  shareLinks    ShareLink[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  companyId    String
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  role         Role      @default(RECRUITER)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  sessions                Session[]
+  jobsAsRecruiter         Job[]              @relation("JobRecruiter")
+  jobsAsHiringManager     Job[]              @relation("JobHiringManager")
+  jobsCreated             Job[]              @relation("JobCreatedBy")
+  candidatesCreated       Candidate[]        @relation("CandidateCreatedBy")
+  resumesUploaded         Resume[]
+  interviewsAsInterviewer Interview[]        @relation("InterviewInterviewer")
+  interviewsCreated       Interview[]        @relation("InterviewCreatedBy")
+  feedbacks               Feedback[]
+  historyItems            CandidateHistory[]
+  shareLinks              ShareLink[]
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+
+  @@index([companyId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------- Этапы и вакансии ----------
+
+model Stage {
+  id        String    @id @default(cuid())
+  companyId String
+  name      String
+  key       StageKey?
+  position  Int
+  isSystem  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidates  Candidate[]
+  historyFrom CandidateHistory[] @relation("HistoryFromStage")
+  historyTo   CandidateHistory[] @relation("HistoryToStage")
+  feedbacks   Feedback[]
+
+  @@index([companyId])
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  companyId       String
+  title           String
+  description     String?
+  requirements    String?
+  salaryMin       Int?
+  salaryMax       Int?
+  currency        String    @default("RUB")
+  status          JobStatus @default(OPEN)
+  recruiterId     String?
+  hiringManagerId String?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recruiter     User?       @relation("JobRecruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
+  hiringManager User?       @relation("JobHiringManager", fields: [hiringManagerId], references: [id], onDelete: SetNull)
+  createdBy     User        @relation("JobCreatedBy", fields: [createdById], references: [id])
+  candidates    Candidate[]
+  interviews    Interview[]
+
+  @@index([companyId])
+  @@index([companyId, status])
+}
+
+// ---------- Кандидаты ----------
+
+model Candidate {
+  id                String   @id @default(cuid())
+  companyId         String
+  jobId             String?
+  stageId           String
+  fullName          String
+  phone             String?
+  email             String?
+  city              String?
+  currentPosition   String?
+  experienceYears   Int?
+  salaryExpectation Int?
+  currency          String   @default("RUB")
+  telegram          String?
+  photoUrl          String?
+  skills            String[]
+  languages         String[]
+  source            String?
+  note              String?
+  createdById       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  stageChangedAt    DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  job       Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  stage     Stage   @relation(fields: [stageId], references: [id])
+  createdBy User    @relation("CandidateCreatedBy", fields: [createdById], references: [id])
+
+  experience CandidateExperience[]
+  education  CandidateEducation[]
+  resumes    Resume[]
+  interviews Interview[]
+  feedbacks  Feedback[]
+  history    CandidateHistory[]
+  shareLinks ShareLink[]
+
+  @@index([companyId])
+  @@index([companyId, stageId])
+  @@index([jobId])
+}
+
+model CandidateExperience {
+  id          String  @id @default(cuid())
+  candidateId String
+  companyName String
+  position    String?
+  period      String?
+  description String?
+  sortOrder   Int     @default(0)
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model CandidateEducation {
+  id          String  @id @default(cuid())
+  candidateId String
+  institution String
+  specialty   String?
+  years       String?
+  sortOrder   Int     @default(0)
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+}
+
+model Resume {
+  id           String   @id @default(cuid())
+  companyId    String
+  candidateId  String
+  fileName     String
+  storageKey   String
+  mimeType     String
+  sizeBytes    Int
+  parsedText   String?
+  isCurrent    Boolean  @default(true)
+  uploadedById String
+  uploadedAt   DateTime @default(now())
+
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidate  Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  uploadedBy User      @relation(fields: [uploadedById], references: [id])
+
+  @@index([companyId])
+  @@index([candidateId])
+}
+
+// ---------- Интервью, фидбэки, история ----------
+
+model Interview {
+  id              String          @id @default(cuid())
+  companyId       String
+  candidateId     String
+  jobId           String?
+  type            InterviewType
+  scheduledAt     DateTime
+  durationMinutes Int?
+  interviewerId   String?
+  comment         String?
+  status          InterviewStatus @default(SCHEDULED)
+  createdById     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidate   Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  job         Job?       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  interviewer User?      @relation("InterviewInterviewer", fields: [interviewerId], references: [id], onDelete: SetNull)
+  createdBy   User       @relation("InterviewCreatedBy", fields: [createdById], references: [id])
+  feedbacks   Feedback[]
+
+  @@index([companyId])
+  @@index([companyId, scheduledAt])
+  @@index([candidateId])
+}
+
+model Feedback {
+  id          String         @id @default(cuid())
+  companyId   String
+  candidateId String
+  interviewId String?
+  stageId     String?
+  result      FeedbackResult
+  comment     String?
+  authorId    String?
+  authorName  String?
+  shareLinkId String?
+  createdAt   DateTime       @default(now())
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidate Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  interview Interview? @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  stage     Stage?     @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  author    User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  shareLink ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([candidateId])
+}
+
+model CandidateHistory {
+  id          String      @id @default(cuid())
+  companyId   String
+  candidateId String
+  type        HistoryType
+  fromStageId String?
+  toStageId   String?
+  comment     String?
+  actorId     String?
+  actorName   String?
+  createdAt   DateTime    @default(now())
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  fromStage Stage?    @relation("HistoryFromStage", fields: [fromStageId], references: [id], onDelete: SetNull)
+  toStage   Stage?    @relation("HistoryToStage", fields: [toStageId], references: [id], onDelete: SetNull)
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([candidateId, createdAt])
+  @@index([companyId])
+}
+
+// ---------- Поделиться, уведомления, журнал ----------
+
+model ShareLink {
+  id           String    @id @default(cuid())
+  companyId    String
+  candidateId  String
+  token        String    @unique
+  createdById  String
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidate Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  createdBy User       @relation(fields: [createdById], references: [id])
+  feedbacks Feedback[]
+
+  @@index([companyId])
+  @@index([candidateId])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  companyId  String
+  userId     String
+  type       NotificationType
+  title      String
+  body       String?
+  entityType String?
+  entityId   String?
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+}
