@@ -11,7 +11,9 @@
     "db:studio": "prisma studio",
     "db:check": "tsx scripts/check-db.ts",
     "qa:seed": "tsx scripts/qa-seed.ts",
-    "qa:clean": "tsx scripts/qa-clean.ts"
+    "qa:clean": "tsx scripts/qa-clean.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -27,7 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24.13.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^18.0.1",
@@ -36,6 +38,7 @@
     "prisma": "7.10.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.1"
   }
 }
