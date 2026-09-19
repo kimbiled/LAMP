@@ -1,0 +1,85 @@
+"use client";
+
+import { useActionState } from "react";
+import Link from "next/link";
+import { createUser, type UserFormState } from "@/app/actions/users";
+import { TextField } from "@/components/ui/text-field";
+import { SubmitButton } from "@/components/ui/submit-button";
+
+const initialState: UserFormState = {};
+
+export function NewUserForm() {
+  const [state, formAction] = useActionState(createUser, initialState);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      {state.formError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+          {state.formError}
+        </div>
+      )}
+
+      <TextField
+        label="Имя и фамилия"
+        name="fullName"
+        required
+        placeholder="Мария Иванова"
+        defaultValue={state.values?.fullName}
+        error={state.fieldErrors?.fullName}
+      />
+
+      <TextField
+        label="Рабочая почта"
+        name="email"
+        type="email"
+        required
+        placeholder="maria@company.ru"
+        defaultValue={state.values?.email}
+        error={state.fieldErrors?.email}
+      />
+
+      <div>
+        <label
+          htmlFor="field-role"
+          className="block text-sm font-medium text-ink"
+        >
+          Роль
+        </label>
+        <select
+          id="field-role"
+          name="role"
+          defaultValue={state.values?.role ?? "RECRUITER"}
+          className="mt-1.5 w-full rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+        >
+          <option value="RECRUITER">Рекрутер</option>
+          <option value="HIRING_MANAGER">Нанимающий менеджер</option>
+          <option value="ADMIN">Администратор</option>
+        </select>
+        {state.fieldErrors?.role && (
+          <p className="mt-1.5 text-xs text-red-600">{state.fieldErrors.role}</p>
+        )}
+      </div>
+
+      <TextField
+        label="Временный пароль"
+        name="password"
+        type="text"
+        required
+        hint="Не короче 8 символов. Передайте его сотруднику — он сможет войти сразу"
+        error={state.fieldErrors?.password}
+      />
+
+      <div className="flex gap-3 pt-1">
+        <Link
+          href="/users"
+          className="flex-1 rounded-lg border border-muted px-4 py-2.5 text-center text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        >
+          Отмена
+        </Link>
+        <div className="flex-1">
+          <SubmitButton pendingLabel="Создаём…">Создать</SubmitButton>
+        </div>
+      </div>
+    </form>
+  );
+}

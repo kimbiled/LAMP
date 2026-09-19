@@ -27,7 +27,7 @@ export default async function AppLayout({
           </span>
         </div>
 
-        <AppNav variant="sidebar" />
+        <AppNav variant="sidebar" role={session.user.role} />
 
         <div className="mt-auto border-t border-sidebar-border pt-4">
           <p className="truncate px-1 text-sm font-medium text-sidebar-text-active">
@@ -80,7 +80,7 @@ export default async function AppLayout({
         </main>
 
         <div className="fixed inset-x-0 bottom-0 z-10 bg-sidebar md:hidden">
-          <AppNav variant="bottom" />
+          <AppNav variant="bottom" role={session.user.role} />
         </div>
       </div>
     </div>

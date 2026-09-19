@@ -7,9 +7,14 @@ import { db } from "@/lib/db";
 
 export type AuditAction =
   | "COMPANY_REGISTERED"
+  | "COMPANY_UPDATED"
   | "USER_LOGIN"
   | "USER_LOGIN_FAILED"
-  | "USER_LOGOUT";
+  | "USER_LOGOUT"
+  | "USER_CREATED"
+  | "USER_ROLE_CHANGED"
+  | "USER_BLOCKED"
+  | "USER_UNBLOCKED";
 
 export async function logAction(params: {
   companyId: string;

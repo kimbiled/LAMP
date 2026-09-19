@@ -11,27 +11,56 @@ import {
   UserCog,
   Users,
 } from "lucide-react";
+import { can, type Permission } from "@/lib/permissions";
+import type { Role } from "@/generated/prisma/enums";
 
 // Главное меню системы. Один список — два вида отображения:
 // слева на компьютере и снизу на телефоне.
 
-export const NAV_ITEMS = [
+export const NAV_ITEMS: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  permission?: Permission;
+}[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs", label: "Вакансии", icon: Briefcase },
   { href: "/candidates", label: "Кандидаты", icon: Users },
   { href: "/interviews", label: "Интервью", icon: CalendarDays },
-  { href: "/analytics", label: "Аналитика", icon: ChartColumn },
-  { href: "/users", label: "Пользователи", icon: UserCog },
+  {
+    href: "/analytics",
+    label: "Аналитика",
+    icon: ChartColumn,
+    permission: "analytics.view",
+  },
+  {
+    href: "/users",
+    label: "Пользователи",
+    icon: UserCog,
+    permission: "users.manage",
+  },
   { href: "/settings", label: "Настройки", icon: Settings },
 ];
 
-export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
+export function AppNav({
+  variant,
+  role,
+}: {
+  variant: "sidebar" | "bottom";
+  role: Role;
+}) {
   const pathname = usePathname();
+
+  // Прятать пункты меню недостаточно: те же права проверяются
+  // на сервере при открытии страницы. Здесь — только удобство.
+  const items = NAV_ITEMS.filter(
+    (item) => !item.permission || can(role, item.permission),
+  );
 
   if (variant === "bottom") {
     return (
       <nav className="flex overflow-x-auto">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
@@ -53,7 +82,7 @@ export function AppNav({ variant }: { variant: "sidebar" | "bottom" }) {
 
   return (
     <nav className="space-y-1">
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const active = pathname.startsWith(item.href);
         const Icon = item.icon;
         return (

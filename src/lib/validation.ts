@@ -26,6 +26,28 @@ export const registerSchema = z
     path: ["passwordConfirm"],
   });
 
+export const createUserSchema = z.object({
+  fullName: z
+    .string()
+    .min(2, "Укажите имя и фамилию")
+    .max(100, "Слишком длинное имя"),
+  email: z.email("Введите корректный адрес почты"),
+  password: z
+    .string()
+    .min(8, "Пароль должен быть не короче 8 символов")
+    .max(200, "Слишком длинный пароль"),
+  role: z.enum(["ADMIN", "RECRUITER", "HIRING_MANAGER"], {
+    message: "Выберите роль",
+  }),
+});
+
+export const companySettingsSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Название компании слишком короткое")
+    .max(100, "Название компании слишком длинное"),
+});
+
 export const loginSchema = z.object({
   email: z.email("Введите корректный адрес почты"),
   password: z.string().min(1, "Введите пароль"),
