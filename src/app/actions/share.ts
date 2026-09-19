@@ -7,6 +7,7 @@ import { getScope } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import { addHistory } from "@/lib/history";
 import { findValidShareLink } from "@/lib/share";
+import { jobWatchers, notify } from "@/lib/notifications";
 
 export type ShareFormState = {
   formError?: string;
@@ -158,7 +159,7 @@ export async function submitGuestFeedback(
 
   const candidate = await db.candidate.findUnique({
     where: { id: link.candidateId },
-    select: { stageId: true },
+    select: { stageId: true, jobId: true, fullName: true },
   });
 
   await db.feedback.create({
@@ -180,6 +181,17 @@ export async function submitGuestFeedback(
     type: "FEEDBACK_ADDED",
     comment: "Через ссылку «Поделиться»",
     actorName: authorName,
+  });
+
+  // Гость не входит в систему, поэтому уведомляем всех, кто ведёт вакансию.
+  await notify({
+    companyId: link.companyId,
+    userIds: await jobWatchers(candidate?.jobId ?? null),
+    type: "FEEDBACK_ADDED",
+    title: `Фидбэк по ссылке: ${candidate?.fullName ?? "кандидат"}`,
+    body: `${authorName} оставил отзыв`,
+    entityType: "Candidate",
+    entityId: link.candidateId,
   });
 
   revalidatePath(`/share/${token}`);

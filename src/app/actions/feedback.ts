@@ -7,6 +7,7 @@ import { candidateVisibilityFilter } from "@/lib/permissions";
 import { feedbackSchema, fieldErrorsFrom } from "@/lib/validation";
 import { addHistory } from "@/lib/history";
 import { FEEDBACK_RESULT_LABELS } from "@/lib/labels";
+import { jobWatchers, notify } from "@/lib/notifications";
 
 export type FeedbackFormState = {
   formError?: string;
@@ -37,7 +38,7 @@ export async function createFeedback(
       companyId: scope.companyId,
       ...candidateVisibilityFilter(scope.session.user),
     },
-    select: { id: true, stageId: true },
+    select: { id: true, stageId: true, jobId: true, fullName: true },
   });
 
   if (!candidate) {
@@ -98,6 +99,17 @@ export async function createFeedback(
     comment: FEEDBACK_RESULT_LABELS[parsed.data.result],
     actorId: scope.session.user.id,
     actorName: scope.session.user.fullName,
+  });
+
+  await notify({
+    companyId: scope.companyId,
+    userIds: await jobWatchers(candidate.jobId),
+    actorId: scope.session.user.id,
+    type: "FEEDBACK_ADDED",
+    title: `Фидбэк: ${candidate.fullName}`,
+    body: `${scope.session.user.fullName} — ${FEEDBACK_RESULT_LABELS[parsed.data.result].toLowerCase()}`,
+    entityType: "Candidate",
+    entityId: candidate.id,
   });
 
   revalidatePath(`/candidates/${candidate.id}`);

@@ -9,6 +9,7 @@ import { candidateSchema, fieldErrorsFrom } from "@/lib/validation";
 import { addHistory } from "@/lib/history";
 import { normalizeTelegram } from "@/lib/contacts";
 import { removeFile } from "@/lib/storage";
+import { jobWatchers, notify } from "@/lib/notifications";
 
 export type CandidateFormState = {
   formError?: string;
@@ -135,6 +136,17 @@ export async function createCandidate(
     actorName: scope.session.user.fullName,
   });
 
+  await notify({
+    companyId: scope.companyId,
+    userIds: await jobWatchers(candidate.jobId),
+    actorId: scope.session.user.id,
+    type: "CANDIDATE_ASSIGNED",
+    title: `Новый кандидат: ${candidate.fullName}`,
+    body: candidate.currentPosition,
+    entityType: "Candidate",
+    entityId: candidate.id,
+  });
+
   redirect(`/candidates/${candidate.id}`);
 }
 
@@ -241,6 +253,22 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
     comment: comment || null,
     actorId: scope.session.user.id,
     actorName: scope.session.user.fullName,
+  });
+
+  const stage = await db.stage.findUnique({
+    where: { id: validStage },
+    select: { name: true },
+  });
+
+  await notify({
+    companyId: scope.companyId,
+    userIds: await jobWatchers(candidate.jobId),
+    actorId: scope.session.user.id,
+    type: "STAGE_CHANGED",
+    title: `Новый этап: ${candidate.fullName}`,
+    body: stage ? `Переведён на «${stage.name}»` : null,
+    entityType: "Candidate",
+    entityId: candidate.id,
   });
 
   revalidatePath(`/candidates/${candidate.id}`);

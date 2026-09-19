@@ -8,6 +8,8 @@ import { fieldErrorsFrom, interviewSchema } from "@/lib/validation";
 import { addHistory } from "@/lib/history";
 import { localToDate } from "@/lib/time";
 import { INTERVIEW_TYPE_LABELS } from "@/lib/labels";
+import { notify } from "@/lib/notifications";
+import { formatDateTime } from "@/lib/format";
 import type { InterviewStatus } from "@/generated/prisma/enums";
 
 export type InterviewFormState = {
@@ -38,7 +40,7 @@ export async function createInterview(
       companyId: scope.companyId,
       ...candidateVisibilityFilter(scope.session.user),
     },
-    select: { id: true, jobId: true },
+    select: { id: true, jobId: true, fullName: true },
   });
 
   if (!candidate) {
@@ -102,6 +104,17 @@ export async function createInterview(
     actorName: scope.session.user.fullName,
   });
 
+  await notify({
+    companyId: scope.companyId,
+    userIds: [interviewerId],
+    actorId: scope.session.user.id,
+    type: "INTERVIEW_SCHEDULED",
+    title: `Назначено интервью: ${candidate.fullName}`,
+    body: `${INTERVIEW_TYPE_LABELS[parsed.data.type]} · ${formatDateTime(scheduledAt)}`,
+    entityType: "Candidate",
+    entityId: candidate.id,
+  });
+
   revalidatePath(`/candidates/${candidate.id}`);
   revalidatePath("/interviews");
 
@@ -142,6 +155,23 @@ export async function setInterviewStatus(formData: FormData): Promise<void> {
       comment: INTERVIEW_TYPE_LABELS[interview.type],
       actorId: scope.session.user.id,
       actorName: scope.session.user.fullName,
+    });
+
+    // После интервью от интервьюера ждут мнение.
+    const candidate = await db.candidate.findUnique({
+      where: { id: interview.candidateId },
+      select: { fullName: true },
+    });
+
+    await notify({
+      companyId: scope.companyId,
+      userIds: [interview.interviewerId],
+      actorId: scope.session.user.id,
+      type: "FEEDBACK_REQUESTED",
+      title: `Нужен фидбэк: ${candidate?.fullName ?? "кандидат"}`,
+      body: `${INTERVIEW_TYPE_LABELS[interview.type]} проведено`,
+      entityType: "Candidate",
+      entityId: interview.candidateId,
     });
   }
 

@@ -4,6 +4,8 @@ import { logout } from "@/app/actions/auth";
 import { AppNav } from "@/components/app-nav";
 import { ROLE_LABELS } from "@/lib/labels";
 import { GlobalSearch } from "@/components/global-search";
+import { NotificationBell } from "@/components/notification-bell";
+import { unreadCount } from "@/lib/notifications";
 
 // Оболочка всех внутренних страниц.
 // requireSession() проверяет вход НА СЕРВЕРЕ: без сессии страница
@@ -15,6 +17,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const session = await requireSession();
+  const notifications = await unreadCount(session.user.id);
 
   return (
     <div className="min-h-screen md:flex">
@@ -67,6 +70,10 @@ export default async function AppLayout({
 
           <div className="ml-auto hidden md:block">
             <GlobalSearch />
+          </div>
+
+          <div className="ml-auto md:ml-0">
+            <NotificationBell count={notifications} />
           </div>
 
           <form action={logout} className="md:hidden">
