@@ -25,3 +25,24 @@ export function formatDateTime(value: Date | null | undefined): string {
     timeZone: TIME_ZONE,
   }).format(value);
 }
+
+import { CURRENCY_SYMBOLS } from "@/lib/labels";
+
+export function formatMoney(value: number, currency: string): string {
+  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  return `${new Intl.NumberFormat("ru-RU").format(value)} ${symbol}`;
+}
+
+// Зарплатная вилка: «от 500 000 ₸», «до 800 000 ₸» или диапазон.
+export function formatSalary(
+  min: number | null,
+  max: number | null,
+  currency: string,
+): string {
+  if (min === null && max === null) return "Не указана";
+  if (min !== null && max === null) return `от ${formatMoney(min, currency)}`;
+  if (min === null && max !== null) return `до ${formatMoney(max, currency)}`;
+  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
+  const fmt = new Intl.NumberFormat("ru-RU");
+  return `${fmt.format(min as number)} – ${fmt.format(max as number)} ${symbol}`;
+}

@@ -41,6 +41,44 @@ export const createUserSchema = z.object({
   }),
 });
 
+export const jobSchema = z
+  .object({
+    title: z
+      .string()
+      .min(2, "Укажите название вакансии")
+      .max(150, "Слишком длинное название"),
+    description: z.string().max(5000, "Слишком длинное описание"),
+    requirements: z.string().max(5000, "Слишком длинные требования"),
+    salaryMin: z
+      .number()
+      .int()
+      .min(0, "Зарплата не может быть отрицательной")
+      .max(1_000_000_000, "Слишком большое число")
+      .nullable(),
+    salaryMax: z
+      .number()
+      .int()
+      .min(0, "Зарплата не может быть отрицательной")
+      .max(1_000_000_000, "Слишком большое число")
+      .nullable(),
+    currency: z.string().min(1).max(8),
+    status: z.enum(["OPEN", "PAUSED", "CLOSED"], {
+      message: "Выберите статус",
+    }),
+    recruiterId: z.string().nullable(),
+    hiringManagerId: z.string().nullable(),
+  })
+  .refine(
+    (data) =>
+      data.salaryMin === null ||
+      data.salaryMax === null ||
+      data.salaryMax >= data.salaryMin,
+    {
+      message: "Верхняя граница не может быть меньше нижней",
+      path: ["salaryMax"],
+    },
+  );
+
 export const companySettingsSchema = z.object({
   name: z
     .string()

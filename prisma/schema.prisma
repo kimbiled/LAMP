@@ -170,7 +170,7 @@ model Job {
   requirements    String?
   salaryMin       Int?
   salaryMax       Int?
-  currency        String    @default("RUB")
+  currency        String    @default("KZT")
   status          JobStatus @default(OPEN)
   recruiterId     String?
   hiringManagerId String?
@@ -203,7 +203,7 @@ model Candidate {
   currentPosition   String?
   experienceYears   Int?
   salaryExpectation Int?
-  currency          String   @default("RUB")
+  currency          String   @default("KZT")
   telegram          String?
   photoUrl          String?
   skills            String[]
