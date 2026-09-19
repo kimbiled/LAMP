@@ -1,10 +1,271 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/coming-soon";
-import { requireSession } from "@/lib/session";
+import { db } from "@/lib/db";
+import { requireScope } from "@/lib/tenant";
+import { candidateVisibilityFilter } from "@/lib/permissions";
+import { CANDIDATE_FORMS, plural } from "@/lib/format";
+import type { StageKey } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Аналитика — LAMP" };
 
-export default async function Page() {
-  await requireSession();
-  return <ComingSoon title="Аналитика" description="Раздел появится на этапе 20: воронка подбора и показатели работы." />;
+// Ступени воронки. Некоторые ступени объединяют несколько этапов:
+// «Интервью» — это и назначенное, и проведённое.
+const FUNNEL: { label: string; keys: StageKey[] }[] = [
+  { label: "Кандидаты", keys: [] },
+  { label: "Контакт", keys: ["CONTACT"] },
+  { label: "Интервью", keys: ["INTERVIEW_SCHEDULED", "INTERVIEW_DONE"] },
+  { label: "Техническое", keys: ["TECH_INTERVIEW"] },
+  { label: "Финал", keys: ["FINAL_INTERVIEW"] },
+  { label: "Оффер", keys: ["OFFER"] },
+  { label: "Найм", keys: ["HIRED"] },
+];
+
+const PERIODS = [
+  { value: "", label: "Весь период", days: 0 },
+  { value: "7", label: "7 дней", days: 7 },
+  { value: "30", label: "30 дней", days: 30 },
+  { value: "90", label: "90 дней", days: 90 },
+];
+
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; job?: string; recruiter?: string }>;
+}) {
+  const scope = await requireScope("analytics.view");
+  const { period, job, recruiter } = await searchParams;
+
+  const days = PERIODS.find((item) => item.value === (period ?? ""))?.days ?? 0;
+  const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
+
+  const [jobs, recruiters] = await Promise.all([
+    db.job.findMany({
+      where: { companyId: scope.companyId },
+      select: { id: true, title: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.user.findMany({
+      where: { companyId: scope.companyId, role: { in: ["ADMIN", "RECRUITER"] } },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+    }),
+  ]);
+
+  // Отбираем кандидатов, попадающих под фильтры. Дальше считаем только по ним.
+  const candidateWhere = {
+    companyId: scope.companyId,
+    ...candidateVisibilityFilter(scope.session.user),
+    ...(since ? { createdAt: { gte: since } } : {}),
+    ...(job ? { jobId: job } : {}),
+    ...(recruiter ? { job: { recruiterId: recruiter } } : {}),
+  };
+
+  const candidates = await db.candidate.findMany({
+    where: candidateWhere,
+    select: { id: true, stage: { select: { key: true } } },
+  });
+
+  const candidateIds = candidates.map((candidate) => candidate.id);
+
+  // Через историю видно, до какого этапа кандидат доходил,
+  // даже если сейчас он уже в «Отказе».
+  const history =
+    candidateIds.length > 0
+      ? await db.candidateHistory.findMany({
+          where: {
+            companyId: scope.companyId,
+            candidateId: { in: candidateIds },
+            toStageId: { not: null },
+          },
+          select: {
+            candidateId: true,
+            toStage: { select: { key: true } },
+          },
+        })
+      : [];
+
+  const reached = new Map<string, Set<string>>();
+  const remember = (key: string | null | undefined, candidateId: string) => {
+    if (!key) return;
+    const set = reached.get(key) ?? new Set<string>();
+    set.add(candidateId);
+    reached.set(key, set);
+  };
+
+  for (const item of history) {
+    remember(item.toStage?.key, item.candidateId);
+  }
+
+  // Текущий этап тоже считается достигнутым — на случай,
+  // если запись в истории по какой-то причине отсутствует.
+  for (const candidate of candidates) {
+    remember(candidate.stage.key, candidate.id);
+  }
+
+  const countReached = (keys: StageKey[]) => {
+    if (keys.length === 0) return candidates.length;
+    const union = new Set<string>();
+    for (const key of keys) {
+      for (const id of reached.get(key) ?? []) {
+        union.add(id);
+      }
+    }
+    return union.size;
+  };
+
+  const funnel = FUNNEL.map((step) => ({
+    label: step.label,
+    value: countReached(step.keys),
+  }));
+
+  const total = funnel[0].value;
+
+  const interviewWhere = {
+    companyId: scope.companyId,
+    ...(candidateIds.length > 0
+      ? { candidateId: { in: candidateIds } }
+      : { candidateId: "—" }),
+  };
+
+  const [completedInterviews, technicalInterviews] = await Promise.all([
+    db.interview.count({ where: { ...interviewWhere, status: "COMPLETED" } }),
+    db.interview.count({ where: { ...interviewWhere, type: "TECHNICAL" } }),
+  ]);
+
+  const metrics = [
+    { label: "Всего кандидатов", value: total },
+    { label: "Проведено интервью", value: completedInterviews },
+    { label: "Технических интервью", value: technicalInterviews },
+    { label: "Офферы", value: countReached(["OFFER"]) },
+    { label: "Наняты", value: countReached(["HIRED"]) },
+    { label: "Отказы", value: countReached(["REJECTED"]) },
+    { label: "Не отвечают", value: countReached(["NO_RESPONSE"]) },
+  ];
+
+  const hired = countReached(["HIRED"]);
+  const conversion = total > 0 ? Math.round((hired / total) * 100) : 0;
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <h1 className="text-xl font-semibold text-ink-strong">Аналитика</h1>
+      <p className="mt-1 text-sm text-ink-soft">
+        {total > 0
+          ? `${total} ${plural(total, CANDIDATE_FORMS)} в выборке · до найма доходит ${conversion}%`
+          : "Данных пока нет"}
+      </p>
+
+      <form className="mt-5 grid gap-3 sm:grid-cols-4">
+        <select
+          name="period"
+          defaultValue={period ?? ""}
+          aria-label="Период"
+          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+        >
+          {PERIODS.map((item) => (
+            <option key={item.label} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          name="job"
+          defaultValue={job ?? ""}
+          aria-label="Вакансия"
+          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+        >
+          <option value="">Все вакансии</option>
+          {jobs.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.title}
+            </option>
+          ))}
+        </select>
+
+        <select
+          name="recruiter"
+          defaultValue={recruiter ?? ""}
+          aria-label="Рекрутер"
+          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+        >
+          <option value="">Все рекрутеры</option>
+          {recruiters.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.fullName}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="submit"
+          className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        >
+          Показать
+        </button>
+      </form>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {metrics.map((metric) => (
+          <div
+            key={metric.label}
+            className="rounded-xl border border-muted bg-surface p-4"
+          >
+            <p className="text-2xl font-semibold text-ink-strong">
+              {metric.value}
+            </p>
+            <p className="mt-1 text-xs text-ink-soft">{metric.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <section className="mt-5 rounded-xl border border-muted bg-surface p-5">
+        <h2 className="text-sm font-medium text-ink">Воронка подбора</h2>
+        <p className="mt-1 text-xs text-ink-soft">
+          Считается по истории: кандидат учитывается на ступени, если доходил до
+          неё хотя бы раз — даже если сейчас уже получил отказ.
+        </p>
+
+        {total === 0 ? (
+          <p className="mt-4 text-sm text-ink-soft">
+            Добавьте кандидатов, и воронка заполнится.
+          </p>
+        ) : (
+          <ol className="mt-4 space-y-3">
+            {funnel.map((step, index) => {
+              const share = total > 0 ? (step.value / total) * 100 : 0;
+              const previous = index > 0 ? funnel[index - 1].value : null;
+              const stepConversion =
+                previous && previous > 0
+                  ? Math.round((step.value / previous) * 100)
+                  : null;
+
+              return (
+                <li key={step.label}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-sm text-ink">{step.label}</p>
+                    <p className="text-sm text-ink-soft">
+                      <span className="font-medium text-ink">{step.value}</span>
+                      {stepConversion !== null && (
+                        <span> · {stepConversion}% с прошлой ступени</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${Math.max(share, step.value > 0 ? 3 : 0)}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      <p className="mt-4 text-xs text-ink-soft">
+        Фильтр по рекрутеру отбирает кандидатов по вакансиям, где этот человек
+        назначен рекрутером.
+      </p>
+    </div>
+  );
 }

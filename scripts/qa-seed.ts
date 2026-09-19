@@ -99,19 +99,24 @@ async function main() {
     },
   });
 
+  // path — через какие этапы кандидат прошёл (номера этапов по порядку).
+  // Так воронка в аналитике получается похожей на настоящую.
   const people = [
-    { fullName: "Петров Иван Сергеевич", email: "ivan@mail.kz", position: "Frontend-разработчик", stage: 0 },
-    { fullName: "Сидорова Мария Павловна", email: "maria@mail.kz", position: "React-разработчик", stage: 1 },
-    { fullName: "Ким Алексей Викторович", email: "alexey@mail.kz", position: "Senior Frontend", stage: 4 },
-    { fullName: "Жумабаева Айгуль Ерлановна", email: "aigul@mail.kz", position: "Team Lead", stage: 6 },
+    { fullName: "Петров Иван Сергеевич", email: "ivan@mail.kz", position: "Frontend-разработчик", path: [0] },
+    { fullName: "Сидорова Мария Павловна", email: "maria@mail.kz", position: "React-разработчик", path: [0, 1] },
+    { fullName: "Ким Алексей Викторович", email: "alexey@mail.kz", position: "Senior Frontend", path: [0, 1, 2, 3, 4] },
+    { fullName: "Жумабаева Айгуль Ерлановна", email: "aigul@mail.kz", position: "Team Lead", path: [0, 1, 2, 3, 4, 5, 6] },
+    { fullName: "Оспанов Данияр Маратович", email: "daniyar@mail.kz", position: "Frontend-разработчик", path: [0, 1, 2, 3, 4, 8] },
   ];
 
   for (const person of people) {
+    const finalStage = person.path[person.path.length - 1];
+
     const candidate = await db.candidate.create({
       data: {
         companyId: company.id,
         jobId: job.id,
-        stageId: stages[person.stage].id,
+        stageId: stages[finalStage].id,
         fullName: person.fullName,
         phone: "+7 701 123 45 67",
         email: person.email,
@@ -125,19 +130,23 @@ async function main() {
       },
     });
 
-    await db.candidateHistory.create({
-      data: {
-        companyId: company.id,
-        candidateId: candidate.id,
-        type: "CANDIDATE_CREATED",
-        toStageId: stages[person.stage].id,
-        actorId: recruiter.id,
-        actorName: recruiter.fullName,
-      },
-    });
+    for (let index = 0; index < person.path.length; index++) {
+      const stageIndex = person.path[index];
+      await db.candidateHistory.create({
+        data: {
+          companyId: company.id,
+          candidateId: candidate.id,
+          type: index === 0 ? "CANDIDATE_CREATED" : "STAGE_CHANGED",
+          fromStageId: index === 0 ? null : stages[person.path[index - 1]].id,
+          toStageId: stages[stageIndex].id,
+          actorId: recruiter.id,
+          actorName: recruiter.fullName,
+        },
+      });
+    }
   }
 
-  console.log("Тестовая компания создана: 2 вакансии, 4 кандидата.");
+  console.log("Тестовая компания создана: 2 вакансии, 5 кандидатов с историей.");
   console.log("  qa-admin@example.com      — администратор");
   console.log("  qa-recruiter@example.com  — рекрутер");
   console.log("  qa-manager@example.com    — нанимающий менеджер");
