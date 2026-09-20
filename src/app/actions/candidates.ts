@@ -242,8 +242,15 @@ export async function updateCandidate(
       source: parsed.data.source || null,
       note: parsed.data.note || null,
       ...(stageChanged ? { stageChangedAt: new Date() } : {}),
-      experience: { deleteMany: {}, create: readExperience(formData) },
-      education: { deleteMany: {}, create: readEducation(formData) },
+      // Списки заменяем, только если форма их прислала. Если полей нет
+      // (например, открыта старая версия страницы), уже сохранённый
+      // опыт работы и образование трогать нельзя — иначе они пропадут.
+      ...(formData.has("expCompany")
+        ? { experience: { deleteMany: {}, create: readExperience(formData) } }
+        : {}),
+      ...(formData.has("eduInstitution")
+        ? { education: { deleteMany: {}, create: readEducation(formData) } }
+        : {}),
     },
   });
 
