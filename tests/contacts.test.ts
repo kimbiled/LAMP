@@ -4,6 +4,7 @@ import {
   firstMessage,
   normalizeTelegram,
   telLink,
+  telegramByPhoneOnly,
   telegramLink,
   whatsappLink,
 } from "@/lib/contacts";
@@ -60,5 +61,25 @@ describe("Кнопки связи", () => {
     });
 
     expect(message).toContain("Здравствуйте, Иван!");
+  });
+});
+
+describe("Telegram по номеру телефона", () => {
+  it("открывает чат по нику, если он есть", () => {
+    expect(telegramLink("@ivan", "+7 701 123 45 67")).toBe("https://t.me/ivan");
+    expect(telegramByPhoneOnly("@ivan", "+7 701 123 45 67")).toBe(false);
+  });
+
+  it("открывает чат по номеру, если ника нет", () => {
+    expect(telegramLink(null, "+7 (701) 123-45-67")).toBe(
+      "https://t.me/+77011234567",
+    );
+    expect(telegramByPhoneOnly(null, "+7 701 123 45 67")).toBe(true);
+  });
+
+  it("без ника и без номера ссылки нет", () => {
+    expect(telegramLink(null, null)).toBeNull();
+    expect(telegramLink("", "123")).toBeNull();
+    expect(telegramByPhoneOnly(null, null)).toBe(false);
   });
 });

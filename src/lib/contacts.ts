@@ -35,9 +35,31 @@ export function normalizeTelegram(value: string | null): string | null {
   return cleaned === "" ? null : cleaned;
 }
 
-export function telegramLink(value: string | null): string | null {
+// Ссылка на чат в Telegram.
+//
+// Если ника нет, но есть телефон — открываем чат по номеру: Telegram
+// сам находит человека, если этот номер у него зарегистрирован.
+// Формат t.me/+77011234567 работает и в браузере, и в приложении.
+export function telegramLink(
+  value: string | null,
+  phone?: string | null,
+): string | null {
   const username = normalizeTelegram(value);
-  return username ? `https://t.me/${username}` : null;
+  if (username) {
+    return `https://t.me/${username}`;
+  }
+
+  const digits = phoneDigits(phone ?? null);
+  return digits ? `https://t.me/+${digits}` : null;
+}
+
+// По нику чат откроется наверняка, по телефону — только если номер
+// зарегистрирован в Telegram. Об этом стоит предупредить в подсказке.
+export function telegramByPhoneOnly(
+  value: string | null,
+  phone?: string | null,
+): boolean {
+  return !normalizeTelegram(value) && Boolean(phoneDigits(phone ?? null));
 }
 
 export function emailLink(email: string | null): string | null {

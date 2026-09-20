@@ -3,6 +3,7 @@ import {
   emailLink,
   firstMessage,
   telLink,
+  telegramByPhoneOnly,
   telegramLink,
   whatsappLink,
 } from "@/lib/contacts";
@@ -51,10 +52,13 @@ export function ContactButtons({
     },
     {
       label: "Telegram",
-      href: telegramLink(telegram),
+      href: telegramLink(telegram, phone),
       icon: Send,
       external: true,
-      missing: "Telegram не указан",
+      missing: "Нет ни ника Telegram, ни телефона",
+      hint: telegramByPhoneOnly(telegram, phone)
+        ? "Чат откроется по номеру телефона, если он зарегистрирован в Telegram"
+        : undefined,
     },
     {
       label: "Email",
@@ -87,6 +91,7 @@ export function ContactButtons({
           <a
             key={button.label}
             href={button.href}
+            title={button.hint}
             target={button.external ? "_blank" : undefined}
             rel={button.external ? "noopener noreferrer" : undefined}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-muted px-3 py-2.5 text-sm text-ink transition hover:border-ink-soft hover:bg-canvas"
