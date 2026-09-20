@@ -10,6 +10,7 @@ export type ParsedExperience = {
   companyName: string;
   position: string | null;
   period: string | null;
+  description: string | null;
 };
 
 export type ParsedEducation = {
@@ -354,6 +355,43 @@ function looksLikeIndustryList(line: string): boolean {
   return line.length > 55 && commas >= 2;
 }
 
+// Описание обязанностей. Обычно это список через тире после должности.
+// Если списка нет — берём осмысленные строки после должности.
+function findDescription(
+  body: string[],
+  companyName: string,
+  position: string | null,
+  dutyIndex: number,
+): string | null {
+  const duties = body.filter((line) => IS_DUTY.test(line));
+
+  const source =
+    duties.length > 0
+      ? duties
+      : body
+          .slice(
+            position ? body.indexOf(position) + 1 : body.indexOf(companyName) + 1,
+          )
+          .filter(
+            (line) =>
+              !IS_MARKER.test(line) &&
+              !looksLikeIndustryList(line) &&
+              line.length > 25,
+          );
+
+  if (source.length === 0) {
+    return null;
+  }
+
+  const text = source
+    // Убираем сам маркер списка — в карточке он рисуется своими средствами.
+    .map((line) => line.replace(/^[-–—]\s*/, "").trim())
+    .filter((line) => line.length > 0)
+    .join("\n");
+
+  return text.length > 0 ? text.slice(0, 3000) : null;
+}
+
 function findExperience(lines: string[] | undefined): ParsedExperience[] {
   if (!lines) return [];
 
@@ -410,6 +448,7 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
         companyName: companyName.slice(0, 150),
         position,
         period: block.period,
+        description: findDescription(body, companyName, position, dutyIndex),
       };
     })
     .filter((item): item is ParsedExperience => item !== null);

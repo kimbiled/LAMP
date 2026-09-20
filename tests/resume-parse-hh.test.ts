@@ -62,6 +62,21 @@ describe("Разбор резюме с сайта вакансий", () => {
     expect(parsed.experience[1].position).toBe("Продавец-консультант");
   });
 
+  it("собирает описание обязанностей без маркеров списка", () => {
+    const first = parsed.experience[0].description ?? "";
+    expect(first).toContain("Расчет медиапланов");
+    expect(first).toContain("Разработка медиастратегии");
+    expect(first.startsWith("-")).toBe(false);
+
+    const second = parsed.experience[1].description ?? "";
+    expect(second).toContain("Консультирование клиентов");
+  });
+
+  it("не тащит в описание отрасли компании", () => {
+    const first = parsed.experience[0].description ?? "";
+    expect(first).not.toContain("BTL");
+  });
+
   it("находит остальные поля", () => {
     expect(parsed.fullName).toBe("Сериков Арман Болатович");
     expect(parsed.city).toBe("Алматы");

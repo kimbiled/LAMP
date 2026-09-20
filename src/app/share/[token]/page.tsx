@@ -196,17 +196,22 @@ export default async function SharePage({
         {candidate.experience.length > 0 && (
           <section className="rounded-xl border border-muted bg-surface p-5">
             <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
-            <ul className="mt-3 space-y-3">
+            <ul className="mt-3 space-y-4">
               {candidate.experience.map((item) => (
-                <li key={item.id} className="border-l-2 border-muted pl-3">
-                  <p className="text-sm font-medium text-ink">
-                    {item.companyName}
-                  </p>
-                  {item.position && (
-                    <p className="text-sm text-ink-soft">{item.position}</p>
-                  )}
-                  {item.period && (
-                    <p className="text-xs text-ink-soft">{item.period}</p>
+                <li key={item.id} className="border-l-2 border-accent/50 pl-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <p className="text-sm font-medium text-ink">
+                      {item.position ?? "Должность не указана"}
+                    </p>
+                    {item.period && (
+                      <p className="text-xs text-ink-soft">{item.period}</p>
+                    )}
+                  </div>
+                  <p className="text-sm text-ink-soft">{item.companyName}</p>
+                  {item.description && (
+                    <p className="mt-1.5 text-sm whitespace-pre-line text-ink">
+                      {item.description}
+                    </p>
                   )}
                 </li>
               ))}

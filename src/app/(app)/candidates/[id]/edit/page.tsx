@@ -93,12 +93,17 @@ export default async function EditCandidatePage({
                 {candidate.experience.map((item) => (
                   <li key={item.id} className="border-l-2 border-muted pl-3">
                     <p className="text-sm font-medium text-ink">
-                      {item.companyName}
+                      {item.position ?? "должность не распознана"}
                     </p>
                     <p className="text-sm text-ink-soft">
-                      {item.position ?? "должность не распознана"}
+                      {item.companyName}
                       {item.period ? ` · ${item.period}` : ""}
                     </p>
+                    {item.description && (
+                      <p className="mt-1 text-xs whitespace-pre-line text-ink-soft">
+                        {item.description}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
