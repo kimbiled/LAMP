@@ -114,6 +114,10 @@ model User {
   fullName     String
   role         Role      @default(RECRUITER)
   isActive     Boolean   @default(true)
+  // Владелец системы: видит все компании и управляет их пользователями.
+  // Ставится только скриптом scripts/grant-owner.ts или другим владельцем,
+  // через обычный интерфейс компании этот флаг получить нельзя.
+  isSuperAdmin Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   lastLoginAt  DateTime?

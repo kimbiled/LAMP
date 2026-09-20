@@ -8,6 +8,7 @@ import {
   ChartColumn,
   LayoutDashboard,
   Settings,
+  ShieldCheck,
   UserCog,
   Users,
 } from "lucide-react";
@@ -24,6 +25,8 @@ export const NAV_ITEMS: {
   shortLabel?: string;
   icon: typeof LayoutDashboard;
   permission?: Permission;
+  // Пункт только для владельца системы — см. src/lib/superadmin.ts.
+  ownerOnly?: boolean;
 }[] = [
   {
     href: "/dashboard",
@@ -48,22 +51,31 @@ export const NAV_ITEMS: {
     permission: "users.manage",
   },
   { href: "/settings", label: "Настройки", icon: Settings },
+  {
+    href: "/system",
+    label: "Система",
+    icon: ShieldCheck,
+    ownerOnly: true,
+  },
 ];
 
 export function AppNav({
   variant,
   role,
+  isSuperAdmin = false,
 }: {
   variant: "sidebar" | "bottom";
   role: Role;
+  isSuperAdmin?: boolean;
 }) {
   const pathname = usePathname();
 
   // Прятать пункты меню недостаточно: те же права проверяются
   // на сервере при открытии страницы. Здесь — только удобство.
-  const items = NAV_ITEMS.filter(
-    (item) => !item.permission || can(role, item.permission),
-  );
+  const items = NAV_ITEMS.filter((item) => {
+    if (item.ownerOnly && !isSuperAdmin) return false;
+    return !item.permission || can(role, item.permission);
+  });
 
   if (variant === "bottom") {
     return (

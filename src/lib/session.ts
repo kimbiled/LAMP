@@ -21,6 +21,8 @@ export type CurrentSession = {
     fullName: string;
     role: Role;
     companyId: string;
+    // Владелец системы — см. src/lib/superadmin.ts.
+    isSuperAdmin: boolean;
   };
   company: {
     id: string;
@@ -100,6 +102,7 @@ export const getSession = cache(async (): Promise<CurrentSession | null> => {
       fullName: session.user.fullName,
       role: session.user.role,
       companyId: session.user.companyId,
+      isSuperAdmin: session.user.isSuperAdmin,
     },
     company: {
       id: session.user.company.id,
