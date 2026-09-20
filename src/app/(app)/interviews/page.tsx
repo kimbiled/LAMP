@@ -1,17 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { formatDate } from "@/lib/format";
 import { INTERVIEW_STATUS_LABELS, INTERVIEW_TYPE_LABELS } from "@/lib/labels";
-import { APP_TIMEZONE } from "@/lib/time";
+import { APP_TIMEZONE, todayLocal } from "@/lib/time";
+import {
+  DAY_END_HOUR,
+  DAY_START_HOUR,
+  DEFAULT_DURATION,
+  hourLabels,
+  mondayOf,
+  placeInDay,
+  shiftDate,
+  weekDays,
+  weekRange,
+  weekTitle,
+} from "@/lib/calendar";
+import { WeekCalendar, type CalendarEvent } from "./week-calendar";
 
 export const metadata: Metadata = { title: "Интервью — LAMP" };
 
-const FILTERS = [
-  { value: "", label: "Предстоящие" },
+const LIST_FILTERS = [
+  { value: "list", label: "Предстоящие" },
   { value: "past", label: "Прошедшие" },
   { value: "all", label: "Все" },
 ];
@@ -33,10 +47,183 @@ function timeText(value: Date): string {
 export default async function InterviewsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; week?: string }>;
 }) {
   const scope = await getScope();
-  const { view } = await searchParams;
+  const { view, week } = await searchParams;
+
+  // По умолчанию открывается календарь: расписание читается быстрее
+  // списка, а список остаётся рядом для поиска по прошедшим.
+  const isCalendar = !view || view === "week";
+
+  return (
+    <div className="mx-auto max-w-5xl">
+      <h1 className="text-xl font-semibold text-ink-strong">Интервью</h1>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          href="/interviews"
+          className={`rounded-lg px-3 py-1.5 text-sm transition ${
+            isCalendar
+              ? "bg-ink-strong text-canvas"
+              : "bg-muted text-ink-soft hover:text-ink"
+          }`}
+        >
+          Календарь
+        </Link>
+        {LIST_FILTERS.map((filter) => (
+          <Link
+            key={filter.value}
+            href={`/interviews?view=${filter.value}`}
+            className={`rounded-lg px-3 py-1.5 text-sm transition ${
+              view === filter.value
+                ? "bg-ink-strong text-canvas"
+                : "bg-muted text-ink-soft hover:text-ink"
+            }`}
+          >
+            {filter.label}
+          </Link>
+        ))}
+      </div>
+
+      {isCalendar ? (
+        <CalendarView week={week} scope={scope} />
+      ) : (
+        <ListView view={view} scope={scope} />
+      )}
+    </div>
+  );
+}
+
+type Scope = Awaited<ReturnType<typeof getScope>>;
+
+async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
+  const today = todayLocal();
+  const monday = mondayOf(
+    week && /^\d{4}-\d{2}-\d{2}$/.test(week) ? week : today,
+  );
+  const { from, to } = weekRange(monday);
+
+  const canManage = scope.can("interviews.manage");
+
+  const [interviews, candidates, users] = await Promise.all([
+    db.interview.findMany({
+      where: {
+        companyId: scope.companyId,
+        // Нанимающий менеджер видит интервью только своих кандидатов.
+        candidate: candidateVisibilityFilter(scope.session.user),
+        scheduledAt: { gte: from, lt: to },
+      },
+      include: {
+        candidate: { select: { id: true, fullName: true } },
+        interviewer: { select: { id: true, fullName: true } },
+      },
+      orderBy: { scheduledAt: "asc" },
+    }),
+    canManage
+      ? db.candidate.findMany({
+          where: {
+            companyId: scope.companyId,
+            ...candidateVisibilityFilter(scope.session.user),
+          },
+          select: { id: true, fullName: true },
+          orderBy: { createdAt: "desc" },
+          take: 300,
+        })
+      : Promise.resolve([]),
+    canManage
+      ? db.user.findMany({
+          where: { companyId: scope.companyId, isActive: true },
+          select: { id: true, fullName: true },
+          orderBy: { fullName: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  // Раскладываем по сетке на сервере: день и минуты от полуночи
+  // считаются в часовом поясе компании, а не в браузере.
+  const events: CalendarEvent[] = interviews.map((interview) => {
+    const { date, minutes } = placeInDay(interview.scheduledAt);
+
+    return {
+      id: interview.id,
+      candidateId: interview.candidate.id,
+      candidateName: interview.candidate.fullName,
+      type: interview.type,
+      typeLabel: INTERVIEW_TYPE_LABELS[interview.type],
+      status: interview.status,
+      statusLabel: INTERVIEW_STATUS_LABELS[interview.status],
+      date,
+      startMinutes: minutes,
+      durationMinutes: interview.durationMinutes || DEFAULT_DURATION,
+      timeText: timeText(interview.scheduledAt),
+      interviewerId: interview.interviewer?.id ?? null,
+      interviewerName: interview.interviewer?.fullName ?? null,
+      comment: interview.comment,
+    };
+  });
+
+  const nowParts = placeInDay(new Date());
+  const days = weekDays(monday, today);
+
+  // Красную черту «сейчас» показываем, только если текущий момент
+  // попадает и в показанную неделю, и в видимые часы суток.
+  const showNow =
+    days.some((day) => day.date === nowParts.date) &&
+    nowParts.minutes >= DAY_START_HOUR * 60 &&
+    nowParts.minutes <= DAY_END_HOUR * 60;
+
+  return (
+    <div className="mt-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-medium text-ink">{weekTitle(monday)}</p>
+
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/interviews?week=${shiftDate(monday, -7)}`}
+            aria-label="Предыдущая неделя"
+            className="rounded-lg border border-muted p-1.5 text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          >
+            <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
+          </Link>
+          <Link
+            href="/interviews"
+            className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          >
+            Сегодня
+          </Link>
+          <Link
+            href={`/interviews?week=${shiftDate(monday, 7)}`}
+            aria-label="Следующая неделя"
+            className="rounded-lg border border-muted p-1.5 text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          >
+            <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
+          </Link>
+        </div>
+      </div>
+
+      <WeekCalendar
+        days={days}
+        hours={hourLabels()}
+        events={events}
+        candidates={candidates}
+        users={users}
+        canManage={canManage}
+        nowMarker={showNow ? nowParts : null}
+        dayStartHour={DAY_START_HOUR}
+        dayEndHour={DAY_END_HOUR}
+      />
+
+      <p className="mt-3 text-xs text-ink-soft">
+        {canManage
+          ? "Нажмите на свободное место в сетке, чтобы назначить интервью на это время. Кнопка «Подобрать время» найдёт ближайшие окна сама."
+          : "Здесь видны интервью ваших кандидатов. Назначает их рекрутер."}
+      </p>
+    </div>
+  );
+}
+
+async function ListView({ view, scope }: { view?: string; scope: Scope }) {
   const now = new Date();
 
   const period =
@@ -49,7 +236,6 @@ export default async function InterviewsPage({
   const interviews = await db.interview.findMany({
     where: {
       companyId: scope.companyId,
-      // Нанимающий менеджер видит интервью только своих кандидатов.
       candidate: candidateVisibilityFilter(scope.session.user),
       ...period,
     },
@@ -58,7 +244,7 @@ export default async function InterviewsPage({
       job: { select: { title: true } },
       interviewer: { select: { fullName: true } },
     },
-    orderBy: { scheduledAt: view === "" || !view ? "asc" : "desc" },
+    orderBy: { scheduledAt: view === "list" ? "asc" : "desc" },
     take: 200,
   });
 
@@ -71,92 +257,69 @@ export default async function InterviewsPage({
     days.set(key, list);
   }
 
-  return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="text-xl font-semibold text-ink-strong">Интервью</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        {interviews.length > 0
-          ? `Всего: ${interviews.length}`
-          : "Записей нет"}
-      </p>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {FILTERS.map((filter) => {
-          const isActive = (view ?? "") === filter.value;
-          return (
-            <Link
-              key={filter.label}
-              href={filter.value ? `/interviews?view=${filter.value}` : "/interviews"}
-              className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                isActive
-                  ? "bg-ink-strong text-canvas"
-                  : "bg-muted text-ink-soft hover:text-ink"
-              }`}
-            >
-              {filter.label}
-            </Link>
-          );
-        })}
+  if (interviews.length === 0) {
+    return (
+      <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+        <p className="text-sm text-ink-soft">
+          Записей нет. Интервью назначаются в календаре или в карточке
+          кандидата.
+        </p>
       </div>
+    );
+  }
 
-      {interviews.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
-          <p className="text-sm text-ink-soft">
-            Интервью назначаются в карточке кандидата.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-5 space-y-4">
-          {[...days.entries()].map(([day, items]) => (
-            <section
-              key={day}
-              className="overflow-hidden rounded-xl border border-muted bg-surface"
-            >
-              <div className="border-b border-muted px-4 py-2.5">
-                <p className="text-sm font-medium text-ink">{day}</p>
-              </div>
+  return (
+    <div className="mt-5 space-y-4">
+      <p className="text-sm text-ink-soft">Всего: {interviews.length}</p>
 
-              <ul className="divide-y divide-muted">
-                {items.map((interview) => (
-                  <li key={interview.id}>
-                    <Link
-                      href={`/candidates/${interview.candidate.id}`}
-                      className="flex items-center gap-3 px-4 py-3 transition hover:bg-canvas"
-                    >
-                      <span className="w-12 shrink-0 text-sm font-medium text-ink">
-                        {timeText(interview.scheduledAt)}
+      {[...days.entries()].map(([day, items]) => (
+        <section
+          key={day}
+          className="overflow-hidden rounded-xl border border-muted bg-surface"
+        >
+          <div className="border-b border-muted px-4 py-2.5">
+            <p className="text-sm font-medium text-ink">{day}</p>
+          </div>
+
+          <ul className="divide-y divide-muted">
+            {items.map((interview) => (
+              <li key={interview.id}>
+                <Link
+                  href={`/candidates/${interview.candidate.id}`}
+                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-canvas"
+                >
+                  <span className="w-12 shrink-0 text-sm font-medium text-ink">
+                    {timeText(interview.scheduledAt)}
+                  </span>
+
+                  <Avatar name={interview.candidate.fullName} size="sm" />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm text-ink">
+                        {interview.candidate.fullName}
+                      </p>
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLES[interview.status]}`}
+                      >
+                        {INTERVIEW_STATUS_LABELS[interview.status]}
                       </span>
-
-                      <Avatar name={interview.candidate.fullName} size="sm" />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate text-sm text-ink">
-                            {interview.candidate.fullName}
-                          </p>
-                          <span
-                            className={`rounded-md px-2 py-0.5 text-xs ${STATUS_STYLES[interview.status]}`}
-                          >
-                            {INTERVIEW_STATUS_LABELS[interview.status]}
-                          </span>
-                        </div>
-                        <p className="truncate text-xs text-ink-soft">
-                          {INTERVIEW_TYPE_LABELS[interview.type]}
-                          {interview.job ? ` · ${interview.job.title}` : ""}
-                        </p>
-                        <p className="truncate text-xs text-ink-soft">
-                          Интервьюер:{" "}
-                          {interview.interviewer?.fullName ?? "не назначен"}
-                        </p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
+                    </div>
+                    <p className="truncate text-xs text-ink-soft">
+                      {INTERVIEW_TYPE_LABELS[interview.type]}
+                      {interview.job ? ` · ${interview.job.title}` : ""}
+                    </p>
+                    <p className="truncate text-xs text-ink-soft">
+                      Интервьюер:{" "}
+                      {interview.interviewer?.fullName ?? "не назначен"}
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }
