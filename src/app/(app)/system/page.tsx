@@ -70,7 +70,32 @@ export default async function SystemPage() {
         ))}
       </div>
 
-      <div className="mt-5 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/system/candidates"
+          className="rounded-xl border border-muted bg-surface p-4 transition hover:border-ink-soft"
+        >
+          <p className="text-sm font-medium text-ink">Все кандидаты</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Единая база по всем компаниям: карточки, резюме, интервью,
+            фидбэки и история.
+          </p>
+        </Link>
+
+        <Link
+          href="/system/jobs"
+          className="rounded-xl border border-muted bg-surface p-4 transition hover:border-ink-soft"
+        >
+          <p className="text-sm font-medium text-ink">Все вакансии</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Вакансии всех компаний с рекрутерами и числом кандидатов.
+          </p>
+        </Link>
+      </div>
+
+      <h2 className="mt-6 text-sm font-medium text-ink">Компании</h2>
+
+      <div className="mt-3 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
         {companies.map((company) => {
           const isOwn = company.id === session.user.companyId;
 

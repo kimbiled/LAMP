@@ -76,6 +76,21 @@ export default async function SystemCompanyPage({
         </p>
       </div>
 
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          href={`/system/candidates?company=${company.id}`}
+          className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        >
+          Кандидаты компании
+        </Link>
+        <Link
+          href={`/system/jobs?company=${company.id}`}
+          className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        >
+          Вакансии компании
+        </Link>
+      </div>
+
       <section className="mt-5 overflow-hidden rounded-xl border border-muted bg-surface">
         <div className="border-b border-muted px-4 py-3">
           <h2 className="text-sm font-medium text-ink">

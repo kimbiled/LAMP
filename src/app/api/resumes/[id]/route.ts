@@ -20,12 +20,17 @@ export async function GET(
 
   const { id } = await params;
 
+  // Владелец системы открывает резюме любой компании — это его раздел
+  // «Все кандидаты». Всем остальным файл выдаётся только внутри своей
+  // компании и только если кандидат им вообще виден.
   const resume = await db.resume.findFirst({
-    where: {
-      id,
-      companyId: session.user.companyId,
-      candidate: candidateVisibilityFilter(session.user),
-    },
+    where: session.user.isSuperAdmin
+      ? { id }
+      : {
+          id,
+          companyId: session.user.companyId,
+          candidate: candidateVisibilityFilter(session.user),
+        },
   });
 
   if (!resume) {
