@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, RefreshCw } from "lucide-react";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { telLink } from "@/lib/contacts";
+import { reparseResume } from "@/app/actions/resumes";
 import { ContactButtons } from "./contact-buttons";
 import { ResumeSection } from "./resume-section";
 import { StagePipeline } from "@/components/stage-pipeline";
@@ -274,6 +275,28 @@ export default async function CandidatePage({
 
       <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr]">
         <div className="space-y-4">
+          {candidate.experience.length === 0 && candidate.resumes.length > 0 && (
+            <section className="rounded-xl border border-dashed border-muted bg-surface p-5">
+              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
+              <p className="mt-1 text-sm text-ink-soft">
+                Не распознан. Резюме загружено — можно прочитать его ещё раз
+                или заполнить опыт вручную через «Изменить».
+              </p>
+              {canEdit && (
+                <form action={reparseResume} className="mt-3">
+                  <input type="hidden" name="candidateId" value={candidate.id} />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
+                  >
+                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                    Распознать из резюме
+                  </button>
+                </form>
+              )}
+            </section>
+          )}
+
           {candidate.experience.length > 0 && (
             <section className="rounded-xl border border-muted bg-surface p-5">
               <h2 className="text-sm font-medium text-ink">Опыт работы</h2>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { moveCandidateToStage } from "@/app/actions/candidates";
 
@@ -27,7 +27,12 @@ export function StagePipeline({
   stages: PipelineStage[];
   canMove: boolean;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+
+  // Подсветка переключается сразу по нажатию, не дожидаясь сервера.
+  // Сервер подтвердит перевод через долю секунды — человек этого
+  // уже не замечает.
+  const [activeStageId, setActiveStageId] = useOptimistic(currentStageId);
 
   // Отказ и «Не отвечает» стоят особняком: это не ступени воронки,
   // а выход из неё.
@@ -36,7 +41,7 @@ export function StagePipeline({
   );
   const main = stages.filter((stage) => !negative.includes(stage));
 
-  const currentIndex = main.findIndex((stage) => stage.id === currentStageId);
+  const currentIndex = main.findIndex((stage) => stage.id === activeStageId);
   const nextStage =
     currentIndex >= 0 && currentIndex < main.length - 1
       ? main[currentIndex + 1]
@@ -51,6 +56,7 @@ export function StagePipeline({
     formData.set("stageId", stage.id);
 
     startTransition(async () => {
+      setActiveStageId(stage.id);
       await moveCandidateToStage(formData);
     });
   }
@@ -63,7 +69,6 @@ export function StagePipeline({
         {canMove && nextStage && (
           <button
             type="button"
-            disabled={pending}
             onClick={() => move(nextStage)}
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-accent-hover disabled:opacity-60"
           >
@@ -75,14 +80,14 @@ export function StagePipeline({
 
       <div className="mt-3 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
         {main.map((stage, index) => {
-          const isCurrent = stage.id === currentStageId;
+          const isCurrent = stage.id === activeStageId;
           const isDone = currentIndex >= 0 && index < currentIndex;
 
           return (
             <button
               key={stage.id}
               type="button"
-              disabled={!canMove || pending || isCurrent}
+              disabled={!canMove || isCurrent}
               onClick={() => move(stage)}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition ${
                 isCurrent
@@ -102,12 +107,12 @@ export function StagePipeline({
       {negative.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {negative.map((stage) => {
-            const isCurrent = stage.id === currentStageId;
+            const isCurrent = stage.id === activeStageId;
             return (
               <button
                 key={stage.id}
                 type="button"
-                disabled={!canMove || pending || isCurrent}
+                disabled={!canMove || isCurrent}
                 onClick={() => move(stage)}
                 className={`rounded-lg px-3 py-1.5 text-xs transition ${
                   isCurrent
