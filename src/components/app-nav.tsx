@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Briefcase,
   CalendarDays,
@@ -69,6 +70,14 @@ export function AppNav({
   isSuperAdmin?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  // Страница собирается на сервере, и между нажатием и её появлением
+  // проходит несколько сотен миллисекунд. Без отклика кажется, что
+  // нажатие не сработало, и человек жмёт второй раз. Поэтому пункт
+  // подсвечивается сразу, ещё до того, как страница пришла.
+  const [pending, startTransition] = useTransition();
+  const [clicked, setClicked] = useState<string | null>(null);
 
   // Прятать пункты меню недостаточно: те же права проверяются
   // на сервере при открытии страницы. Здесь — только удобство.
@@ -77,16 +86,35 @@ export function AppNav({
     return !item.permission || can(role, item.permission);
   });
 
+  function go(event: React.MouseEvent, href: string) {
+    // Средняя кнопка мыши и Ctrl+клик открывают новую вкладку —
+    // в эти случаи не вмешиваемся.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    setClicked(href);
+    startTransition(() => router.push(href));
+  }
+
+  // Пока страница едет, подсвечен тот пункт, по которому нажали.
+  const highlighted = pending && clicked ? clicked : null;
+
+  const isActive = (href: string) =>
+    highlighted ? href === highlighted : pathname.startsWith(href);
+
   if (variant === "bottom") {
     return (
       <nav className="flex">
         {items.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const active = isActive(item.href);
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={(event) => go(event, item.href)}
               className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 ${
                 active ? "text-accent" : "text-sidebar-text"
               }`}
@@ -105,12 +133,13 @@ export function AppNav({
   return (
     <nav className="space-y-1">
       {items.map((item) => {
-        const active = pathname.startsWith(item.href);
+        const active = isActive(item.href);
         const Icon = item.icon;
         return (
           <Link
             key={item.href}
             href={item.href}
+            onClick={(event) => go(event, item.href)}
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
               active
                 ? "bg-accent font-medium text-ink"
