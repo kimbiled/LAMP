@@ -95,6 +95,7 @@ model Company {
 
   users         User[]
   stages        Stage[]
+  tags          Tag[]
   jobs          Job[]
   candidates    Candidate[]
   resumes       Resume[]
@@ -211,6 +212,9 @@ model Candidate {
   stageId           String
   fullName          String
   phone             String?
+  // Последние десять цифр телефона — по ним ищем дубли.
+  // Заполняется автоматически при сохранении карточки.
+  phoneKey          String?
   email             String?
   city              String?
   birthDate         DateTime?
@@ -224,6 +228,10 @@ model Candidate {
   languages         String[]
   source            String?
   note              String?
+  // Причина отказа. Заполняется при переводе на «Отказ от нас» или
+  // «Отказ от кандидата», очищается, если человек вернулся в работу.
+  rejectionReason   String?
+  rejectionComment  String?
   createdById       String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -234,6 +242,7 @@ model Candidate {
   stage     Stage   @relation(fields: [stageId], references: [id])
   createdBy User    @relation("CandidateCreatedBy", fields: [createdById], references: [id])
 
+  tags       Tag[]
   experience CandidateExperience[]
   education  CandidateEducation[]
   resumes    Resume[]
@@ -244,6 +253,7 @@ model Candidate {
 
   @@index([companyId])
   @@index([companyId, stageId])
+  @@index([companyId, phoneKey])
   @@index([jobId])
 }
 
@@ -440,4 +450,20 @@ model LoginAttempt {
 
   @@index([email, createdAt])
   @@index([ip, createdAt])
+}
+
+// Метки на кандидате: «английский B2», «релокант», «не брать».
+// Живут внутри компании: одинаковые названия у разных компаний —
+// это разные метки, пересечься они не могут.
+model Tag {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidates Candidate[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }

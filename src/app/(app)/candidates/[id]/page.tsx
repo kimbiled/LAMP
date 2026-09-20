@@ -22,6 +22,7 @@ import { todayLocal } from "@/lib/time";
 import { telLink } from "@/lib/contacts";
 import { publicBaseUrl } from "@/lib/app-url";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
+import { rejectionLabel, rejectionSide } from "@/lib/rejection";
 import { reparseResume } from "@/app/actions/resumes";
 import { ContactButtons } from "./contact-buttons";
 import { ResumeSection } from "./resume-section";
@@ -29,6 +30,7 @@ import { StagePipeline } from "@/components/stage-pipeline";
 import { InterviewsBlock } from "./interviews-block";
 import { FeedbackBlock } from "./feedback-block";
 import { ShareBlock } from "./share-block";
+import { TagsBlock } from "./tags-block";
 import { DeleteCandidateButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Кандидат — LAMP" };
@@ -41,42 +43,43 @@ export default async function CandidatePage({
   const { id } = await params;
   const scope = await getScope();
 
-  // Три независимых запроса запускаем одновременно, а не по очереди.
-  const [candidate, stages, users] = await Promise.all([
+  // Независимые запросы запускаем одновременно, а не по очереди.
+  const [candidate, stages, users, companyTags] = await Promise.all([
     db.candidate.findFirst({
-    where: {
-      id,
-      companyId: scope.companyId,
-      ...candidateVisibilityFilter(scope.session.user),
-    },
-    include: {
-      job: { select: { id: true, title: true } },
-      stage: { select: { id: true, name: true, key: true } },
-      createdBy: { select: { fullName: true } },
-      experience: { orderBy: { sortOrder: "asc" } },
-      education: { orderBy: { sortOrder: "asc" } },
-      resumes: {
-        orderBy: { uploadedAt: "desc" },
-        include: { uploadedBy: { select: { fullName: true } } },
+      where: {
+        id,
+        companyId: scope.companyId,
+        ...candidateVisibilityFilter(scope.session.user),
       },
-      interviews: {
-        orderBy: { scheduledAt: "desc" },
-        include: { interviewer: { select: { fullName: true } } },
-      },
-      feedbacks: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          stage: { select: { name: true } },
-          author: { select: { fullName: true } },
+      include: {
+        job: { select: { id: true, title: true } },
+        stage: { select: { id: true, name: true, key: true } },
+        createdBy: { select: { fullName: true } },
+        tags: { select: { id: true, name: true }, orderBy: { name: "asc" } },
+        experience: { orderBy: { sortOrder: "asc" } },
+        education: { orderBy: { sortOrder: "asc" } },
+        resumes: {
+          orderBy: { uploadedAt: "desc" },
+          include: { uploadedBy: { select: { fullName: true } } },
         },
-      },
-      shareLinks: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          createdBy: { select: { fullName: true } },
-          _count: { select: { feedbacks: true } },
+        interviews: {
+          orderBy: { scheduledAt: "desc" },
+          include: { interviewer: { select: { fullName: true } } },
         },
-      },
+        feedbacks: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            stage: { select: { name: true } },
+            author: { select: { fullName: true } },
+          },
+        },
+        shareLinks: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            createdBy: { select: { fullName: true } },
+            _count: { select: { feedbacks: true } },
+          },
+        },
         history: {
           orderBy: { createdAt: "desc" },
           include: {
@@ -98,6 +101,12 @@ export default async function CandidatePage({
           orderBy: { fullName: "asc" },
         })
       : Promise.resolve([]),
+    // Метки, уже заведённые в компании, — для подсказок в поле ввода.
+    db.tag.findMany({
+      where: { companyId: scope.companyId },
+      select: { name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   assertOwnCompany(candidate, scope.companyId);
@@ -184,7 +193,9 @@ export default async function CandidatePage({
       </Link>
 
       {/* Шапка карточки: сначала человек, потом всё остальное. */}
-      <section className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}>
+      <section
+        className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-4">
             <Avatar name={candidate.fullName} size="lg" />
@@ -254,6 +265,13 @@ export default async function CandidatePage({
           </div>
         </div>
 
+        <TagsBlock
+          candidateId={candidate.id}
+          tags={candidate.tags}
+          allTags={companyTags.map((tag) => tag.name)}
+          canEdit={canEdit}
+        />
+
         <div className="mt-4">
           <ContactButtons
             candidateName={candidate.fullName}
@@ -274,38 +292,63 @@ export default async function CandidatePage({
           stages={stages}
           canMove={canMove}
         />
+
+        {/* Причина отказа сразу под этапом: именно её ищут,
+            когда открывают карточку отказанного кандидата. */}
+        {rejectionSide(candidate.stage.key) &&
+          (candidate.rejectionReason || candidate.rejectionComment) && (
+            <div className="mt-2 rounded-xl border border-muted bg-surface px-4 py-3">
+              <p className="text-xs text-ink-soft">Причина</p>
+              <p className="mt-0.5 text-sm text-ink">
+                {rejectionLabel(candidate.rejectionReason) ?? "не указана"}
+              </p>
+              {candidate.rejectionComment && (
+                <p className="mt-1 text-sm text-ink-soft">
+                  {candidate.rejectionComment}
+                </p>
+              )}
+            </div>
+          )}
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr]">
         <div className="space-y-4">
-          {candidate.experience.length === 0 && candidate.resumes.length > 0 && (
-            <section className="rounded-xl border border-dashed border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
-              <p className="mt-1 text-sm text-ink-soft">
-                Не распознан. Резюме загружено — можно прочитать его ещё раз
-                или заполнить опыт вручную через «Изменить».
-              </p>
-              {canEdit && (
-                <form action={reparseResume} className="mt-3">
-                  <input type="hidden" name="candidateId" value={candidate.id} />
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
-                  >
-                    <RefreshCw className="h-4 w-4" strokeWidth={2} />
-                    Распознать из резюме
-                  </button>
-                </form>
-              )}
-            </section>
-          )}
+          {candidate.experience.length === 0 &&
+            candidate.resumes.length > 0 && (
+              <section className="rounded-xl border border-dashed border-muted bg-surface p-5">
+                <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Не распознан. Резюме загружено — можно прочитать его ещё раз
+                  или заполнить опыт вручную через «Изменить».
+                </p>
+                {canEdit && (
+                  <form action={reparseResume} className="mt-3">
+                    <input
+                      type="hidden"
+                      name="candidateId"
+                      value={candidate.id}
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
+                    >
+                      <RefreshCw className="h-4 w-4" strokeWidth={2} />
+                      Распознать из резюме
+                    </button>
+                  </form>
+                )}
+              </section>
+            )}
 
           {candidate.experience.length > 0 && (
             <section className="rounded-xl border border-muted bg-surface p-5">
               <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
               <ul className="mt-3 space-y-4">
                 {candidate.experience.map((item) => (
-                  <li key={item.id} className="border-l-2 border-accent/50 pl-3">
+                  <li
+                    key={item.id}
+                    className="border-l-2 border-accent/50 pl-3"
+                  >
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                       <p className="text-sm font-medium text-ink">
                         {item.position ?? "Должность не указана"}
@@ -362,7 +405,9 @@ export default async function CandidatePage({
               {candidate.telegram && (
                 <div>
                   <dt className="text-xs text-ink-soft">Telegram</dt>
-                  <dd className="text-sm break-words text-ink">@{candidate.telegram}</dd>
+                  <dd className="text-sm break-words text-ink">
+                    @{candidate.telegram}
+                  </dd>
                 </div>
               )}
               {facts.map((fact) => (

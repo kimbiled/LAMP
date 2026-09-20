@@ -7,7 +7,9 @@ import { getScope } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
 import { candidateSchema, fieldErrorsFrom } from "@/lib/validation";
 import { addHistory } from "@/lib/history";
-import { normalizeTelegram } from "@/lib/contacts";
+import { normalizeTelegram, phoneKey } from "@/lib/contacts";
+import { findDuplicates, type DuplicateMatch } from "@/lib/duplicates";
+import { rejectionSide, isKnownReason, rejectionLabel } from "@/lib/rejection";
 import { removeFile } from "@/lib/storage";
 import { jobWatchers, notify } from "@/lib/notifications";
 import { logAction } from "@/lib/audit";
@@ -15,6 +17,12 @@ import { logAction } from "@/lib/audit";
 export type CandidateFormState = {
   formError?: string;
   fieldErrors?: Record<string, string>;
+  // Найденные однофамильцы по телефону или почте. Форма показывает их
+  // и ждёт решения: открыть существующего или всё-таки создать нового.
+  duplicates?: DuplicateMatch[];
+  // Введённое возвращаем обратно в форму: React после отправки
+  // очищает поля, и без этого пришлось бы набирать всё заново.
+  values?: Record<string, string>;
 };
 
 function text(formData: FormData, name: string): string {
@@ -95,6 +103,33 @@ function readForm(formData: FormData) {
   };
 }
 
+// То же самое, но строками — чтобы вернуть в форму ровно то,
+// что человек набрал, включая незаполненные и ошибочные поля.
+const FORM_FIELDS = [
+  "fullName",
+  "jobId",
+  "stageId",
+  "phone",
+  "email",
+  "city",
+  "birthDate",
+  "currentPosition",
+  "experienceYears",
+  "salaryExpectation",
+  "currency",
+  "telegram",
+  "skills",
+  "languages",
+  "source",
+  "note",
+];
+
+function rawValues(formData: FormData): Record<string, string> {
+  return Object.fromEntries(
+    FORM_FIELDS.map((name) => [name, text(formData, name)]),
+  );
+}
+
 // Вакансия должна принадлежать компании и быть доступна этому человеку.
 async function validJobId(
   jobId: string | null,
@@ -135,12 +170,33 @@ export async function createCandidate(
 
   const parsed = candidateSchema.safeParse(readForm(formData));
   if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+    return {
+      fieldErrors: fieldErrorsFrom(parsed.error),
+      values: rawValues(formData),
+    };
   }
 
   const stageId = await validStageId(parsed.data.stageId, scope.companyId);
   if (!stageId) {
-    return { fieldErrors: { stageId: "Этап не найден" } };
+    return {
+      fieldErrors: { stageId: "Этап не найден" },
+      values: rawValues(formData),
+    };
+  }
+
+  // Не запрещаем, а предупреждаем: бывают и однофамильцы с общим
+  // рабочим телефоном. Решение остаётся за рекрутером — второй раз
+  // та же форма приходит с отметкой «создавать всё равно».
+  if (text(formData, "ignoreDuplicates") !== "true") {
+    const duplicates = await findDuplicates({
+      companyId: scope.companyId,
+      phone: parsed.data.phone,
+      email: parsed.data.email,
+    });
+
+    if (duplicates.length > 0) {
+      return { duplicates, values: rawValues(formData) };
+    }
   }
 
   const candidate = await db.candidate.create({
@@ -150,6 +206,7 @@ export async function createCandidate(
       stageId,
       fullName: parsed.data.fullName,
       phone: parsed.data.phone || null,
+      phoneKey: phoneKey(parsed.data.phone),
       email: parsed.data.email || null,
       city: parsed.data.city || null,
       birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null,
@@ -212,12 +269,18 @@ export async function updateCandidate(
 
   const parsed = candidateSchema.safeParse(readForm(formData));
   if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+    return {
+      fieldErrors: fieldErrorsFrom(parsed.error),
+      values: rawValues(formData),
+    };
   }
 
   const stageId = await validStageId(parsed.data.stageId, scope.companyId);
   if (!stageId) {
-    return { fieldErrors: { stageId: "Этап не найден" } };
+    return {
+      fieldErrors: { stageId: "Этап не найден" },
+      values: rawValues(formData),
+    };
   }
 
   const stageChanged = stageId !== existing.stageId;
@@ -229,6 +292,7 @@ export async function updateCandidate(
       stageId,
       fullName: parsed.data.fullName,
       phone: parsed.data.phone || null,
+      phoneKey: phoneKey(parsed.data.phone),
       email: parsed.data.email || null,
       city: parsed.data.city || null,
       birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null,
@@ -285,15 +349,45 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
     return;
   }
 
-  const validStage = await validStageId(stageId, scope.companyId);
-  if (!validStage) {
+  // Ключ этапа нужен сразу: по нему понятно, отказ это или нет.
+  const stage = await db.stage.findFirst({
+    where: { id: stageId, companyId: scope.companyId },
+    select: { id: true, name: true, key: true },
+  });
+
+  if (!stage) {
     return;
   }
 
+  const validStage = stage.id;
+
+  // Причину спрашиваем только на двух этапах отказа. Её можно
+  // пропустить — тогда просто останется пусто.
+  const side = rejectionSide(stage.key);
+  const reasonCode = text(formData, "rejectionReason");
+  const reason = side && isKnownReason(side, reasonCode) ? reasonCode : null;
+  const reasonComment = text(formData, "rejectionComment").slice(0, 1000);
+
   await db.candidate.update({
     where: { id: candidate.id },
-    data: { stageId: validStage, stageChangedAt: new Date() },
+    data: {
+      stageId: validStage,
+      stageChangedAt: new Date(),
+      // Человек вернулся в работу — прежняя причина отказа больше не про него.
+      rejectionReason: side ? reason : null,
+      rejectionComment: side ? reasonComment || null : null,
+    },
   });
+
+  // В истории причина видна текстом: через полгода коды никто не помнит.
+  const historyComment =
+    [
+      reason ? rejectionLabel(reason) : null,
+      reasonComment || null,
+      comment || null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null;
 
   await addHistory({
     companyId: scope.companyId,
@@ -301,14 +395,9 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
     type: "STAGE_CHANGED",
     fromStageId: candidate.stageId,
     toStageId: validStage,
-    comment: comment || null,
+    comment: historyComment,
     actorId: scope.session.user.id,
     actorName: scope.session.user.fullName,
-  });
-
-  const stage = await db.stage.findUnique({
-    where: { id: validStage },
-    select: { name: true },
   });
 
   await notify({
@@ -317,7 +406,7 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
     actorId: scope.session.user.id,
     type: "STAGE_CHANGED",
     title: `Новый этап: ${candidate.fullName}`,
-    body: stage ? `Переведён на «${stage.name}»` : null,
+    body: `Переведён на «${stage.name}»`,
     entityType: "Candidate",
     entityId: candidate.id,
   });

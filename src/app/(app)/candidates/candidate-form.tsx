@@ -59,11 +59,69 @@ export function CandidateForm({
 }) {
   const [state, formAction] = useActionState(action, initialState);
 
+  // После отправки формы React сбрасывает поля к начальным значениям.
+  // Если сервер вернул ошибку или предупреждение о дубле, начальными
+  // должны стать те значения, которые человек только что набрал.
+  const v: CandidateFormValues = { ...values, ...(state.values ?? {}) };
+
   return (
     <form action={formAction} className="space-y-6">
       {state.formError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
           {state.formError}
+        </div>
+      )}
+
+      {/* Найден человек с такими же контактами. Форма не потеряна:
+          всё введённое на месте, решение за рекрутером. */}
+      {state.duplicates && state.duplicates.length > 0 && (
+        <div className="rounded-lg border border-accent/50 bg-accent/10 p-4">
+          <p className="text-sm font-medium text-ink">
+            {state.duplicates.length === 1
+              ? "Такой человек уже есть в базе"
+              : "Похожие люди уже есть в базе"}
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Совпали контакты. Откройте карточку, чтобы не заводить второго — или
+            создайте нового, если это однофамилец.
+          </p>
+
+          <ul className="mt-3 space-y-2">
+            {state.duplicates.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-muted bg-surface px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink">{item.fullName}</p>
+                  <p className="truncate text-xs text-ink-soft">
+                    {item.stageName}
+                    {item.jobTitle ? ` · ${item.jobTitle}` : ""} · совпадение по{" "}
+                    {item.matchedBy === "phone" ? "телефону" : "почте"}
+                  </p>
+                </div>
+                <Link
+                  href={`/candidates/${item.id}`}
+                  className="rounded-lg border border-muted px-3 py-1.5 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                >
+                  Открыть карточку
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {/* Второй заход формы приходит с этой отметкой,
+              и проверка дублей пропускается. */}
+          <label className="mt-3 flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="ignoreDuplicates"
+              value="true"
+              defaultChecked
+              className="h-4 w-4 rounded border-muted accent-accent"
+            />
+            Это другой человек — создать всё равно
+          </label>
         </div>
       )}
 
@@ -76,7 +134,7 @@ export function CandidateForm({
           required
           placeholder="Петров Иван Сергеевич"
           hint="Фамилия, имя, отчество"
-          defaultValue={values.fullName}
+          defaultValue={v.fullName}
           error={state.fieldErrors?.fullName}
         />
 
@@ -84,7 +142,7 @@ export function CandidateForm({
           <SelectField
             label="Вакансия"
             name="jobId"
-            defaultValue={values.jobId}
+            defaultValue={v.jobId}
             options={[
               { value: "", label: "Без вакансии" },
               ...jobs.map((job) => ({ value: job.id, label: job.title })),
@@ -93,7 +151,7 @@ export function CandidateForm({
           <SelectField
             label="Этап"
             name="stageId"
-            defaultValue={values.stageId}
+            defaultValue={v.stageId}
             options={stages.map((stage) => ({
               value: stage.id,
               label: stage.name,
@@ -113,7 +171,7 @@ export function CandidateForm({
             type="tel"
             placeholder="+7 701 123 45 67"
             hint="Нужен для кнопок «Позвонить» и WhatsApp"
-            defaultValue={values.phone}
+            defaultValue={v.phone}
             error={state.fieldErrors?.phone}
           />
           <TextField
@@ -121,7 +179,7 @@ export function CandidateForm({
             name="email"
             type="email"
             placeholder="ivan@mail.kz"
-            defaultValue={values.email}
+            defaultValue={v.email}
             error={state.fieldErrors?.email}
           />
         </div>
@@ -132,14 +190,14 @@ export function CandidateForm({
             name="telegram"
             placeholder="@ivan_petrov"
             hint="Можно с @ или ссылкой — приведём к единому виду"
-            defaultValue={values.telegram}
+            defaultValue={v.telegram}
             error={state.fieldErrors?.telegram}
           />
           <TextField
             label="Город"
             name="city"
             placeholder="Астана"
-            defaultValue={values.city}
+            defaultValue={v.city}
             error={state.fieldErrors?.city}
           />
         </div>
@@ -149,7 +207,7 @@ export function CandidateForm({
             label="Дата рождения"
             name="birthDate"
             type="date"
-            defaultValue={values.birthDate}
+            defaultValue={v.birthDate}
             error={state.fieldErrors?.birthDate}
           />
         </div>
@@ -163,7 +221,7 @@ export function CandidateForm({
             label="Текущая должность"
             name="currentPosition"
             placeholder="Frontend-разработчик"
-            defaultValue={values.currentPosition}
+            defaultValue={v.currentPosition}
             error={state.fieldErrors?.currentPosition}
           />
           <TextField
@@ -171,7 +229,7 @@ export function CandidateForm({
             name="experienceYears"
             type="number"
             placeholder="5"
-            defaultValue={values.experienceYears}
+            defaultValue={v.experienceYears}
             error={state.fieldErrors?.experienceYears}
           />
         </div>
@@ -182,13 +240,13 @@ export function CandidateForm({
             name="salaryExpectation"
             type="number"
             placeholder="900000"
-            defaultValue={values.salaryExpectation}
+            defaultValue={v.salaryExpectation}
             error={state.fieldErrors?.salaryExpectation}
           />
           <SelectField
             label="Валюта"
             name="currency"
-            defaultValue={values.currency}
+            defaultValue={v.currency}
             options={CURRENCIES.map((item) => ({
               value: item.code,
               label: item.label,
@@ -201,7 +259,7 @@ export function CandidateForm({
           name="skills"
           placeholder="React, TypeScript, Figma"
           hint="Через запятую"
-          defaultValue={values.skills}
+          defaultValue={v.skills}
         />
 
         <TextField
@@ -209,7 +267,7 @@ export function CandidateForm({
           name="languages"
           placeholder="Русский, английский B2"
           hint="Через запятую"
-          defaultValue={values.languages}
+          defaultValue={v.languages}
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -217,7 +275,7 @@ export function CandidateForm({
             label="Источник"
             name="source"
             placeholder="Рекомендация, сайт, HeadHunter"
-            defaultValue={values.source}
+            defaultValue={v.source}
             error={state.fieldErrors?.source}
           />
         </div>
@@ -227,7 +285,7 @@ export function CandidateForm({
           name="note"
           rows={4}
           placeholder="Заметки для команды"
-          defaultValue={values.note}
+          defaultValue={v.note}
           error={state.fieldErrors?.note}
         />
       </section>

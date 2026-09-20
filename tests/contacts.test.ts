@@ -3,6 +3,7 @@ import {
   emailLink,
   firstMessage,
   normalizeTelegram,
+  phoneKey,
   telLink,
   telegramByPhoneOnly,
   telegramLink,
@@ -81,5 +82,23 @@ describe("Telegram по номеру телефона", () => {
     expect(telegramLink(null, null)).toBeNull();
     expect(telegramLink("", "123")).toBeNull();
     expect(telegramByPhoneOnly(null, null)).toBe(false);
+  });
+});
+
+// Один и тот же номер, записанный по-разному, должен давать
+// один ключ — иначе проверка дублей ничего не найдёт.
+describe("Ключ телефона", () => {
+  it("не зависит от формата записи", () => {
+    const expected = "7011234567";
+    expect(phoneKey("+7 701 123 45 67")).toBe(expected);
+    expect(phoneKey("8 701 123 45 67")).toBe(expected);
+    expect(phoneKey("87011234567")).toBe(expected);
+    expect(phoneKey("+7 (701) 123-45-67")).toBe(expected);
+  });
+
+  it("на пустом и слишком коротком номере молчит", () => {
+    expect(phoneKey(null)).toBeNull();
+    expect(phoneKey("")).toBeNull();
+    expect(phoneKey("123456")).toBeNull();
   });
 });

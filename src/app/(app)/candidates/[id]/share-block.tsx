@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState, useSyncExternalStore } from "react";
 import { Check, Copy, ExternalLink, Share2 } from "lucide-react";
 import {
   createShareLink,
@@ -26,17 +26,20 @@ export type ShareLinkView = {
   feedbackCount: number;
 };
 
-// Адрес системы. На сервере он известен только если прописан APP_URL,
-// иначе берём его из браузера уже после отрисовки страницы —
-// иначе разметка сервера и браузера не совпали бы.
+// Адрес системы. На сервере он известен, только если прописан APP_URL,
+// иначе берём его из браузера. На сервере такого адреса нет, поэтому
+// сначала отдаём пустую строку — так разметка сервера и браузера
+// совпадают, и React не ругается на несовпадение.
+const noSubscribe = () => () => {};
+
 function useBaseUrl(fromServer: string | null) {
-  const [base, setBase] = useState(fromServer ?? "");
+  const fromBrowser = useSyncExternalStore(
+    noSubscribe,
+    () => window.location.origin,
+    () => "",
+  );
 
-  useEffect(() => {
-    if (!fromServer) setBase(window.location.origin);
-  }, [fromServer]);
-
-  return base;
+  return fromServer ?? fromBrowser;
 }
 
 function isLocalAddress(base: string) {

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireScope } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import { CANDIDATE_FORMS, plural } from "@/lib/format";
+import { rejectionLabel } from "@/lib/rejection";
 import type { StageKey } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Аналитика — LAMP" };
@@ -47,53 +48,67 @@ export default async function AnalyticsPage({
 
   // Все запросы уходят одновременно: история и интервью отбираются
   // по тем же условиям, что и кандидаты, поэтому ждать их не нужно.
-  const [jobs, recruiters, candidates, history, completedInterviews, technicalInterviews] =
-    await Promise.all([
-      db.job.findMany({
-        where: { companyId: scope.companyId },
-        select: { id: true, title: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      db.user.findMany({
-        where: {
-          companyId: scope.companyId,
-          role: { in: ["ADMIN", "RECRUITER"] },
-        },
-        select: { id: true, fullName: true },
-        orderBy: { fullName: "asc" },
-      }),
-      db.candidate.findMany({
-        where: candidateWhere,
-        select: { id: true, stage: { select: { key: true } } },
-      }),
-      // Через историю видно, до какого этапа кандидат доходил,
-      // даже если сейчас он уже в «Отказе».
-      db.candidateHistory.findMany({
-        where: {
-          companyId: scope.companyId,
-          toStageId: { not: null },
-          candidate: candidateWhere,
-        },
-        select: {
-          candidateId: true,
-          toStage: { select: { key: true } },
-        },
-      }),
-      db.interview.count({
-        where: {
-          companyId: scope.companyId,
-          status: "COMPLETED",
-          candidate: candidateWhere,
-        },
-      }),
-      db.interview.count({
-        where: {
-          companyId: scope.companyId,
-          type: "TECHNICAL",
-          candidate: candidateWhere,
-        },
-      }),
-    ]);
+  const [
+    jobs,
+    recruiters,
+    candidates,
+    history,
+    completedInterviews,
+    technicalInterviews,
+    rejections,
+  ] = await Promise.all([
+    db.job.findMany({
+      where: { companyId: scope.companyId },
+      select: { id: true, title: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.user.findMany({
+      where: {
+        companyId: scope.companyId,
+        role: { in: ["ADMIN", "RECRUITER"] },
+      },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+    }),
+    db.candidate.findMany({
+      where: candidateWhere,
+      select: { id: true, stage: { select: { key: true } } },
+    }),
+    // Через историю видно, до какого этапа кандидат доходил,
+    // даже если сейчас он уже в «Отказе».
+    db.candidateHistory.findMany({
+      where: {
+        companyId: scope.companyId,
+        toStageId: { not: null },
+        candidate: candidateWhere,
+      },
+      select: {
+        candidateId: true,
+        toStage: { select: { key: true } },
+      },
+    }),
+    db.interview.count({
+      where: {
+        companyId: scope.companyId,
+        status: "COMPLETED",
+        candidate: candidateWhere,
+      },
+    }),
+    db.interview.count({
+      where: {
+        companyId: scope.companyId,
+        type: "TECHNICAL",
+        candidate: candidateWhere,
+      },
+    }),
+    // Причины отказов считаем прямо в базе: она сама группирует
+    // и возвращает готовые числа.
+    db.candidate.groupBy({
+      by: ["rejectionReason"],
+      where: { ...candidateWhere, rejectionReason: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
 
   const reached = new Map<string, Set<string>>();
   const remember = (key: string | null | undefined, candidateId: string) => {
@@ -137,13 +152,28 @@ export default async function AnalyticsPage({
     { label: "Технических интервью", value: technicalInterviews },
     { label: "Офферы", value: countReached(["OFFER", "HIRED"]) },
     { label: "Отказали мы", value: countReached(["WE_DECLINED", "REJECTED"]) },
-    { label: "Отказался кандидат", value: countReached(["CANDIDATE_DECLINED"]) },
-    { label: "Думают", value: countReached(["CANDIDATE_THINKING", "WE_THINKING"]) },
+    {
+      label: "Отказался кандидат",
+      value: countReached(["CANDIDATE_DECLINED"]),
+    },
+    {
+      label: "Думают",
+      value: countReached(["CANDIDATE_THINKING", "WE_THINKING"]),
+    },
     { label: "Не отвечают", value: countReached(["NO_RESPONSE"]) },
   ];
 
   const offers = countReached(["OFFER", "HIRED"]);
   const conversion = total > 0 ? Math.round((offers / total) * 100) : 0;
+
+  const reasons = rejections
+    .map((row) => ({
+      label: rejectionLabel(row.rejectionReason) ?? "Другое",
+      value: row._count._all,
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  const reasonsTotal = reasons.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -253,7 +283,50 @@ export default async function AnalyticsPage({
                   <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-accent"
-                      style={{ width: `${Math.max(share, step.value > 0 ? 3 : 0)}%` }}
+                      style={{
+                        width: `${Math.max(share, step.value > 0 ? 3 : 0)}%`,
+                      }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      <section className="mt-5 rounded-xl border border-muted bg-surface p-5">
+        <h2 className="text-sm font-medium text-ink">Причины отказов</h2>
+        <p className="mt-1 text-xs text-ink-soft">
+          Заполняется при переводе на «Отказ от нас» и «Отказ от кандидата».
+          Причину можно пропустить — такие отказы сюда не попадают.
+        </p>
+
+        {reasons.length === 0 ? (
+          <p className="mt-4 text-sm text-ink-soft">
+            Пока ни одной причины не указано.
+          </p>
+        ) : (
+          <ol className="mt-4 space-y-3">
+            {reasons.map((reason) => {
+              const share =
+                reasonsTotal > 0 ? (reason.value / reasonsTotal) * 100 : 0;
+
+              return (
+                <li key={reason.label}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-sm text-ink">{reason.label}</p>
+                    <p className="text-sm text-ink-soft">
+                      <span className="font-medium text-ink">
+                        {reason.value}
+                      </span>
+                      <span> · {Math.round(share)}%</span>
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${Math.max(share, 3)}%` }}
                     />
                   </div>
                 </li>

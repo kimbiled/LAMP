@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
-import { candidateVisibilityFilter, jobVisibilityFilter } from "@/lib/permissions";
+import {
+  candidateVisibilityFilter,
+  jobVisibilityFilter,
+} from "@/lib/permissions";
 import {
   MAX_FILE_BYTES,
   extensionFor,
@@ -15,6 +18,8 @@ import {
 import { extractText } from "@/lib/resume/extract-text";
 import { parseResume } from "@/lib/resume/parse";
 import { addHistory } from "@/lib/history";
+import { findDuplicates } from "@/lib/duplicates";
+import { phoneKey } from "@/lib/contacts";
 
 export type ResumeFormState = {
   formError?: string;
@@ -39,7 +44,9 @@ async function prepareFile(
   }
 
   if (file.size > MAX_FILE_BYTES) {
-    return { error: "Файл больше 10 МБ. Попробуйте сжать или сохранить заново" };
+    return {
+      error: "Файл больше 10 МБ. Попробуйте сжать или сохранить заново",
+    };
   }
 
   // Браузер не всегда правильно определяет тип файла,
@@ -107,7 +114,7 @@ export async function createCandidateFromResume(
   const rawJobId = formData.get("jobId");
   const jobId =
     typeof rawJobId === "string" && rawJobId !== ""
-      ? (
+      ? ((
           await db.job.findFirst({
             where: {
               id: rawJobId,
@@ -116,8 +123,17 @@ export async function createCandidateFromResume(
             },
             select: { id: true },
           })
-        )?.id ?? null
+        )?.id ?? null)
       : null;
+
+  // Заводить кандидата всё равно нужно — файл уже загружен, и просить
+  // выбрать его заново было бы издевательством. Поэтому о совпадении
+  // предупреждаем на следующем шаге, при проверке распознанных данных.
+  const duplicates = await findDuplicates({
+    companyId: scope.companyId,
+    phone: parsed.phone,
+    email: parsed.email,
+  });
 
   const storageKey = await saveFile({
     companyId: scope.companyId,
@@ -135,6 +151,7 @@ export async function createCandidateFromResume(
       // рекрутер увидит это и исправит.
       fullName: parsed.fullName ?? prepared.fileName.replace(/\.[^.]+$/, ""),
       phone: parsed.phone,
+      phoneKey: phoneKey(parsed.phone),
       email: parsed.email,
       city: parsed.city,
       birthDate: parsed.birthDate ? new Date(parsed.birthDate) : null,
@@ -188,7 +205,9 @@ export async function createCandidateFromResume(
     actorName: scope.session.user.fullName,
   });
 
-  redirect(`/candidates/${candidate.id}/edit?parsed=1`);
+  redirect(
+    `/candidates/${candidate.id}/edit?parsed=1${duplicates.length > 0 ? "&duplicate=1" : ""}`,
+  );
 }
 
 export async function attachResume(
@@ -315,7 +334,11 @@ export async function reparseResume(formData: FormData): Promise<void> {
       ...candidateVisibilityFilter(scope.session.user),
     },
     include: {
-      resumes: { where: { isCurrent: true }, orderBy: { uploadedAt: "desc" }, take: 1 },
+      resumes: {
+        where: { isCurrent: true },
+        orderBy: { uploadedAt: "desc" },
+        take: 1,
+      },
     },
   });
 
@@ -336,8 +359,12 @@ export async function reparseResume(formData: FormData): Promise<void> {
   const parsed = parseResume(text);
 
   // Опыт и образование заменяем целиком: это результат разбора файла.
-  await db.candidateExperience.deleteMany({ where: { candidateId: candidate.id } });
-  await db.candidateEducation.deleteMany({ where: { candidateId: candidate.id } });
+  await db.candidateExperience.deleteMany({
+    where: { candidateId: candidate.id },
+  });
+  await db.candidateEducation.deleteMany({
+    where: { candidateId: candidate.id },
+  });
 
   // Остальные поля трогаем, только если рекрутер их ещё не заполнил.
   await db.candidate.update({
@@ -351,7 +378,8 @@ export async function reparseResume(formData: FormData): Promise<void> {
         (parsed.birthDate ? new Date(parsed.birthDate) : null),
       currentPosition: candidate.currentPosition ?? parsed.currentPosition,
       experienceYears: candidate.experienceYears ?? parsed.experienceYears,
-      salaryExpectation: candidate.salaryExpectation ?? parsed.salaryExpectation,
+      salaryExpectation:
+        candidate.salaryExpectation ?? parsed.salaryExpectation,
       telegram: candidate.telegram ?? parsed.telegram,
       skills: candidate.skills.length > 0 ? candidate.skills : parsed.skills,
       languages:

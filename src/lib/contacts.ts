@@ -8,6 +8,14 @@ export function phoneDigits(phone: string | null): string | null {
   return digits.length >= 10 ? digits : null;
 }
 
+// Ключ для сравнения номеров. Один и тот же телефон пишут как
+// +7 701 123 45 67, 8 701 123 45 67 и 7011234567 — по последним десяти
+// цифрам все три совпадают, а код страны и формат уже не мешают.
+export function phoneKey(phone: string | null): string | null {
+  const digits = phoneDigits(phone);
+  return digits ? digits.slice(-10) : null;
+}
+
 export function telLink(phone: string | null): string | null {
   const digits = phoneDigits(phone);
   return digits ? `tel:+${digits}` : null;
