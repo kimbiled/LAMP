@@ -20,6 +20,7 @@ import {
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { telLink } from "@/lib/contacts";
+import { TONE_STYLES, stageTone } from "@/lib/stages";
 import { reparseResume } from "@/app/actions/resumes";
 import { ContactButtons } from "./contact-buttons";
 import { ResumeSection } from "./resume-section";
@@ -149,6 +150,7 @@ export default async function CandidatePage({
   }));
 
   const birthText = formatBirth(candidate.birthDate);
+  const tone = TONE_STYLES[stageTone(candidate.stage.key)];
 
   // Имя, дата рождения, телефон и должность вынесены в шапку карточки,
   // поэтому здесь остаётся только то, что там не поместилось.
@@ -181,7 +183,7 @@ export default async function CandidatePage({
       </Link>
 
       {/* Шапка карточки: сначала человек, потом всё остальное. */}
-      <section className="mt-4 rounded-xl border border-muted bg-surface p-5">
+      <section className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-4">
             <Avatar name={candidate.fullName} size="lg" />

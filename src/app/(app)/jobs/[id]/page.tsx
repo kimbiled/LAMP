@@ -104,27 +104,37 @@ export default async function JobPage({
         )}
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-muted bg-surface p-4">
-          <p className="text-xs text-ink-soft">Рекрутер</p>
-          <p className="mt-1 text-sm text-ink">
-            {job.recruiter?.fullName ?? "не назначен"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-muted bg-surface p-4">
-          <p className="text-xs text-ink-soft">Нанимающий менеджер</p>
-          <p className="mt-1 text-sm text-ink">
-            {job.hiringManager?.fullName ?? "не назначен"}
-          </p>
-        </div>
-        <div className="rounded-xl border border-muted bg-surface p-4">
-          <p className="text-xs text-ink-soft">Кандидатов</p>
-          <p className="mt-1 text-sm text-ink">{job._count.candidates}</p>
-        </div>
-      </div>
+      {/* Слева боковая панель с кандидатами, справа сама вакансия. */}
+      <div className="mt-5 grid gap-4 lg:grid-cols-[320px_1fr]">
+        <div className="space-y-3">
+          {scope.can("candidates.create") && (
+            <Link
+              href={`/candidates/new?job=${job.id}`}
+              className="block rounded-lg bg-accent px-4 py-2.5 text-center text-sm font-medium text-ink transition hover:bg-accent-hover"
+            >
+              Добавить кандидата
+            </Link>
+          )}
 
-      {(job.description || job.requirements) && (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <CandidatesByStage stages={stages} candidates={candidates} />
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-muted bg-surface p-4">
+              <p className="text-xs text-ink-soft">Рекрутер</p>
+              <p className="mt-1 text-sm text-ink">
+                {job.recruiter?.fullName ?? "не назначен"}
+              </p>
+            </div>
+            <div className="rounded-xl border border-muted bg-surface p-4">
+              <p className="text-xs text-ink-soft">Нанимающий менеджер</p>
+              <p className="mt-1 text-sm text-ink">
+                {job.hiringManager?.fullName ?? "не назначен"}
+              </p>
+            </div>
+          </div>
+
           {job.description && (
             <section className="rounded-xl border border-muted bg-surface p-5">
               <h2 className="text-sm font-medium text-ink">Описание</h2>
@@ -133,6 +143,7 @@ export default async function JobPage({
               </p>
             </section>
           )}
+
           {job.requirements && (
             <section className="rounded-xl border border-muted bg-surface p-5">
               <h2 className="text-sm font-medium text-ink">Требования</h2>
@@ -141,23 +152,15 @@ export default async function JobPage({
               </p>
             </section>
           )}
+
+          {!job.description && !job.requirements && (
+            <section className="rounded-xl border border-dashed border-muted bg-surface p-8 text-center">
+              <p className="text-sm text-ink-soft">
+                Описание и требования не заполнены.
+              </p>
+            </section>
+          )}
         </div>
-      )}
-
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-ink">Кандидаты по этапам</h2>
-        {scope.can("candidates.create") && (
-          <Link
-            href={`/candidates/new?job=${job.id}`}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
-          >
-            Добавить кандидата
-          </Link>
-        )}
-      </div>
-
-      <div className="mt-3">
-        <CandidatesByStage stages={stages} candidates={candidates} />
       </div>
     </div>
   );

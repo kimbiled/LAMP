@@ -75,8 +75,8 @@ export default async function DashboardPage() {
   const scheduledInterviews = countByStatus("SCHEDULED");
   const completedInterviews = countByStatus("COMPLETED");
   const offers = countByStage("OFFER");
-  const hired = countByStage("HIRED");
-  const rejected = countByStage("REJECTED");
+  const weDeclined = countByStage("WE_DECLINED") + countByStage("REJECTED");
+  const candidateDeclined = countByStage("CANDIDATE_DECLINED");
   const noResponse = countByStage("NO_RESPONSE");
 
   const metrics = [
@@ -86,8 +86,8 @@ export default async function DashboardPage() {
     { label: "Назначенные интервью", value: scheduledInterviews },
     { label: "Проведённые интервью", value: completedInterviews },
     { label: "Офферы", value: offers },
-    { label: "Наняты", value: hired },
-    { label: "Отказы", value: rejected },
+    { label: "Отказали мы", value: weDeclined },
+    { label: "Отказался кандидат", value: candidateDeclined },
     { label: "Не отвечают", value: noResponse },
   ];
 

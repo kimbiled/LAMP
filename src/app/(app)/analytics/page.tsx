@@ -12,11 +12,10 @@ export const metadata: Metadata = { title: "Аналитика — LAMP" };
 const FUNNEL: { label: string; keys: StageKey[] }[] = [
   { label: "Кандидаты", keys: [] },
   { label: "Контакт", keys: ["CONTACT"] },
-  { label: "Интервью", keys: ["INTERVIEW_SCHEDULED", "INTERVIEW_DONE"] },
-  { label: "Техническое", keys: ["TECH_INTERVIEW"] },
+  { label: "Скрининг", keys: ["SCREENING", "INTERVIEW_SCHEDULED"] },
+  { label: "Техническое", keys: ["TECH_INTERVIEW", "INTERVIEW_DONE"] },
   { label: "Финал", keys: ["FINAL_INTERVIEW"] },
-  { label: "Оффер", keys: ["OFFER"] },
-  { label: "Найм", keys: ["HIRED"] },
+  { label: "Оффер", keys: ["OFFER", "HIRED"] },
 ];
 
 const PERIODS = [
@@ -136,21 +135,22 @@ export default async function AnalyticsPage({
     { label: "Всего кандидатов", value: total },
     { label: "Проведено интервью", value: completedInterviews },
     { label: "Технических интервью", value: technicalInterviews },
-    { label: "Офферы", value: countReached(["OFFER"]) },
-    { label: "Наняты", value: countReached(["HIRED"]) },
-    { label: "Отказы", value: countReached(["REJECTED"]) },
+    { label: "Офферы", value: countReached(["OFFER", "HIRED"]) },
+    { label: "Отказали мы", value: countReached(["WE_DECLINED", "REJECTED"]) },
+    { label: "Отказался кандидат", value: countReached(["CANDIDATE_DECLINED"]) },
+    { label: "Думают", value: countReached(["CANDIDATE_THINKING", "WE_THINKING"]) },
     { label: "Не отвечают", value: countReached(["NO_RESPONSE"]) },
   ];
 
-  const hired = countReached(["HIRED"]);
-  const conversion = total > 0 ? Math.round((hired / total) * 100) : 0;
+  const offers = countReached(["OFFER", "HIRED"]);
+  const conversion = total > 0 ? Math.round((offers / total) * 100) : 0;
 
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="text-xl font-semibold text-ink-strong">Аналитика</h1>
       <p className="mt-1 text-sm text-ink-soft">
         {total > 0
-          ? `${total} ${plural(total, CANDIDATE_FORMS)} в выборке · до найма доходит ${conversion}%`
+          ? `${total} ${plural(total, CANDIDATE_FORMS)} в выборке · до оффера доходит ${conversion}%`
           : "Данных пока нет"}
       </p>
 

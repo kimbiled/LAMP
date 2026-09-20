@@ -7,6 +7,7 @@ import { can, jobVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
 import { formatDate } from "@/lib/format";
+import { TONE_STYLES, stageTone } from "@/lib/stages";
 
 export const metadata: Metadata = { title: "Кандидаты — LAMP" };
 
@@ -328,7 +329,7 @@ export default async function CandidatesPage({
             <Link
               key={candidate.id}
               href={`/candidates/${candidate.id}`}
-              className="flex items-center gap-3 p-4 transition hover:bg-canvas"
+              className={`flex items-center gap-3 p-4 transition hover:brightness-95 ${TONE_STYLES[stageTone(candidate.stage.key)].card}`}
             >
               <Avatar name={candidate.fullName} />
 

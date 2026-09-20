@@ -1,20 +1,21 @@
 "use client";
 
-import { useOptimistic, useTransition } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { useOptimistic, useState, useTransition } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { moveCandidateToStage } from "@/app/actions/candidates";
+import { TONE_STYLES, stageTone } from "@/lib/stages";
+import type { StageKey } from "@/generated/prisma/enums";
 
-// Полоса этапов подбора. Этап переключается нажатием, без перетаскивания:
-// так удобнее и на ноутбуке, и на телефоне.
+// Текущий этап кандидата и его смена.
+// Этап выбирается в окне со списком — так видны все варианты сразу
+// и ничего не нужно прокручивать вбок.
 
 export type PipelineStage = {
   id: string;
   name: string;
-  key: string | null;
+  key: StageKey | null;
   position: number;
 };
-
-const NEGATIVE_KEYS = ["REJECTED", "NO_RESPONSE"];
 
 export function StagePipeline({
   candidateId,
@@ -27,30 +28,18 @@ export function StagePipeline({
   stages: PipelineStage[];
   canMove: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   // Подсветка переключается сразу по нажатию, не дожидаясь сервера.
-  // Сервер подтвердит перевод через долю секунды — человек этого
-  // уже не замечает.
   const [activeStageId, setActiveStageId] = useOptimistic(currentStageId);
 
-  // Отказ и «Не отвечает» стоят особняком: это не ступени воронки,
-  // а выход из неё.
-  const negative = stages.filter(
-    (stage) => stage.key !== null && NEGATIVE_KEYS.includes(stage.key),
-  );
-  const main = stages.filter((stage) => !negative.includes(stage));
+  const current = stages.find((stage) => stage.id === activeStageId);
+  const tone = TONE_STYLES[stageTone(current?.key ?? null)];
 
-  const currentIndex = main.findIndex((stage) => stage.id === activeStageId);
-  const nextStage =
-    currentIndex >= 0 && currentIndex < main.length - 1
-      ? main[currentIndex + 1]
-      : null;
-
-  // Перевод происходит сразу по нажатию, без подтверждения.
-  // Ошибочный перевод легко исправить — нажать нужный этап,
-  // а в истории кандидата видно каждое изменение.
   function move(stage: PipelineStage) {
+    setOpen(false);
+
     const formData = new FormData();
     formData.set("candidateId", candidateId);
     formData.set("stageId", stage.id);
@@ -62,71 +51,76 @@ export function StagePipeline({
   }
 
   return (
-    <div className="rounded-xl border border-muted bg-surface p-4">
+    <div className={`rounded-xl border p-4 ${tone.border} ${tone.card}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-medium text-ink">Этап подбора</p>
+        <div>
+          <p className="text-xs text-ink-soft">Этап подбора</p>
+          <p className="mt-0.5 text-base font-medium text-ink">
+            {current?.name ?? "Этап не выбран"}
+          </p>
+        </div>
 
-        {canMove && nextStage && (
+        {canMove && (
           <button
             type="button"
-            onClick={() => move(nextStage)}
-            className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-accent-hover disabled:opacity-60"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
           >
-            {nextStage.name}
-            <ArrowRight className="h-4 w-4" strokeWidth={2} />
+            Сменить этап
+            <ChevronDown className="h-4 w-4" strokeWidth={2} />
           </button>
         )}
       </div>
 
-      <div className="mt-3 -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-        {main.map((stage, index) => {
-          const isCurrent = stage.id === activeStageId;
-          const isDone = currentIndex >= 0 && index < currentIndex;
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink-strong/40 p-4 sm:items-center"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-muted bg-surface p-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="px-1 pb-2 text-sm font-medium text-ink">
+              Выберите этап
+            </p>
 
-          return (
+            <ul className="space-y-1">
+              {stages.map((stage) => {
+                const isCurrent = stage.id === activeStageId;
+                const stageStyles = TONE_STYLES[stageTone(stage.key)];
+
+                return (
+                  <li key={stage.id}>
+                    <button
+                      type="button"
+                      onClick={() => move(stage)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition ${
+                        isCurrent
+                          ? `${stageStyles.badge} font-medium`
+                          : "text-ink hover:bg-muted"
+                      }`}
+                    >
+                      {stage.name}
+                      {isCurrent && (
+                        <Check className="h-4 w-4 shrink-0" strokeWidth={2.4} />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
             <button
-              key={stage.id}
               type="button"
-              disabled={!canMove || isCurrent}
-              onClick={() => move(stage)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition ${
-                isCurrent
-                  ? "bg-accent font-medium text-ink"
-                  : isDone
-                    ? "bg-muted text-ink"
-                    : "border border-muted text-ink-soft"
-              } ${canMove && !isCurrent ? "hover:border-ink-soft hover:text-ink" : ""} disabled:cursor-default`}
+              onClick={() => setOpen(false)}
+              className="mt-3 w-full rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
             >
-              {isDone && <Check className="h-3.5 w-3.5" strokeWidth={2.4} />}
-              {stage.name}
+              Отмена
             </button>
-          );
-        })}
-      </div>
-
-      {negative.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {negative.map((stage) => {
-            const isCurrent = stage.id === activeStageId;
-            return (
-              <button
-                key={stage.id}
-                type="button"
-                disabled={!canMove || isCurrent}
-                onClick={() => move(stage)}
-                className={`rounded-lg px-3 py-1.5 text-xs transition ${
-                  isCurrent
-                    ? "bg-red-50 font-medium text-red-700"
-                    : "border border-muted text-ink-soft hover:border-red-300 hover:text-red-600"
-                } disabled:cursor-default`}
-              >
-                {stage.name}
-              </button>
-            );
-          })}
+          </div>
         </div>
       )}
-
     </div>
   );
 }

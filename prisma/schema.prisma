@@ -28,14 +28,22 @@ enum JobStatus {
 enum StageKey {
   NEW
   CONTACT
-  INTERVIEW_SCHEDULED
-  INTERVIEW_DONE
+  SCREENING
   TECH_INTERVIEW
   FINAL_INTERVIEW
   OFFER
+  CANDIDATE_DECLINED
+  WE_DECLINED
+  CANDIDATE_THINKING
+  NO_RESPONSE
+  WE_THINKING
+
+  // Старые значения — остаются, чтобы не потерять историю компаний,
+  // созданных раньше.
+  INTERVIEW_SCHEDULED
+  INTERVIEW_DONE
   HIRED
   REJECTED
-  NO_RESPONSE
 }
 
 enum InterviewType {
