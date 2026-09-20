@@ -59,12 +59,16 @@ async function prepareFile(
     } else if (lower.endsWith(".docx")) {
       mimeType =
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    } else if (lower.endsWith(".txt")) {
+      mimeType = "text/plain";
+    } else if (lower.endsWith(".rtf")) {
+      mimeType = "application/rtf";
     }
   }
 
   const extension = extensionFor(mimeType);
   if (!extension) {
-    return { error: "Поддерживаются только файлы PDF и DOCX" };
+    return { error: "Поддерживаются файлы PDF, DOCX, RTF и TXT" };
   }
 
   return {

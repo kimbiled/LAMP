@@ -37,12 +37,77 @@ export type ParsedResume = {
 };
 
 const CITIES = [
-  "Астана", "Нур-Султан", "Алматы", "Шымкент", "Караганда", "Актобе",
-  "Тараз", "Павлодар", "Усть-Каменогорск", "Семей", "Атырау", "Костанай",
-  "Кызылорда", "Уральск", "Петропавловск", "Актау", "Темиртау", "Туркестан",
-  "Кокшетау", "Талдыкорган", "Экибастуз", "Рудный", "Жезказган", "Балхаш",
-  "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург", "Казань",
-  "Бишкек", "Ташкент", "Минск", "Тбилиси", "Ереван", "Баку", "Дубай",
+  "Астана",
+  "Нур-Султан",
+  "Алматы",
+  "Шымкент",
+  "Караганда",
+  "Актобе",
+  "Тараз",
+  "Павлодар",
+  "Усть-Каменогорск",
+  "Семей",
+  "Атырау",
+  "Костанай",
+  "Кызылорда",
+  "Уральск",
+  "Петропавловск",
+  "Актау",
+  "Темиртау",
+  "Туркестан",
+  "Кокшетау",
+  "Талдыкорган",
+  "Экибастуз",
+  "Рудный",
+  "Жезказган",
+  "Балхаш",
+  "Жанаозен",
+  "Кентау",
+  "Сатпаев",
+  "Риддер",
+  "Степногорск",
+  "Щучинск",
+  "Аксай",
+  "Аксу",
+  "Байконур",
+  "Каскелен",
+  "Талгар",
+  "Капшагай",
+  "Конаев",
+  "Арыс",
+  "Житикара",
+  "Лисаковск",
+  "Аркалык",
+  "Зыряновск",
+  "Текели",
+  "Ушарал",
+  "Сарань",
+  "Шахтинск",
+  "Курчатов",
+  "Форт-Шевченко",
+  "Хромтау",
+  "Шалкар",
+  "Атбасар",
+  "Макинск",
+  "Москва",
+  "Санкт-Петербург",
+  "Новосибирск",
+  "Екатеринбург",
+  "Казань",
+  "Бишкек",
+  "Ош",
+  "Ташкент",
+  "Самарканд",
+  "Душанбе",
+  "Минск",
+  "Киев",
+  "Тбилиси",
+  "Ереван",
+  "Баку",
+  "Дубай",
+  "Стамбул",
+  "Варшава",
+  "Берлин",
 ];
 
 const MONTHS =
@@ -70,7 +135,10 @@ const SECTIONS: { key: string; pattern: RegExp }[] = [
   },
   {
     key: "education",
-    pattern: new RegExp(`^(образование|высшее образование|education)${END}`, "i"),
+    pattern: new RegExp(
+      `^(образование|высшее образование|education)${END}`,
+      "i",
+    ),
   },
   {
     key: "about",
@@ -207,14 +275,27 @@ function findFullName(lines: string[]): string | null {
 }
 
 const MONTH_NAMES = [
-  "январ", "феврал", "март", "апрел", "ма", "июн",
-  "июл", "август", "сентябр", "октябр", "ноябр", "декабр",
+  "январ",
+  "феврал",
+  "март",
+  "апрел",
+  "ма",
+  "июн",
+  "июл",
+  "август",
+  "сентябр",
+  "октябр",
+  "ноябр",
+  "декабр",
 ];
 
 // «родился 12 марта 1994», «Дата рождения: 12.03.1994»
 function findBirthDate(text: string): string | null {
+  // «родился», «родилась», «родились» — [а-яё] вместо перечисления букв:
+  // здесь легко перепутать русскую «а» с латинской, и тогда ничего
+  // не находится. Так уже было.
   const words = text.match(
-    /(?:родил[сa]?[сяь]{0,2}|дата рождения)\s*[:\-—]?\s*(\d{1,2})\s+([а-яё]+)\s+(\d{4})/i,
+    /(?:родил[а-яё]{0,3}|дата рождения)\s*[:\-—]?\s*(\d{1,2})\s+([а-яё]+)\s+(\d{4})/i,
   );
 
   if (words) {
@@ -241,14 +322,31 @@ function findBirthDate(text: string): string | null {
 
 function findCity(text: string): string | null {
   const labelled = text.match(
-    /(?:проживает|город|местоположение|адрес)\s*[:\-—]?\s*([А-ЯЁ][а-яё-]+(?:[ -][А-ЯЁ][а-яё-]+)?)/i,
+    /(?:проживает|проживание|город|местоположение|адрес|местожительство)\s*[:\-—]?\s*([А-ЯЁ][а-яё-]+(?:[ -][А-ЯЁ][а-яё-]+)?)/i,
   );
   if (labelled) return labelled[1];
 
-  const found = CITIES.find((city) =>
-    new RegExp(`(?<![А-Яа-яЁёA-Za-z])${city}${END}`, "i").test(text),
+  // «г. Жанаозен», «город Кентау» — так пишут про города,
+  // которых нет и не может быть ни в каком списке.
+  const prefixed = text.match(
+    /(?:^|[\s,;(])г(?:ор(?:од)?)?\.?\s+([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?)/,
   );
-  return found ?? null;
+  if (prefixed) return prefixed[1];
+
+  // Из знакомых городов берём тот, что встретился раньше всех: свой
+  // город пишут в шапке, а чужие — дальше, в описании мест работы.
+  let best: { city: string; at: number } | null = null;
+
+  for (const city of CITIES) {
+    const at = text.search(
+      new RegExp(`(?<![А-Яа-яЁёA-Za-z])${city}${END}`, "i"),
+    );
+    if (at !== -1 && (!best || at < best.at)) {
+      best = { city, at };
+    }
+  }
+
+  return best?.city ?? null;
 }
 
 function findPosition(
@@ -256,11 +354,25 @@ function findPosition(
   experienceLines: string[] | undefined,
 ): string | null {
   const labelled = lines.find((line) =>
-    /^(желаемая должность|должность|позиция|специальность)\s*[:\-—]/i.test(line),
+    /^(желаемая должность|должность|позиция|специальность)\s*[:\-—]/i.test(
+      line,
+    ),
   );
   if (labelled) {
     const value = labelled.replace(/^[^:\-—]+[:\-—]\s*/, "").trim();
     if (value.length > 2) return value.slice(0, 150);
+  }
+
+  // В выгрузке с hh это заголовок «Желаемая должность и зарплата»,
+  // а сама должность стоит следующей строкой, без двоеточия.
+  const headerIndex = lines.findIndex((line) =>
+    /^желаемая должность/i.test(line),
+  );
+  if (headerIndex >= 0) {
+    const next = lines[headerIndex + 1];
+    if (next && next.length > 2 && next.length < 100 && !/^\d/.test(next)) {
+      return next.slice(0, 150);
+    }
   }
 
   // Иначе берём должность с последнего места работы.
@@ -358,6 +470,26 @@ function joinWrappedPeriods(lines: string[]): string[] {
         index++;
         continue;
       }
+
+      // Третий случай: период и название компании стоят в одной строке
+      // рядом («Январь 2025 — Okori Kazakhstan»), а окончание периода
+      // перенесено ниже («настоящее время»). Так свёрстан PDF с hh.
+      // Разделяем обратно: период отдельно, компания отдельно.
+      const tail = line.replace(STARTS_PERIOD, "").replace(/^\s*[—–-]\s*/, "");
+
+      if (
+        endsWithDash === false &&
+        tail !== "" &&
+        !STARTS_PERIOD_END.test(tail) &&
+        /[—–-]/.test(line) &&
+        STARTS_PERIOD_END.test(next)
+      ) {
+        const start = line.slice(0, line.length - tail.length).trim();
+        result.push(`${start} ${next}`.replace(/\s+/g, " "));
+        result.push(tail);
+        index++;
+        continue;
+      }
     }
 
     result.push(line);
@@ -372,7 +504,8 @@ const DURATION =
 
 // Строки вида «Астана, kcell.kz» или просто «Алматы» — это адрес компании,
 // а не должность. Такие строки пропускаем.
-const NOISE = /(^https?:\/\/|^www\.|\b[a-z0-9-]+\.(ru|kz|com|net|org|io|kg|uz)\b)/i;
+const NOISE =
+  /(^https?:\/\/|^www\.|\b[a-z0-9-]+\.(ru|kz|com|net|org|io|kg|uz)\b)/i;
 
 function isLocationLine(line: string): boolean {
   const cleaned = line.replace(/[.,;]$/, "").trim();
@@ -392,13 +525,25 @@ function looksLikeIndustryList(line: string): boolean {
   return line.length > 55 && commas >= 2;
 }
 
+// Хвост перенесённой строки: «…организация» + «выставок».
+// Название должности так не выглядит — оно начинается с заглавной буквы
+// или с латиницы, а не с маленькой русской.
+function looksLikeWrappedTail(line: string): boolean {
+  return /^[а-яё]/.test(line);
+}
+
+// Строка написана целиком заглавными: «КГУ ЖАСЫЛ АЛМАТЫ».
+// Строчных букв нет вовсе, а заглавных — хотя бы несколько.
+function isShouting(line: string): boolean {
+  return !/[а-яёa-z]/.test(line) && (line.match(/[А-ЯЁA-Z]/g) ?? []).length > 3;
+}
+
 // Описание обязанностей. Обычно это список через тире после должности.
 // Если списка нет — берём осмысленные строки после должности.
 function findDescription(
   body: string[],
   companyName: string,
   position: string | null,
-  dutyIndex: number,
 ): string | null {
   const duties = body.filter((line) => IS_DUTY.test(line));
 
@@ -407,7 +552,9 @@ function findDescription(
       ? duties
       : body
           .slice(
-            position ? body.indexOf(position) + 1 : body.indexOf(companyName) + 1,
+            position
+              ? body.indexOf(position) + 1
+              : body.indexOf(companyName) + 1,
           )
           .filter(
             (line) =>
@@ -458,7 +605,8 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
         (line) =>
           !IS_DUTY.test(line) &&
           !IS_MARKER.test(line) &&
-          !looksLikeIndustryList(line),
+          !looksLikeIndustryList(line) &&
+          !looksLikeWrappedTail(line),
       );
       if (!companyName) return null;
 
@@ -473,19 +621,39 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
           !IS_DUTY.test(line) &&
           !IS_MARKER.test(line) &&
           !looksLikeIndustryList(line) &&
-          line.length < 120,
+          !looksLikeWrappedTail(line) &&
+          // Название должности короткое и без точек: «Media Planner»,
+          // а не «Строю AI-агентов и интеграции для клиентов.»
+          !/[.!?]\s/.test(line) &&
+          line.length < 70,
       );
 
-      const position =
+      let position: string | null =
         dutyIndex > 0
           ? (candidates[candidates.length - 1] ?? null)
           : (candidates[0] ?? null);
 
+      // Длинные названия организаций переносятся на вторую строку,
+      // и та выглядит как должность. Признаков два: обе строки написаны
+      // заглавными, либо в названии открылась кавычка «, а закрылась »
+      // уже в следующей строке.
+      let fullCompanyName = companyName;
+      if (
+        position &&
+        ((isShouting(companyName) && isShouting(position)) ||
+          (companyName.includes("«") &&
+            !companyName.includes("»") &&
+            position.includes("»")))
+      ) {
+        fullCompanyName = `${companyName} ${position}`;
+        position = null;
+      }
+
       return {
-        companyName: companyName.slice(0, 150),
+        companyName: fullCompanyName.slice(0, 150),
         position,
         period: block.period,
-        description: findDescription(body, companyName, position, dutyIndex),
+        description: findDescription(body, companyName, position),
       };
     })
     .filter((item): item is ParsedExperience => item !== null);

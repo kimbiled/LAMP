@@ -45,16 +45,22 @@ export function ResumeUploadForm({
       )}
 
       <div
-        className={compact ? "flex flex-col gap-3 sm:flex-row sm:items-center" : "space-y-3"}
+        className={
+          compact
+            ? "flex flex-col gap-3 sm:flex-row sm:items-center"
+            : "space-y-3"
+        }
       >
         <label className="flex flex-1 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-muted bg-canvas px-4 py-3 text-sm text-ink-soft transition hover:border-ink-soft">
           <Upload className="h-4 w-4 shrink-0" strokeWidth={1.8} />
-          <span className="min-w-0 flex-1">Выбрать файл PDF или DOCX</span>
+          <span className="min-w-0 flex-1">
+            Выбрать файл PDF, DOCX, RTF или TXT
+          </span>
           <input
             type="file"
             name="file"
             required
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".pdf,.docx,.rtf,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/plain"
             className="min-w-0 flex-1 text-xs text-ink file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:text-ink"
           />
         </label>

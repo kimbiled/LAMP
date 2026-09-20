@@ -10,6 +10,7 @@ import {
 import { updateCandidate } from "@/app/actions/candidates";
 import { CandidateForm } from "../../candidate-form";
 import { findDuplicates } from "@/lib/duplicates";
+import { ResumeText } from "./resume-text";
 
 export const metadata: Metadata = { title: "Редактирование кандидата — LAMP" };
 
@@ -37,6 +38,14 @@ export default async function EditCandidatePage({
     include: {
       experience: { orderBy: { sortOrder: "asc" } },
       education: { orderBy: { sortOrder: "asc" } },
+      // Текст текущего резюме — показываем рядом с формой, чтобы
+      // пропущенное системой можно было скопировать, а не перепечатывать.
+      resumes: {
+        where: { isCurrent: true },
+        orderBy: { uploadedAt: "desc" },
+        select: { parsedText: true },
+        take: 1,
+      },
     },
   });
 
@@ -60,6 +69,7 @@ export default async function EditCandidatePage({
   ]);
 
   const action = updateCandidate.bind(null, candidate.id);
+  const resumeText = candidate.resumes[0]?.parsedText ?? null;
 
   // Резюме загрузили, а человек с такими контактами уже был.
   // Лишний запрос делаем только по отметке в адресе, а не каждый раз.
@@ -127,6 +137,8 @@ export default async function EditCandidatePage({
           </ul>
         </div>
       )}
+
+      {resumeText && <ResumeText text={resumeText} />}
 
       <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
         <CandidateForm

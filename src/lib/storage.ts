@@ -28,6 +28,10 @@ export const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
     "docx",
+  // Резюме присылают и простым текстом, и в старом формате RTF.
+  "text/plain": "txt",
+  "application/rtf": "rtf",
+  "text/rtf": "rtf",
 };
 
 export function extensionFor(mimeType: string): string | null {
@@ -138,7 +142,8 @@ function s3() {
   if (!s3Client) {
     // Загружаем библиотеку только в этом режиме, чтобы при локальной
     // работе она не занимала память.
-    const { S3Client } = require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
+    const { S3Client } =
+      require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
 
     s3Client = new S3Client({
       region,
