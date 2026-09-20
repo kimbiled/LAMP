@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Check, Copy, Link2, Share2 } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
+import { Check, Copy, ExternalLink, Share2 } from "lucide-react";
 import {
   createShareLink,
   revokeShareLink,
@@ -10,9 +10,10 @@ import {
 import { SelectField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-// Ссылки «Поделиться»: создание, копирование, отзыв.
-// Полный адрес собирается в браузере — так он всегда правильный,
-// и на локальном компьютере, и потом в интернете.
+// Ссылки «Поделиться»: создание, показ, копирование, отзыв.
+//
+// Адрес показывается целиком и его можно открыть кнопкой рядом —
+// так сразу видно, куда ведёт ссылка, и не нужно надеяться на буфер обмена.
 
 export type ShareLinkView = {
   id: string;
@@ -25,31 +26,71 @@ export type ShareLinkView = {
   feedbackCount: number;
 };
 
-function CopyButton({ token }: { token: string }) {
+// Адрес системы. На сервере он известен только если прописан APP_URL,
+// иначе берём его из браузера уже после отрисовки страницы —
+// иначе разметка сервера и браузера не совпали бы.
+function useBaseUrl(fromServer: string | null) {
+  const [base, setBase] = useState(fromServer ?? "");
+
+  useEffect(() => {
+    if (!fromServer) setBase(window.location.origin);
+  }, [fromServer]);
+
+  return base;
+}
+
+function isLocalAddress(base: string) {
+  const host = (base.split("//")[1] ?? "").split(":")[0].toLowerCase();
+  return (
+    host === "localhost" || host === "127.0.0.1" || base.includes("[::1]")
+  );
+}
+
+function ShareLinkAddress({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <button
-      type="button"
-      onClick={async () => {
-        const url = `${window.location.origin}/share/${token}`;
-        try {
-          await navigator.clipboard.writeText(url);
-        } catch {
-          window.prompt("Скопируйте ссылку вручную:", url);
-        }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
-    >
-      {copied ? (
-        <Check className="h-3.5 w-3.5" strokeWidth={2} />
-      ) : (
-        <Copy className="h-3.5 w-3.5" strokeWidth={2} />
-      )}
-      {copied ? "Скопировано" : "Копировать ссылку"}
-    </button>
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <input
+        type="text"
+        readOnly
+        value={url}
+        aria-label="Адрес ссылки"
+        onFocus={(event) => event.currentTarget.select()}
+        className="min-w-0 flex-1 rounded-lg border border-muted bg-surface px-3 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+      />
+
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+          } catch {
+            window.prompt("Скопируйте ссылку вручную:", url);
+          }
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5" strokeWidth={2} />
+        ) : (
+          <Copy className="h-3.5 w-3.5" strokeWidth={2} />
+        )}
+        {copied ? "Скопировано" : "Копировать"}
+      </button>
+
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+      >
+        <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+        Открыть
+      </a>
+    </div>
   );
 }
 
@@ -57,10 +98,12 @@ export function ShareBlock({
   candidateId,
   links,
   canShare,
+  baseUrl,
 }: {
   candidateId: string;
   links: ShareLinkView[];
   canShare: boolean;
+  baseUrl: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(
@@ -68,7 +111,8 @@ export function ShareBlock({
     {} as ShareFormState,
   );
 
-  const active = links.filter((link) => !link.isExpired);
+  const base = useBaseUrl(baseUrl);
+  const local = Boolean(base) && isLocalAddress(base);
 
   if (!canShare) {
     return null;
@@ -92,6 +136,15 @@ export function ShareBlock({
         По ссылке можно открыть карточку кандидата без входа в систему и
         оставить фидбэк. Остальные данные компании при этом недоступны.
       </p>
+
+      {local && links.length > 0 && (
+        <p className="mt-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-ink">
+          Адрес начинается с <span className="font-mono">localhost</span> — это
+          имя работает только на том компьютере, где запущена система. Коллеге
+          или на телефоне такая ссылка не откроется. Когда опубликуем систему в
+          интернете, ссылки станут рабочими автоматически.
+        </p>
+      )}
 
       {open && (
         <form
@@ -132,30 +185,21 @@ export function ShareBlock({
               key={link.id}
               className="rounded-lg border border-muted bg-canvas p-3"
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <Link2 className="h-4 w-4 text-ink-soft" strokeWidth={1.8} />
-                <p className="text-sm text-ink">
-                  {link.isExpired ? "Недействительна" : "Действует"}
-                </p>
-                {link.expiresText && (
-                  <span className="text-xs text-ink-soft">
-                    {link.isExpired ? "истекла" : "до"} {link.expiresText}
-                  </span>
-                )}
-                {!link.expiresText && (
-                  <span className="text-xs text-ink-soft">без срока</span>
-                )}
-              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-ink">
+                    {link.isExpired ? "Недействительна" : "Действует"}
+                  </p>
+                  {link.expiresText ? (
+                    <span className="text-xs text-ink-soft">
+                      {link.isExpired ? "истекла" : "до"} {link.expiresText}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-ink-soft">без срока</span>
+                  )}
+                </div>
 
-              <p className="mt-1 text-xs text-ink-soft">
-                Создал {link.createdByName} · {link.createdText} · просмотров:{" "}
-                {link.viewCount} · фидбэков: {link.feedbackCount}
-              </p>
-
-              {!link.isExpired && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <CopyButton token={link.token} />
-
+                {!link.isExpired && (
                   <form action={revokeShareLink}>
                     <input type="hidden" name="linkId" value={link.id} />
                     <button
@@ -165,8 +209,17 @@ export function ShareBlock({
                       Отозвать
                     </button>
                   </form>
-                </div>
+                )}
+              </div>
+
+              {!link.isExpired && base && (
+                <ShareLinkAddress url={`${base}/share/${link.token}`} />
               )}
+
+              <p className="mt-2 text-xs text-ink-soft">
+                Создал {link.createdByName} · {link.createdText} · просмотров:{" "}
+                {link.viewCount} · фидбэков: {link.feedbackCount}
+              </p>
             </li>
           ))}
         </ul>

@@ -20,6 +20,7 @@ import {
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { telLink } from "@/lib/contacts";
+import { publicBaseUrl } from "@/lib/app-url";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
 import { reparseResume } from "@/app/actions/resumes";
 import { ContactButtons } from "./contact-buttons";
@@ -442,6 +443,7 @@ export default async function CandidatePage({
             candidateId={candidate.id}
             links={shareLinkViews}
             canShare={scope.can("share.create")}
+            baseUrl={publicBaseUrl()}
           />
         </div>
 
