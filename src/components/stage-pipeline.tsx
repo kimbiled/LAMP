@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { moveCandidateToStage } from "@/app/actions/candidates";
 
@@ -27,8 +27,6 @@ export function StagePipeline({
   stages: PipelineStage[];
   canMove: boolean;
 }) {
-  const [target, setTarget] = useState<PipelineStage | null>(null);
-  const [comment, setComment] = useState("");
   const [pending, startTransition] = useTransition();
 
   // Отказ и «Не отвечает» стоят особняком: это не ступени воронки,
@@ -44,16 +42,16 @@ export function StagePipeline({
       ? main[currentIndex + 1]
       : null;
 
+  // Перевод происходит сразу по нажатию, без подтверждения.
+  // Ошибочный перевод легко исправить — нажать нужный этап,
+  // а в истории кандидата видно каждое изменение.
   function move(stage: PipelineStage) {
     const formData = new FormData();
     formData.set("candidateId", candidateId);
     formData.set("stageId", stage.id);
-    formData.set("comment", comment);
 
     startTransition(async () => {
       await moveCandidateToStage(formData);
-      setTarget(null);
-      setComment("");
     });
   }
 
@@ -66,7 +64,7 @@ export function StagePipeline({
           <button
             type="button"
             disabled={pending}
-            onClick={() => setTarget(nextStage)}
+            onClick={() => move(nextStage)}
             className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-accent-hover disabled:opacity-60"
           >
             {nextStage.name}
@@ -85,7 +83,7 @@ export function StagePipeline({
               key={stage.id}
               type="button"
               disabled={!canMove || pending || isCurrent}
-              onClick={() => setTarget(stage)}
+              onClick={() => move(stage)}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs transition ${
                 isCurrent
                   ? "bg-accent font-medium text-ink"
@@ -110,7 +108,7 @@ export function StagePipeline({
                 key={stage.id}
                 type="button"
                 disabled={!canMove || pending || isCurrent}
-                onClick={() => setTarget(stage)}
+                onClick={() => move(stage)}
                 className={`rounded-lg px-3 py-1.5 text-xs transition ${
                   isCurrent
                     ? "bg-red-50 font-medium text-red-700"
@@ -124,53 +122,6 @@ export function StagePipeline({
         </div>
       )}
 
-      {target && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-strong/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded-2xl border border-muted bg-surface p-5">
-            <p className="text-sm font-medium text-ink">
-              Перевести на этап «{target.name}»?
-            </p>
-
-            <label
-              htmlFor="stage-comment"
-              className="mt-4 block text-sm text-ink"
-            >
-              Комментарий
-              <span className="text-ink-soft"> — по желанию</span>
-            </label>
-            <textarea
-              id="stage-comment"
-              rows={3}
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder="Например: договорились на вторник в 15:00"
-              className="mt-1.5 w-full rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
-            />
-
-            <div className="mt-4 flex gap-3">
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => {
-                  setTarget(null);
-                  setComment("");
-                }}
-                className="flex-1 rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
-              >
-                Отмена
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => move(target)}
-                className="flex-1 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-accent-hover disabled:opacity-60"
-              >
-                {pending ? "Переводим…" : "Перевести"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

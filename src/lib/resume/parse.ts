@@ -333,9 +333,11 @@ const PERIOD = new RegExp(`^${PERIOD_START}\\s*[—–-]\\s*${PERIOD_END}`, "i")
 // Склеиваем такие пары обратно в одну строку.
 const ENDS_WITH_DASH = /[—–-]\s*$/;
 const ENDS_WITH_DASH_AND_MONTH = new RegExp(`[—–-]\\s*(?:${MONTHS})\\s*$`, "i");
-const STARTS_PERIOD_END = new RegExp(`^${PERIOD_END}\\b`, "i");
+// Важно: \b здесь нельзя — период часто заканчивается словами
+// «настоящее время», а граница слова с кириллицей не работает.
+const STARTS_PERIOD_END = new RegExp(`^${PERIOD_END}${END}`, "i");
 const IS_YEAR = /^\d{4}$/;
-const STARTS_PERIOD = new RegExp(`^${PERIOD_START}\\b`, "i");
+const STARTS_PERIOD = new RegExp(`^${PERIOD_START}${END}`, "i");
 
 function joinWrappedPeriods(lines: string[]): string[] {
   const result: string[] = [];
