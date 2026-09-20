@@ -38,6 +38,42 @@ function list(formData: FormData, name: string): string[] {
     .slice(0, 50);
 }
 
+// Опыт работы и образование приходят из формы параллельными списками:
+// на каждое место работы по одному значению в каждом поле.
+function readExperience(formData: FormData) {
+  const companies = formData.getAll("expCompany").map(String);
+  const positions = formData.getAll("expPosition").map(String);
+  const periods = formData.getAll("expPeriod").map(String);
+  const descriptions = formData.getAll("expDescription").map(String);
+
+  return companies
+    .map((companyName, index) => ({
+      companyName: companyName.trim().slice(0, 150),
+      position: positions[index]?.trim().slice(0, 150) || null,
+      period: periods[index]?.trim().slice(0, 100) || null,
+      description: descriptions[index]?.trim().slice(0, 3000) || null,
+      sortOrder: index,
+    }))
+    .filter((item) => item.companyName.length > 0)
+    .slice(0, 20);
+}
+
+function readEducation(formData: FormData) {
+  const institutions = formData.getAll("eduInstitution").map(String);
+  const specialties = formData.getAll("eduSpecialty").map(String);
+  const years = formData.getAll("eduYears").map(String);
+
+  return institutions
+    .map((institution, index) => ({
+      institution: institution.trim().slice(0, 200),
+      specialty: specialties[index]?.trim().slice(0, 200) || null,
+      years: years[index]?.trim().slice(0, 50) || null,
+      sortOrder: index,
+    }))
+    .filter((item) => item.institution.length > 0)
+    .slice(0, 20);
+}
+
 function readForm(formData: FormData) {
   return {
     fullName: text(formData, "fullName"),
@@ -46,6 +82,7 @@ function readForm(formData: FormData) {
     phone: text(formData, "phone"),
     email: text(formData, "email").toLowerCase(),
     city: text(formData, "city"),
+    birthDate: text(formData, "birthDate"),
     currentPosition: text(formData, "currentPosition"),
     experienceYears: numberOrNull(formData, "experienceYears"),
     salaryExpectation: numberOrNull(formData, "salaryExpectation"),
@@ -115,6 +152,7 @@ export async function createCandidate(
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
       city: parsed.data.city || null,
+      birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null,
       currentPosition: parsed.data.currentPosition || null,
       experienceYears: parsed.data.experienceYears,
       salaryExpectation: parsed.data.salaryExpectation,
@@ -125,6 +163,8 @@ export async function createCandidate(
       source: parsed.data.source || null,
       note: parsed.data.note || null,
       createdById: scope.session.user.id,
+      experience: { create: readExperience(formData) },
+      education: { create: readEducation(formData) },
     },
   });
 
@@ -191,6 +231,7 @@ export async function updateCandidate(
       phone: parsed.data.phone || null,
       email: parsed.data.email || null,
       city: parsed.data.city || null,
+      birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null,
       currentPosition: parsed.data.currentPosition || null,
       experienceYears: parsed.data.experienceYears,
       salaryExpectation: parsed.data.salaryExpectation,
@@ -201,6 +242,8 @@ export async function updateCandidate(
       source: parsed.data.source || null,
       note: parsed.data.note || null,
       ...(stageChanged ? { stageChangedAt: new Date() } : {}),
+      experience: { deleteMany: {}, create: readExperience(formData) },
+      education: { deleteMany: {}, create: readEducation(formData) },
     },
   });
 

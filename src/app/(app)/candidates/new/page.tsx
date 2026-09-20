@@ -74,6 +74,8 @@ export default async function NewCandidatePage({
           stages={stages}
           submitLabel="Добавить кандидата"
           cancelHref="/candidates"
+          experience={[]}
+          education={[]}
           values={{
             fullName: "",
             jobId: job ?? "",
@@ -81,6 +83,7 @@ export default async function NewCandidatePage({
             phone: "",
             email: "",
             city: "",
+            birthDate: "",
             currentPosition: "",
             experienceYears: "",
             salaryExpectation: "",

@@ -201,6 +201,7 @@ model Candidate {
   phone             String?
   email             String?
   city              String?
+  birthDate         DateTime?
   currentPosition   String?
   experienceYears   Int?
   salaryExpectation Int?

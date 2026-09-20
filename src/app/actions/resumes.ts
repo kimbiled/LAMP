@@ -137,6 +137,7 @@ export async function createCandidateFromResume(
       phone: parsed.phone,
       email: parsed.email,
       city: parsed.city,
+      birthDate: parsed.birthDate ? new Date(parsed.birthDate) : null,
       currentPosition: parsed.currentPosition,
       experienceYears: parsed.experienceYears,
       salaryExpectation: parsed.salaryExpectation,
@@ -345,6 +346,9 @@ export async function reparseResume(formData: FormData): Promise<void> {
       phone: candidate.phone ?? parsed.phone,
       email: candidate.email ?? parsed.email,
       city: candidate.city ?? parsed.city,
+      birthDate:
+        candidate.birthDate ??
+        (parsed.birthDate ? new Date(parsed.birthDate) : null),
       currentPosition: candidate.currentPosition ?? parsed.currentPosition,
       experienceYears: candidate.experienceYears ?? parsed.experienceYears,
       salaryExpectation: candidate.salaryExpectation ?? parsed.salaryExpectation,

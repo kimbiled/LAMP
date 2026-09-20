@@ -7,6 +7,12 @@ import { TextField } from "@/components/ui/text-field";
 import { SelectField, TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { CURRENCIES } from "@/lib/labels";
+import {
+  EducationEditor,
+  ExperienceEditor,
+  type EducationRow,
+  type ExperienceRow,
+} from "./experience-editor";
 
 const initialState: CandidateFormState = {};
 
@@ -17,6 +23,7 @@ export type CandidateFormValues = {
   phone: string;
   email: string;
   city: string;
+  birthDate: string;
   currentPosition: string;
   experienceYears: string;
   salaryExpectation: string;
@@ -33,6 +40,8 @@ export function CandidateForm({
   jobs,
   stages,
   values,
+  experience,
+  education,
   submitLabel,
   cancelHref,
 }: {
@@ -43,6 +52,8 @@ export function CandidateForm({
   jobs: { id: string; title: string }[];
   stages: { id: string; name: string }[];
   values: CandidateFormValues;
+  experience: ExperienceRow[];
+  education: EducationRow[];
   submitLabel: string;
   cancelHref: string;
 }) {
@@ -132,6 +143,16 @@ export function CandidateForm({
             error={state.fieldErrors?.city}
           />
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label="Дата рождения"
+            name="birthDate"
+            type="date"
+            defaultValue={values.birthDate}
+            error={state.fieldErrors?.birthDate}
+          />
+        </div>
       </section>
 
       <section className="space-y-4">
@@ -210,6 +231,10 @@ export function CandidateForm({
           error={state.fieldErrors?.note}
         />
       </section>
+
+      <ExperienceEditor initial={experience} />
+
+      <EducationEditor initial={education} />
 
       <div className="flex gap-3">
         <Link

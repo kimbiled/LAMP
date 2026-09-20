@@ -25,6 +25,7 @@ export type ParsedResume = {
   email: string | null;
   telegram: string | null;
   city: string | null;
+  birthDate: string | null;
   currentPosition: string | null;
   experienceYears: number | null;
   salaryExpectation: number | null;
@@ -108,6 +109,7 @@ export function parseResume(text: string): ParsedResume {
     email,
     telegram: findTelegram(text, email),
     city: findCity(text),
+    birthDate: findBirthDate(text),
     currentPosition: findPosition(lines, sections.experience),
     experienceYears: findExperienceYears(text),
     salaryExpectation: findSalary(text),
@@ -199,6 +201,39 @@ function findFullName(lines: string[]): string | null {
     if (/^[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,2}$/.test(line)) {
       return line;
     }
+  }
+
+  return null;
+}
+
+const MONTH_NAMES = [
+  "январ", "феврал", "март", "апрел", "ма", "июн",
+  "июл", "август", "сентябр", "октябр", "ноябр", "декабр",
+];
+
+// «родился 12 марта 1994», «Дата рождения: 12.03.1994»
+function findBirthDate(text: string): string | null {
+  const words = text.match(
+    /(?:родил[сa]?[сяь]{0,2}|дата рождения)\s*[:\-—]?\s*(\d{1,2})\s+([а-яё]+)\s+(\d{4})/i,
+  );
+
+  if (words) {
+    const monthIndex = MONTH_NAMES.findIndex((name) =>
+      words[2].toLowerCase().startsWith(name),
+    );
+    if (monthIndex >= 0) {
+      const day = words[1].padStart(2, "0");
+      const month = String(monthIndex + 1).padStart(2, "0");
+      return `${words[3]}-${month}-${day}`;
+    }
+  }
+
+  const digits = text.match(
+    /(?:родил[сa]?[сяь]{0,2}|дата рождения)\s*[:\-—]?\s*(\d{2})[.\/](\d{2})[.\/](\d{4})/i,
+  );
+
+  if (digits) {
+    return `${digits[3]}-${digits[2]}-${digits[1]}`;
   }
 
   return null;

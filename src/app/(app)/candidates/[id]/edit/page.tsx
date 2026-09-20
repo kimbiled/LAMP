@@ -79,58 +79,6 @@ export default async function EditCandidatePage({
         </div>
       )}
 
-      {(candidate.experience.length > 0 || candidate.education.length > 0) && (
-        <section className="mt-4 rounded-xl border border-muted bg-surface p-5">
-          <h2 className="text-sm font-medium text-ink">Распознано из резюме</h2>
-          <p className="mt-1 text-xs text-ink-soft">
-            Эти записи уже сохранены и видны в карточке кандидата.
-          </p>
-
-          {candidate.experience.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs text-ink-soft">Опыт работы</p>
-              <ul className="mt-1.5 space-y-2">
-                {candidate.experience.map((item) => (
-                  <li key={item.id} className="border-l-2 border-muted pl-3">
-                    <p className="text-sm font-medium text-ink">
-                      {item.position ?? "должность не распознана"}
-                    </p>
-                    <p className="text-sm text-ink-soft">
-                      {item.companyName}
-                      {item.period ? ` · ${item.period}` : ""}
-                    </p>
-                    {item.description && (
-                      <p className="mt-1 text-xs whitespace-pre-line text-ink-soft">
-                        {item.description}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {candidate.education.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs text-ink-soft">Образование</p>
-              <ul className="mt-1.5 space-y-2">
-                {candidate.education.map((item) => (
-                  <li key={item.id} className="border-l-2 border-muted pl-3">
-                    <p className="text-sm font-medium text-ink">
-                      {item.institution}
-                    </p>
-                    <p className="text-sm text-ink-soft">
-                      {item.specialty ?? ""}
-                      {item.years ? ` · ${item.years}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </section>
-      )}
-
       <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
         <CandidateForm
           action={action}
@@ -138,6 +86,17 @@ export default async function EditCandidatePage({
           stages={stages}
           submitLabel="Сохранить"
           cancelHref={`/candidates/${candidate.id}`}
+          experience={candidate.experience.map((item) => ({
+            companyName: item.companyName,
+            position: item.position ?? "",
+            period: item.period ?? "",
+            description: item.description ?? "",
+          }))}
+          education={candidate.education.map((item) => ({
+            institution: item.institution,
+            specialty: item.specialty ?? "",
+            years: item.years ?? "",
+          }))}
           values={{
             fullName: candidate.fullName,
             jobId: candidate.jobId ?? "",
@@ -145,6 +104,9 @@ export default async function EditCandidatePage({
             phone: candidate.phone ?? "",
             email: candidate.email ?? "",
             city: candidate.city ?? "",
+            birthDate: candidate.birthDate
+              ? candidate.birthDate.toISOString().slice(0, 10)
+              : "",
             currentPosition: candidate.currentPosition ?? "",
             experienceYears: candidate.experienceYears?.toString() ?? "",
             salaryExpectation: candidate.salaryExpectation?.toString() ?? "",

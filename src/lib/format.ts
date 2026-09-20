@@ -72,3 +72,39 @@ export const CANDIDATE_FORMS: [string, string, string] = [
   "кандидата",
   "кандидатов",
 ];
+
+export const YEAR_FORMS: [string, string, string] = ["год", "года", "лет"];
+
+// Полный возраст на сегодня.
+export function ageFrom(birthDate: Date | null | undefined): number | null {
+  if (!birthDate) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 && age < 120 ? age : null;
+}
+
+// «12 марта 1994 · 32 года»
+export function formatBirth(birthDate: Date | null | undefined): string | null {
+  if (!birthDate) return null;
+
+  const date = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: TIME_ZONE,
+  })
+    .format(birthDate)
+    // Intl добавляет «г.» в конце — в карточке это лишнее.
+    .replace(/\s*г\.$/, "")
+    .trim();
+
+  const age = ageFrom(birthDate);
+  return age === null ? date : `${date} · ${age} ${plural(age, YEAR_FORMS)}`;
+}

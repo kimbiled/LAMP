@@ -6,7 +6,12 @@ import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
-import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
+import {
+  formatBirth,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+} from "@/lib/format";
 import {
   FEEDBACK_RESULT_LABELS,
   HISTORY_LABELS,
@@ -14,6 +19,7 @@ import {
   INTERVIEW_TYPE_LABELS,
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
+import { telLink } from "@/lib/contacts";
 import { ContactButtons } from "./contact-buttons";
 import { ResumeSection } from "./resume-section";
 import { StagePipeline } from "@/components/stage-pipeline";
@@ -141,9 +147,11 @@ export default async function CandidatePage({
     label: `${INTERVIEW_TYPE_LABELS[interview.type]} · ${formatDateTime(interview.scheduledAt)}`,
   }));
 
+  const birthText = formatBirth(candidate.birthDate);
+
+  // Имя, дата рождения, телефон и должность вынесены в шапку карточки,
+  // поэтому здесь остаётся только то, что там не поместилось.
   const facts = [
-    { label: "Город", value: candidate.city },
-    { label: "Должность", value: candidate.currentPosition },
     {
       label: "Опыт",
       value:
@@ -171,54 +179,91 @@ export default async function CandidatePage({
         <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />К списку кандидатов
       </Link>
 
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={candidate.fullName} size="lg" />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-ink-strong">
-                {candidate.fullName}
-              </h1>
-              <StageBadge
-                name={candidate.stage.name}
-                stageKey={candidate.stage.key}
-              />
-            </div>
-            <p className="mt-1 text-sm text-ink-soft">
-              {candidate.job ? (
-                <Link
-                  href={`/jobs/${candidate.job.id}`}
-                  className="underline transition hover:text-ink"
-                >
-                  {candidate.job.title}
-                </Link>
-              ) : (
-                "Вакансия не назначена"
+      {/* Шапка карточки: сначала человек, потом всё остальное. */}
+      <section className="mt-4 rounded-xl border border-muted bg-surface p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-4">
+            <Avatar name={candidate.fullName} size="lg" />
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold text-ink-strong">
+                  {candidate.fullName}
+                </h1>
+                <StageBadge
+                  name={candidate.stage.name}
+                  stageKey={candidate.stage.key}
+                />
+              </div>
+
+              {birthText && (
+                <p className="mt-1 text-sm text-ink-soft">{birthText}</p>
               )}
-            </p>
+
+              {candidate.phone && (
+                <p className="mt-2 text-lg font-medium text-ink">
+                  <a
+                    href={telLink(candidate.phone) ?? undefined}
+                    className="transition hover:text-ink-strong"
+                  >
+                    {candidate.phone}
+                  </a>
+                </p>
+              )}
+
+              <p className="mt-2 text-base font-medium text-ink">
+                {candidate.currentPosition ?? "Должность не указана"}
+              </p>
+
+              <p className="mt-0.5 text-sm text-ink-soft">
+                {candidate.city ? `${candidate.city} · ` : ""}
+                {candidate.job ? (
+                  <Link
+                    href={`/jobs/${candidate.job.id}`}
+                    className="underline transition hover:text-ink"
+                  >
+                    {candidate.job.title}
+                  </Link>
+                ) : (
+                  "вакансия не назначена"
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit && (
+              <Link
+                href={`/candidates/${candidate.id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+              >
+                <Pencil className="h-4 w-4" strokeWidth={1.8} />
+                Изменить
+              </Link>
+            )}
+            {scope.can("candidates.delete") && (
+              <DeleteCandidateButton
+                candidateId={candidate.id}
+                candidateName={candidate.fullName}
+              />
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {canEdit && (
-            <Link
-              href={`/candidates/${candidate.id}/edit`}
-              className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
-            >
-              <Pencil className="h-4 w-4" strokeWidth={1.8} />
-              Изменить
-            </Link>
-          )}
-          {scope.can("candidates.delete") && (
-            <DeleteCandidateButton
-              candidateId={candidate.id}
-              candidateName={candidate.fullName}
-            />
-          )}
+        <div className="mt-4">
+          <ContactButtons
+            candidateName={candidate.fullName}
+            phone={candidate.phone}
+            email={candidate.email}
+            telegram={candidate.telegram}
+            recruiterName={scope.session.user.fullName}
+            companyName={scope.session.company.name}
+            jobTitle={candidate.job?.title}
+          />
         </div>
-      </div>
+      </section>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <StagePipeline
           candidateId={candidate.id}
           currentStageId={candidate.stage.id}
@@ -227,30 +272,59 @@ export default async function CandidatePage({
         />
       </div>
 
-      <div className="mt-4">
-        <ContactButtons
-          candidateName={candidate.fullName}
-          phone={candidate.phone}
-          email={candidate.email}
-          telegram={candidate.telegram}
-          recruiterName={scope.session.user.fullName}
-          companyName={scope.session.company.name}
-          jobTitle={candidate.job?.title}
-        />
-      </div>
-
       <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr]">
         <div className="space-y-4">
+          {candidate.experience.length > 0 && (
+            <section className="rounded-xl border border-muted bg-surface p-5">
+              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
+              <ul className="mt-3 space-y-4">
+                {candidate.experience.map((item) => (
+                  <li key={item.id} className="border-l-2 border-accent/50 pl-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <p className="text-sm font-medium text-ink">
+                        {item.position ?? "Должность не указана"}
+                      </p>
+                      {item.period && (
+                        <p className="text-xs text-ink-soft">{item.period}</p>
+                      )}
+                    </div>
+                    <p className="text-sm text-ink-soft">{item.companyName}</p>
+                    {item.description && (
+                      <p className="mt-1.5 text-sm whitespace-pre-line text-ink">
+                        {item.description}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {candidate.education.length > 0 && (
+            <section className="rounded-xl border border-muted bg-surface p-5">
+              <h2 className="text-sm font-medium text-ink">Образование</h2>
+              <ul className="mt-3 space-y-3">
+                {candidate.education.map((item) => (
+                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                    <p className="text-sm font-medium text-ink">
+                      {item.institution}
+                    </p>
+                    {item.specialty && (
+                      <p className="text-sm text-ink-soft">{item.specialty}</p>
+                    )}
+                    {item.years && (
+                      <p className="text-xs text-ink-soft">{item.years}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section className="rounded-xl border border-muted bg-surface p-5">
             <h2 className="text-sm font-medium text-ink">Информация</h2>
 
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
-              {candidate.phone && (
-                <div>
-                  <dt className="text-xs text-ink-soft">Телефон</dt>
-                  <dd className="text-sm break-words text-ink">{candidate.phone}</dd>
-                </div>
-              )}
               {candidate.email && (
                 <div className="min-w-0">
                   <dt className="text-xs text-ink-soft">Email</dt>
@@ -314,53 +388,6 @@ export default async function CandidatePage({
               </div>
             )}
           </section>
-
-          {candidate.experience.length > 0 && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
-              <ul className="mt-3 space-y-4">
-                {candidate.experience.map((item) => (
-                  <li key={item.id} className="border-l-2 border-accent/50 pl-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <p className="text-sm font-medium text-ink">
-                        {item.position ?? "Должность не указана"}
-                      </p>
-                      {item.period && (
-                        <p className="text-xs text-ink-soft">{item.period}</p>
-                      )}
-                    </div>
-                    <p className="text-sm text-ink-soft">{item.companyName}</p>
-                    {item.description && (
-                      <p className="mt-1.5 text-sm whitespace-pre-line text-ink">
-                        {item.description}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {candidate.education.length > 0 && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Образование</h2>
-              <ul className="mt-3 space-y-3">
-                {candidate.education.map((item) => (
-                  <li key={item.id} className="border-l-2 border-muted pl-3">
-                    <p className="text-sm font-medium text-ink">
-                      {item.institution}
-                    </p>
-                    {item.specialty && (
-                      <p className="text-sm text-ink-soft">{item.specialty}</p>
-                    )}
-                    {item.years && (
-                      <p className="text-xs text-ink-soft">{item.years}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
 
           <ResumeSection
             candidateId={candidate.id}

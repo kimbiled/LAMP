@@ -114,6 +114,11 @@ export const candidateSchema = z.object({
   phone: z.string().max(40, "Слишком длинный номер"),
   email: z.union([z.literal(""), z.email("Введите корректный адрес почты")]),
   city: z.string().max(100, "Слишком длинное название города"),
+  birthDate: z
+    .union([
+      z.literal(""),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Проверьте дату рождения"),
+    ]),
   currentPosition: z.string().max(150, "Слишком длинное название должности"),
   experienceYears: z
     .number()

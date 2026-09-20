@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  ageFrom,
+  formatBirth,
   CANDIDATE_FORMS,
   formatBytes,
   formatMoney,
@@ -84,6 +86,7 @@ describe("Проверка форм", () => {
       phone: "",
       email: "",
       city: "",
+      birthDate: "",
       currentPosition: "",
       experienceYears: null,
       salaryExpectation: null,
@@ -105,5 +108,30 @@ describe("Проверка форм", () => {
     expect(
       candidateSchema.safeParse({ ...base, experienceYears: -1 }).success,
     ).toBe(false);
+  });
+});
+
+describe("Дата рождения и возраст", () => {
+  it("считает полный возраст", () => {
+    const born = new Date();
+    born.setFullYear(born.getFullYear() - 30);
+    expect(ageFrom(born)).toBe(30);
+
+    // День рождения ещё не наступил в этом году — возраст на год меньше.
+    const soon = new Date();
+    soon.setFullYear(soon.getFullYear() - 30);
+    soon.setDate(soon.getDate() + 1);
+    expect(ageFrom(soon)).toBe(29);
+
+    expect(ageFrom(null)).toBeNull();
+  });
+
+  it("показывает дату и возраст одной строкой", () => {
+    const text = formatBirth(new Date("1994-03-12T00:00:00Z")) ?? "";
+    expect(text).toContain("1994");
+    expect(text).toContain("марта");
+    expect(text).toContain("·");
+    expect(text.endsWith("г.")).toBe(false);
+    expect(formatBirth(null)).toBeNull();
   });
 });
