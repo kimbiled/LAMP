@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download, FileText } from "lucide-react";
+import { Download, FileText } from "lucide-react";
+import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/superadmin";
 import { logAction } from "@/lib/audit";
@@ -103,12 +104,7 @@ export default async function SystemCandidatePage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link
-        href="/system/candidates"
-        className="inline-flex items-center gap-1.5 text-sm text-ink-soft transition hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />К базе кандидатов
-      </Link>
+      <BackButton fallbackHref="/system/candidates" fallbackLabel="К базе кандидатов" />
 
       <section
         className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}

@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 import { requireSession } from "@/lib/session";
 import { logout } from "@/app/actions/auth";
 import { AppNav } from "@/components/app-nav";
+import { NavMemory } from "@/components/nav-memory";
 import { ROLE_LABELS } from "@/lib/labels";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
@@ -19,6 +20,8 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen md:flex">
+      <NavMemory />
+
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-sidebar p-4 md:flex">
         <div className="mb-6 flex items-center gap-3 px-1">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-base font-semibold text-ink">

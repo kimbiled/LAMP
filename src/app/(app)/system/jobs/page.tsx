@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+
+import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/superadmin";
 import { JobStatusBadge } from "@/components/job-status-badge";
@@ -36,12 +37,7 @@ export default async function SystemJobsPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link
-        href="/system"
-        className="inline-flex items-center gap-1.5 text-sm text-ink-soft transition hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />К разделу «Система»
-      </Link>
+      <BackButton fallbackHref="/system" fallbackLabel="К разделу «Система»" />
 
       <h1 className="mt-4 text-xl font-semibold text-ink-strong">
         Все вакансии

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+
+import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/superadmin";
 import { ROLE_LABELS } from "@/lib/labels";
@@ -51,12 +52,7 @@ export default async function SystemCompanyPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link
-        href="/system"
-        className="inline-flex items-center gap-1.5 text-sm text-ink-soft transition hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />К списку компаний
-      </Link>
+      <BackButton fallbackHref="/system" fallbackLabel="К списку компаний" />
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center gap-2">

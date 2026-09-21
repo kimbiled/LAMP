@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Pencil, RefreshCw } from "lucide-react";
+import { Pencil, RefreshCw } from "lucide-react";
+import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
@@ -185,12 +186,10 @@ export default async function CandidatePage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link
-        href="/candidates"
-        className="inline-flex items-center gap-1.5 text-sm text-ink-soft transition hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />К списку кандидатов
-      </Link>
+      <BackButton
+        fallbackHref="/candidates"
+        fallbackLabel="К списку кандидатов"
+      />
 
       {/* Шапка карточки: сначала человек, потом всё остальное. */}
       <section

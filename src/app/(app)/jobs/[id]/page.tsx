@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
+import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
@@ -68,12 +69,7 @@ export default async function JobPage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link
-        href="/jobs"
-        className="inline-flex items-center gap-1.5 text-sm text-ink-soft transition hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />К списку вакансий
-      </Link>
+      <BackButton fallbackHref="/jobs" fallbackLabel="К списку вакансий" />
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
