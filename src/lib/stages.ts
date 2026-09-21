@@ -76,3 +76,20 @@ export const TONE_STYLES: Record<
     border: "border-accent/30",
   },
 };
+
+// Следующая ступень воронки после текущей.
+//
+// Нужна кнопке «Рекомендую дальше» в календаре: после успешного
+// интервью кандидат должен двигаться сам, без похода в его карточку.
+// Для этапов вне воронки — «Подумает», «Не отвечает» и прочих —
+// следующей ступени нет: куда двигать, решает человек.
+export function nextFunnelKey(key: StageKey | null): StageKey | null {
+  if (!key) return null;
+
+  const index = FUNNEL_KEYS.indexOf(key);
+  if (index === -1 || index === FUNNEL_KEYS.length - 1) {
+    return null;
+  }
+
+  return FUNNEL_KEYS[index + 1];
+}

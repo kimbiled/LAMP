@@ -8,9 +8,10 @@ import { fieldErrorsFrom, interviewSchema } from "@/lib/validation";
 import { addHistory } from "@/lib/history";
 import { localToDate } from "@/lib/time";
 import { INTERVIEW_TYPE_LABELS } from "@/lib/labels";
-import { notify } from "@/lib/notifications";
+import { jobWatchers, notify } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { suggestSlots, type Suggestion } from "@/lib/slots";
+import { nextFunnelKey } from "@/lib/stages";
 import type { InterviewStatus } from "@/generated/prisma/enums";
 
 export type InterviewFormState = {
@@ -330,4 +331,154 @@ export async function findFreeSlots(params: {
     candidateId: params.candidateId ?? null,
     durationMinutes: params.durationMinutes ?? null,
   });
+}
+
+// Решение по итогам интервью прямо из календаря.
+//
+// Одно нажатие делает три вещи: записывает мнение в фидбэки,
+// закрывает интервью как проведённое и двигает кандидата —
+// на следующую ступень воронки или в «Отказ от нас».
+//
+// Двигает только если у человека есть на это право. Нанимающий
+// менеджер обычно может оставить мнение, но не переставлять этапы:
+// тогда его решение просто записывается, а переводит рекрутер.
+export async function decideAfterInterview(
+  formData: FormData,
+): Promise<InterviewFormState> {
+  const scope = await getScope();
+
+  if (!scope.can("feedback.create")) {
+    return { formError: "Недостаточно прав" };
+  }
+
+  const decision = text(formData, "decision");
+  if (decision !== "NEXT" && decision !== "REJECT") {
+    return { formError: "Неизвестное решение" };
+  }
+
+  const interview = await db.interview.findFirst({
+    where: {
+      id: text(formData, "interviewId"),
+      companyId: scope.companyId,
+      candidate: candidateVisibilityFilter(scope.session.user),
+    },
+    select: {
+      id: true,
+      type: true,
+      candidateId: true,
+      interviewerId: true,
+      candidate: {
+        select: {
+          id: true,
+          fullName: true,
+          jobId: true,
+          stageId: true,
+          stage: { select: { key: true } },
+        },
+      },
+    },
+  });
+
+  if (!interview) {
+    return { formError: "Интервью не найдено" };
+  }
+
+  const approved = decision === "NEXT";
+  const comment =
+    text(formData, "comment").slice(0, 2000) ||
+    (approved
+      ? `Рекомендую дальше по итогам «${INTERVIEW_TYPE_LABELS[interview.type]}»`
+      : `Отказ по итогам «${INTERVIEW_TYPE_LABELS[interview.type]}»`);
+
+  await db.feedback.create({
+    data: {
+      companyId: scope.companyId,
+      candidateId: interview.candidateId,
+      interviewId: interview.id,
+      stageId: interview.candidate.stageId,
+      result: approved ? "POSITIVE" : "NEGATIVE",
+      comment,
+      authorId: scope.session.user.id,
+    },
+  });
+
+  await db.interview.update({
+    where: { id: interview.id },
+    data: { status: "COMPLETED" },
+  });
+
+  await addHistory({
+    companyId: scope.companyId,
+    candidateId: interview.candidateId,
+    type: "FEEDBACK_ADDED",
+    comment,
+    actorId: scope.session.user.id,
+    actorName: scope.session.user.fullName,
+  });
+
+  // Куда двигать кандидата. Для отказа это «Отказ от нас»,
+  // для одобрения — следующая ступень воронки, если она есть.
+  let movedTo: string | null = null;
+
+  if (scope.can("candidates.move")) {
+    const targetKey = approved
+      ? nextFunnelKey(interview.candidate.stage.key)
+      : ("WE_DECLINED" as const);
+
+    if (targetKey) {
+      const stage = await db.stage.findFirst({
+        where: { companyId: scope.companyId, key: targetKey },
+        select: { id: true, name: true },
+      });
+
+      if (stage && stage.id !== interview.candidate.stageId) {
+        await db.candidate.update({
+          where: { id: interview.candidateId },
+          data: {
+            stageId: stage.id,
+            stageChangedAt: new Date(),
+            // Отдельную причину отказа здесь не спрашиваем: решение
+            // принято по итогам встречи и уже записано в фидбэке,
+            // а он виден в карточке рядом с этапом.
+            rejectionReason: null,
+            rejectionComment: null,
+          },
+        });
+
+        await addHistory({
+          companyId: scope.companyId,
+          candidateId: interview.candidateId,
+          type: "STAGE_CHANGED",
+          fromStageId: interview.candidate.stageId,
+          toStageId: stage.id,
+          comment: "По итогам интервью",
+          actorId: scope.session.user.id,
+          actorName: scope.session.user.fullName,
+        });
+
+        movedTo = stage.name;
+      }
+    }
+  }
+
+  await notify({
+    companyId: scope.companyId,
+    userIds: await jobWatchers(interview.candidate.jobId),
+    actorId: scope.session.user.id,
+    type: "FEEDBACK_ADDED",
+    title: `${approved ? "Рекомендован дальше" : "Отказ"}: ${interview.candidate.fullName}`,
+    body: movedTo ? `Переведён на «${movedTo}»` : comment,
+    entityType: "Candidate",
+    entityId: interview.candidateId,
+  });
+
+  revalidatePath("/interviews");
+  revalidatePath(`/candidates/${interview.candidateId}`);
+  revalidatePath("/candidates");
+
+  return {
+    success: movedTo
+      ? `Записано, кандидат переведён на «${movedTo}»`
+      : "Решение записано",
+  };
 }

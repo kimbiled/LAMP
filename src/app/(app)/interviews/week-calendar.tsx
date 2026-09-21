@@ -3,8 +3,16 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Plus, Wand2, X } from "lucide-react";
 import {
+  CalendarClock,
+  Plus,
+  ThumbsDown,
+  ThumbsUp,
+  Wand2,
+  X,
+} from "lucide-react";
+import {
+  decideAfterInterview,
   findFreeSlots,
   rescheduleInterview,
   scheduleInterview,
@@ -28,6 +36,8 @@ export type CalendarEvent = {
   typeLabel: string;
   status: "SCHEDULED" | "COMPLETED" | "CANCELED";
   statusLabel: string;
+  // Решение по итогам встречи: рекомендован дальше или отказ.
+  decision: "NEXT" | "REJECT" | null;
   date: string;
   startMinutes: number;
   durationMinutes: number;
@@ -50,11 +60,24 @@ type Dialog =
 // только время. Теперь в самую короткую встречу влезает имя целиком.
 const SLOT_HEIGHT = 44;
 
-const EVENT_STYLES: Record<CalendarEvent["status"], string> = {
+// Цвет блока в сетке. Решение по итогам встречи важнее её статуса:
+// зелёный — рекомендован дальше, красный — отказ. Пока решения нет,
+// цвет показывает состояние самой встречи.
+const STATUS_STYLES: Record<CalendarEvent["status"], string> = {
   SCHEDULED: "bg-accent/30 border-accent/60 text-ink",
-  COMPLETED: "bg-green-100 border-green-300 text-green-900",
+  COMPLETED: "bg-canvas border-muted text-ink",
   CANCELED: "bg-muted border-muted text-ink-soft line-through",
 };
+
+const DECISION_STYLES = {
+  NEXT: "bg-green-100 border-green-400 text-green-900",
+  REJECT: "bg-red-100 border-red-400 text-red-900",
+} as const;
+
+function eventStyle(event: CalendarEvent): string {
+  if (event.decision) return DECISION_STYLES[event.decision];
+  return STATUS_STYLES[event.status];
+}
 
 const DURATIONS = [
   { value: "30", label: "30 минут" },
@@ -82,6 +105,8 @@ export function WeekCalendar({
   candidates,
   users,
   canManage,
+  canDecide,
+  canMoveStage,
   nowMarker,
   dayStartHour,
   dayEndHour,
@@ -92,6 +117,10 @@ export function WeekCalendar({
   candidates: CandidateOption[];
   users: Person[];
   canManage: boolean;
+  // Право оставить мнение по итогам встречи. Есть и у нанимающего
+  // менеджера, хотя переставлять этапы он не может.
+  canDecide: boolean;
+  canMoveStage: boolean;
   nowMarker: { date: string; minutes: number } | null;
   dayStartHour: number;
   dayEndHour: number;
@@ -210,7 +239,7 @@ export function WeekCalendar({
                       key={event.id}
                       type="button"
                       onClick={() => setDialog({ kind: "event", event })}
-                      className={`absolute right-1 left-1 z-20 overflow-hidden rounded-md border px-2 py-0.5 text-left text-xs leading-snug transition hover:brightness-95 ${EVENT_STYLES[event.status]}`}
+                      className={`absolute right-1 left-1 z-20 overflow-hidden rounded-md border px-2 py-0.5 text-left text-xs leading-snug transition hover:brightness-95 ${eventStyle(event)}`}
                       style={{
                         top: offsetOf(event.startMinutes),
                         height: Math.max(
@@ -289,6 +318,8 @@ export function WeekCalendar({
           <EventDetails
             event={dialog.event}
             canManage={canManage}
+            canDecide={canDecide}
+            canMoveStage={canMoveStage}
             onEdit={() => setDialog({ kind: "edit", event: dialog.event })}
             onDone={() => setDialog(null)}
           />
@@ -360,16 +391,43 @@ function Modal({
 function EventDetails({
   event,
   canManage,
+  canDecide,
+  canMoveStage,
   onEdit,
   onDone,
 }: {
   event: CalendarEvent;
   canManage: boolean;
+  canDecide: boolean;
+  canMoveStage: boolean;
   onEdit: () => void;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Решение по итогам встречи. Записывает мнение в фидбэки, закрывает
+  // интервью и двигает кандидата — дальше по воронке или в отказ.
+  function decide(decision: "NEXT" | "REJECT") {
+    const formData = new FormData();
+    formData.set("interviewId", event.id);
+    formData.set("decision", decision);
+    formData.set("comment", comment);
+
+    startTransition(async () => {
+      const result = await decideAfterInterview(formData);
+
+      if (result.formError) {
+        setError(result.formError);
+        return;
+      }
+
+      onDone();
+      router.refresh();
+    });
+  }
 
   function changeStatus(status: string) {
     const formData = new FormData();
@@ -397,6 +455,63 @@ function EventDetails({
           <p className="mt-2 text-xs text-ink-soft">{event.comment}</p>
         )}
       </div>
+
+      {event.decision && (
+        <p
+          className={`rounded-lg border px-3 py-2 text-sm ${DECISION_STYLES[event.decision]}`}
+        >
+          {event.decision === "NEXT"
+            ? "Рекомендован на следующий этап"
+            : "Отказ по итогам встречи"}
+        </p>
+      )}
+
+      {canDecide && !event.decision && (
+        <div className="rounded-lg border border-muted bg-canvas p-3">
+          <p className="text-sm font-medium text-ink">Итог встречи</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            {canMoveStage
+              ? "Решение попадёт в фидбэки кандидата, встреча отметится проведённой, а кандидат перейдёт дальше по воронке или в отказ."
+              : "Решение попадёт в фидбэки кандидата, а встреча отметится проведённой. Этап меняет рекрутер."}
+          </p>
+
+          {error && (
+            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {error}
+            </p>
+          )}
+
+          <textarea
+            value={comment}
+            onChange={(field) => setComment(field.target.value)}
+            rows={2}
+            placeholder="Пара слов — по желанию"
+            aria-label="Комментарий к решению"
+            className="mt-2 w-full rounded-lg border border-muted bg-surface px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
+          />
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => decide("NEXT")}
+              disabled={pending}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-60"
+            >
+              <ThumbsUp className="h-4 w-4" strokeWidth={2} />
+              Рекомендую дальше
+            </button>
+            <button
+              type="button"
+              onClick={() => decide("REJECT")}
+              disabled={pending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+            >
+              <ThumbsDown className="h-4 w-4" strokeWidth={2} />
+              Отказ
+            </button>
+          </div>
+        </div>
+      )}
 
       <Link
         href={`/candidates/${event.candidateId}`}

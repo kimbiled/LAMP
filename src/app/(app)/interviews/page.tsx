@@ -117,6 +117,13 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
       include: {
         candidate: { select: { id: true, fullName: true } },
         interviewer: { select: { id: true, fullName: true } },
+        // Решение по итогам встречи: по нему красится блок в сетке.
+        feedbacks: {
+          where: { result: { in: ["POSITIVE", "NEGATIVE"] } },
+          orderBy: { createdAt: "desc" },
+          select: { result: true },
+          take: 1,
+        },
       },
       orderBy: { scheduledAt: "asc" },
     }),
@@ -157,6 +164,12 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
       startMinutes: minutes,
       durationMinutes: interview.durationMinutes || DEFAULT_DURATION,
       timeText: timeText(interview.scheduledAt),
+      decision:
+        interview.feedbacks[0]?.result === "POSITIVE"
+          ? ("NEXT" as const)
+          : interview.feedbacks[0]?.result === "NEGATIVE"
+            ? ("REJECT" as const)
+            : null,
       interviewerId: interview.interviewer?.id ?? null,
       interviewerName: interview.interviewer?.fullName ?? null,
       comment: interview.comment,
@@ -209,6 +222,8 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
         candidates={candidates}
         users={users}
         canManage={canManage}
+        canDecide={scope.can("feedback.create")}
+        canMoveStage={scope.can("candidates.move")}
         nowMarker={showNow ? nowParts : null}
         dayStartHour={DAY_START_HOUR}
         dayEndHour={DAY_END_HOUR}
