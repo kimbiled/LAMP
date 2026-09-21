@@ -317,11 +317,21 @@ export default async function CandidatePage({
       </div>
 
       {/* Три части: фидбэк, основное и история.
-          На компьютере фидбэк уходит вправо вверх, основное занимает
-          левую колонку целиком. На телефоне колонок нет, и порядок
-          разметки становится обычным: фидбэк сразу под этапом. */}
+          Справа вверху то, что происходит с кандидатом прямо сейчас:
+          встречи и мнения о них. Слева — то, что о нём известно:
+          опыт, образование, резюме. На телефоне колонок нет, и порядок
+          разметки становится обычным: интервью и фидбэк сразу под этапом. */}
       <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr] md:grid-rows-[auto_1fr]">
-        <div className="md:col-start-2 md:row-start-1">
+        <div className="space-y-4 md:col-start-2 md:row-start-1">
+          <InterviewsBlock
+            candidateId={candidate.id}
+            interviews={interviewViews}
+            users={users}
+            canManage={canManageInterviews}
+            defaultDate={todayLocal()}
+            defaultInterviewerId={scope.session.user.id}
+          />
+
           <FeedbackBlock
             candidateId={candidate.id}
             feedbacks={feedbackViews}
@@ -484,15 +494,6 @@ export default async function CandidatePage({
             candidateId={candidate.id}
             resumes={candidate.resumes}
             canUpload={canEdit}
-          />
-
-          <InterviewsBlock
-            candidateId={candidate.id}
-            interviews={interviewViews}
-            users={users}
-            canManage={canManageInterviews}
-            defaultDate={todayLocal()}
-            defaultInterviewerId={scope.session.user.id}
           />
 
           <ShareBlock
