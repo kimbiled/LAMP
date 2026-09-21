@@ -45,7 +45,10 @@ type Dialog =
   | { kind: "event"; event: CalendarEvent }
   | { kind: "edit"; event: CalendarEvent };
 
-const SLOT_HEIGHT = 28; // высота получаса в пикселях
+// Высота получаса в пикселях. При 28 получасовая встреча занимала
+// 26 пикселей, и две строки текста в неё не помещались — было видно
+// только время. Теперь в самую короткую встречу влезает имя целиком.
+const SLOT_HEIGHT = 44;
 
 const EVENT_STYLES: Record<CalendarEvent["status"], string> = {
   SCHEDULED: "bg-accent/30 border-accent/60 text-ink",
@@ -143,7 +146,7 @@ export function WeekCalendar({
               {hours.map((item) => (
                 <div
                   key={item.hour}
-                  className="absolute right-2 -translate-y-1/2 text-[11px] text-ink-soft"
+                  className="absolute right-2 -translate-y-1/2 text-xs text-ink-soft"
                   style={{ top: offsetOf(item.hour * 60) }}
                 >
                   {item.label}
@@ -207,12 +210,12 @@ export function WeekCalendar({
                       key={event.id}
                       type="button"
                       onClick={() => setDialog({ kind: "event", event })}
-                      className={`absolute right-0.5 left-0.5 z-20 overflow-hidden rounded-md border px-1.5 py-1 text-left text-[11px] leading-tight transition hover:brightness-95 ${EVENT_STYLES[event.status]}`}
+                      className={`absolute right-1 left-1 z-20 overflow-hidden rounded-md border px-2 py-0.5 text-left text-xs leading-snug transition hover:brightness-95 ${EVENT_STYLES[event.status]}`}
                       style={{
                         top: offsetOf(event.startMinutes),
                         height: Math.max(
-                          (event.durationMinutes / 30) * SLOT_HEIGHT - 2,
-                          22,
+                          (event.durationMinutes / 30) * SLOT_HEIGHT - 3,
+                          SLOT_HEIGHT - 3,
                         ),
                       }}
                     >
@@ -222,6 +225,12 @@ export function WeekCalendar({
                       <span className="block truncate opacity-80">
                         {event.typeLabel}
                       </span>
+                      {/* На встречу от часа остаётся место на третью строку */}
+                      {event.durationMinutes >= 60 && event.interviewerName && (
+                        <span className="block truncate opacity-70">
+                          {event.interviewerName}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
