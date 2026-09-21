@@ -116,3 +116,31 @@ export async function changeOwnPassword(
 
   return { success: "Пароль изменён" };
 }
+
+// Имя и должность самого себя.
+//
+// Должность нужна не для прав, а для фидбэков: читающему важно знать,
+// кто это написал — рекрутер или руководитель отдела, куда человека
+// нанимают. Роль такого не показывает.
+export async function updateOwnProfile(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const scope = await getScope();
+
+  const fullName = text(formData, "fullName").slice(0, 100);
+  const position = text(formData, "position").slice(0, 100);
+
+  if (fullName.length < 2) {
+    return { fieldErrors: { fullName: "Укажите имя и фамилию" } };
+  }
+
+  await db.user.update({
+    where: { id: scope.session.user.id },
+    data: { fullName, position: position || null },
+  });
+
+  revalidatePath("/settings");
+
+  return { success: "Профиль сохранён" };
+}

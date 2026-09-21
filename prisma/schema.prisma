@@ -113,6 +113,10 @@ model User {
   email        String    @unique
   passwordHash String
   fullName     String
+  // Должность в своей компании: «Руководитель отдела маркетинга».
+  // Роль отвечает за права, должность — за то, чьё мнение читают
+  // в фидбэке. Заполняется самим человеком в настройках.
+  position     String?
   role         Role      @default(RECRUITER)
   isActive     Boolean   @default(true)
   // Владелец системы: видит все компании и управляет их пользователями.

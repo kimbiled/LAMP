@@ -18,6 +18,7 @@ import {
   HISTORY_LABELS,
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_TYPE_LABELS,
+  ROLE_LABELS,
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { telLink } from "@/lib/contacts";
@@ -71,7 +72,7 @@ export default async function CandidatePage({
           orderBy: { createdAt: "desc" },
           include: {
             stage: { select: { name: true } },
-            author: { select: { fullName: true } },
+            author: { select: { fullName: true, position: true, role: true } },
           },
         },
         shareLinks: {
@@ -135,6 +136,11 @@ export default async function CandidatePage({
   const feedbackViews = candidate.feedbacks.map((feedback) => ({
     id: feedback.id,
     authorName: feedback.author?.fullName ?? feedback.authorName ?? "Гость",
+    // Пока человек не заполнил должность в настройках, показываем роль —
+    // это всё равно лучше, чем пустое место.
+    authorPosition: feedback.author
+      ? (feedback.author.position ?? ROLE_LABELS[feedback.author.role])
+      : "гость по ссылке",
     whenText: formatDateTime(feedback.createdAt),
     stageName: feedback.stage?.name ?? null,
     result: feedback.result,
@@ -310,8 +316,23 @@ export default async function CandidatePage({
           )}
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      {/* Три части: фидбэк, основное и история.
+          На компьютере фидбэк уходит вправо вверх, основное занимает
+          левую колонку целиком. На телефоне колонок нет, и порядок
+          разметки становится обычным: фидбэк сразу под этапом. */}
+      <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr] md:grid-rows-[auto_1fr]">
+        <div className="md:col-start-2 md:row-start-1">
+          <FeedbackBlock
+            candidateId={candidate.id}
+            feedbacks={feedbackViews}
+            stages={stages}
+            interviews={interviewOptions}
+            currentStageId={candidate.stage.id}
+            canCreate={scope.can("feedback.create")}
+          />
+        </div>
+
+        <div className="space-y-4 md:col-start-1 md:row-start-1 md:row-span-2">
           {candidate.experience.length === 0 &&
             candidate.resumes.length > 0 && (
               <section className="rounded-xl border border-dashed border-muted bg-surface p-5">
@@ -474,15 +495,6 @@ export default async function CandidatePage({
             defaultInterviewerId={scope.session.user.id}
           />
 
-          <FeedbackBlock
-            candidateId={candidate.id}
-            feedbacks={feedbackViews}
-            stages={stages}
-            interviews={interviewOptions}
-            currentStageId={candidate.stage.id}
-            canCreate={scope.can("feedback.create")}
-          />
-
           <ShareBlock
             candidateId={candidate.id}
             links={shareLinkViews}
@@ -491,37 +503,39 @@ export default async function CandidatePage({
           />
         </div>
 
-        <section className="rounded-xl border border-muted bg-surface p-5">
-          <h2 className="text-sm font-medium text-ink">История</h2>
+        <div className="md:col-start-2 md:row-start-2">
+          <section className="rounded-xl border border-muted bg-surface p-5">
+            <h2 className="text-sm font-medium text-ink">История</h2>
 
-          <ol className="mt-3 space-y-3">
-            {candidate.history.map((item) => (
-              <li key={item.id} className="flex gap-3">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                <div className="min-w-0">
-                  <p className="text-sm text-ink">
-                    {HISTORY_LABELS[item.type]}
-                    {item.type === "STAGE_CHANGED" && item.toStage && (
-                      <span className="text-ink-soft">
-                        {": "}
-                        {item.fromStage?.name ?? "—"} → {item.toStage.name}
-                      </span>
-                    )}
-                  </p>
-                  {item.comment && (
-                    <p className="mt-0.5 text-sm text-ink-soft italic">
-                      «{item.comment}»
+            <ol className="mt-3 space-y-3">
+              {candidate.history.map((item) => (
+                <li key={item.id} className="flex gap-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                  <div className="min-w-0">
+                    <p className="text-sm text-ink">
+                      {HISTORY_LABELS[item.type]}
+                      {item.type === "STAGE_CHANGED" && item.toStage && (
+                        <span className="text-ink-soft">
+                          {": "}
+                          {item.fromStage?.name ?? "—"} → {item.toStage.name}
+                        </span>
+                      )}
                     </p>
-                  )}
-                  <p className="text-xs text-ink-soft">
-                    {formatDateTime(item.createdAt)}
-                    {item.actorName ? ` · ${item.actorName}` : ""}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
+                    {item.comment && (
+                      <p className="mt-0.5 text-sm text-ink-soft italic">
+                        «{item.comment}»
+                      </p>
+                    )}
+                    <p className="text-xs text-ink-soft">
+                      {formatDateTime(item.createdAt)}
+                      {item.actorName ? ` · ${item.actorName}` : ""}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
       </div>
     </div>
   );

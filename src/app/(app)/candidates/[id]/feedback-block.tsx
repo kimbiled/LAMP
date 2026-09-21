@@ -2,10 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { MessageSquarePlus } from "lucide-react";
-import {
-  createFeedback,
-  type FeedbackFormState,
-} from "@/app/actions/feedback";
+import { createFeedback, type FeedbackFormState } from "@/app/actions/feedback";
+import { Avatar } from "@/components/avatar";
 import { SelectField, TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 
@@ -15,11 +13,22 @@ import { SubmitButton } from "@/components/ui/submit-button";
 export type FeedbackView = {
   id: string;
   authorName: string;
+  // Должность коллеги: читающему важно, чьё это мнение —
+  // рекрутера или руководителя, к которому человек пойдёт работать.
+  authorPosition: string | null;
   whenText: string;
   stageName: string | null;
   result: "POSITIVE" | "NEGATIVE" | "EXTRA_STAGE";
   resultLabel: string;
   comment: string | null;
+};
+
+// Рамка и фон окошка — по результату, чтобы настроение фидбэка
+// считывалось до чтения текста.
+const CARD_STYLES: Record<string, string> = {
+  POSITIVE: "border-green-200 bg-green-50/50",
+  NEGATIVE: "border-red-200 bg-red-50/50",
+  EXTRA_STAGE: "border-accent/40 bg-accent/10",
 };
 
 const RESULT_STYLES: Record<string, string> = {
@@ -134,35 +143,49 @@ export function FeedbackBlock({
       )}
 
       {feedbacks.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-soft">Фидбэков пока нет.</p>
+        <p className="mt-3 text-sm text-ink-soft">
+          Фидбэков пока нет. Здесь появятся мнения коллег о кандидате.
+        </p>
       ) : (
         <ul className="mt-3 space-y-3">
           {feedbacks.map((feedback) => (
             <li
               key={feedback.id}
-              className="rounded-lg border border-muted bg-canvas p-3"
+              className={`rounded-xl border p-3 ${CARD_STYLES[feedback.result]}`}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-ink">
-                  {feedback.authorName}
+              {/* Имя и должность занимают строку целиком: в узкой колонке
+                  бейдж результата отжимал должность до многоточия,
+                  а именно она объясняет, чьё это мнение. */}
+              <div className="flex items-center gap-2.5">
+                <Avatar name={feedback.authorName} size="sm" />
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">
+                    {feedback.authorName}
+                  </p>
+                  <p className="truncate text-xs text-ink-soft">
+                    {feedback.authorPosition ?? "должность не указана"}
+                  </p>
+                </div>
+              </div>
+
+              {feedback.comment && (
+                <p className="mt-2.5 whitespace-pre-wrap text-sm text-ink">
+                  {feedback.comment}
                 </p>
+              )}
+
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-md px-2 py-0.5 text-xs ${RESULT_STYLES[feedback.result]}`}
                 >
                   {feedback.resultLabel}
                 </span>
+                <span className="text-xs text-ink-soft">
+                  {feedback.whenText}
+                  {feedback.stageName ? ` · ${feedback.stageName}` : ""}
+                </span>
               </div>
-
-              <p className="text-xs text-ink-soft">
-                {feedback.whenText}
-                {feedback.stageName ? ` · ${feedback.stageName}` : ""}
-              </p>
-
-              {feedback.comment && (
-                <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
-                  {feedback.comment}
-                </p>
-              )}
             </li>
           ))}
         </ul>

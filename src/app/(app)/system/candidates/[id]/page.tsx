@@ -19,6 +19,7 @@ import {
   HISTORY_LABELS,
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_TYPE_LABELS,
+  ROLE_LABELS,
 } from "@/lib/labels";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
 import { rejectionLabel, rejectionSide } from "@/lib/rejection";
@@ -69,7 +70,7 @@ export default async function SystemCandidatePage({
         orderBy: { createdAt: "desc" },
         include: {
           stage: { select: { name: true } },
-          author: { select: { fullName: true } },
+          author: { select: { fullName: true, position: true, role: true } },
         },
       },
       history: {
@@ -104,7 +105,10 @@ export default async function SystemCandidatePage({
 
   return (
     <div className="mx-auto max-w-4xl">
-      <BackButton fallbackHref="/system/candidates" fallbackLabel="К базе кандидатов" />
+      <BackButton
+        fallbackHref="/system/candidates"
+        fallbackLabel="К базе кандидатов"
+      />
 
       <section
         className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}
@@ -343,8 +347,11 @@ export default async function SystemCandidatePage({
                           по ссылке «Поделиться», без входа в систему. */}
                       {feedback.author?.fullName ??
                         feedback.authorName ??
-                        "Гость по ссылке"}{" "}
-                      · {formatDateTime(feedback.createdAt)}
+                        "Гость по ссылке"}
+                      {feedback.author &&
+                        ` · ${feedback.author.position ?? ROLE_LABELS[feedback.author.role]}`}
+                      {" · "}
+                      {formatDateTime(feedback.createdAt)}
                     </p>
                   </li>
                 ))}

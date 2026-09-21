@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import {
   changeOwnPassword,
   updateCompany,
+  updateOwnProfile,
   type SettingsFormState,
 } from "@/app/actions/settings";
 import { TextField } from "@/components/ui/text-field";
@@ -88,6 +89,43 @@ export function PasswordForm() {
 
       <div className="sm:w-48">
         <SubmitButton pendingLabel="Меняем…">Изменить пароль</SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+export function ProfileForm({
+  fullName,
+  position,
+}: {
+  fullName: string;
+  position: string;
+}) {
+  const [state, formAction] = useActionState(updateOwnProfile, initialState);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <Message state={state} />
+
+      <TextField
+        label="Имя и фамилия"
+        name="fullName"
+        required
+        defaultValue={fullName}
+        error={state.fieldErrors?.fullName}
+      />
+
+      <TextField
+        label="Должность"
+        name="position"
+        placeholder="Руководитель отдела маркетинга"
+        hint="Видна коллегам рядом с вашими фидбэками по кандидатам"
+        defaultValue={position}
+        error={state.fieldErrors?.position}
+      />
+
+      <div className="sm:w-48">
+        <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
       </div>
     </form>
   );

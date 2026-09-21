@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { ROLE_LABELS } from "@/lib/labels";
-import { CompanyForm, PasswordForm } from "./settings-forms";
+import { CompanyForm, PasswordForm, ProfileForm } from "./settings-forms";
 
 export const metadata: Metadata = { title: "Настройки — LAMP" };
 
@@ -10,6 +10,13 @@ export default async function SettingsPage() {
   // Сюда пускаем всех вошедших, но блоки внутри показываем по правам.
   const scope = await getScope();
   const canManageCompany = scope.can("company.manage");
+
+  // Должность в сессии не лежит: она нужна редко, а сессия читается
+  // на каждой странице.
+  const profile = await db.user.findUnique({
+    where: { id: scope.session.user.id },
+    select: { position: true },
+  });
 
   const stages = canManageCompany
     ? await db.stage.findMany({
@@ -26,6 +33,14 @@ export default async function SettingsPage() {
           {scope.session.user.fullName} · {ROLE_LABELS[scope.session.user.role]}
         </p>
       </div>
+
+      <section className="rounded-xl border border-muted bg-surface p-6">
+        <h2 className="mb-4 text-sm font-medium text-ink">Ваш профиль</h2>
+        <ProfileForm
+          fullName={scope.session.user.fullName}
+          position={profile?.position ?? ""}
+        />
+      </section>
 
       {canManageCompany && (
         <section className="rounded-xl border border-muted bg-surface p-6">
