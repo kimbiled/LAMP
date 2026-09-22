@@ -1,7 +1,8 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { extractText } from "../src/lib/resume/extract-text";
-import { parseResume } from "../src/lib/resume/parse";
+import { processResume } from "../src/lib/resume/pipeline";
+import { formatMonths } from "../src/lib/resume/score";
+import { shutdownOcr } from "../src/lib/resume/ocr";
 
 // Проверка качества распознавания на настоящих резюме.
 //
@@ -22,6 +23,9 @@ const TYPES: Record<string, string> = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".txt": "text/plain",
   ".rtf": "application/rtf",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
 };
 
 const FIELDS = [
@@ -63,7 +67,9 @@ async function main() {
   );
 
   if (files.length === 0) {
-    console.log(`В папке нет файлов PDF, DOCX, RTF или TXT: ${folder}`);
+    console.log(
+      `В папке нет резюме (PDF, DOCX, RTF, TXT, JPG, PNG): ${folder}`,
+    );
     return;
   }
 
@@ -76,17 +82,20 @@ async function main() {
     const data = await readFile(path.join(folder, name));
     const mimeType = TYPES[path.extname(name).toLowerCase()];
 
-    const text = await extractText(data, mimeType);
+    const started = Date.now();
+    const result = await processResume(data, mimeType);
+    const { text, parsed } = result;
 
     console.log(`\n${"─".repeat(60)}\n${name}`);
+    console.log(
+      `  способ: ${result.source} · разобрано на ${result.quality.score}% · ${Date.now() - started} мс`,
+    );
 
     if (text.trim().length < 30) {
       unreadable += 1;
-      console.log("  ТЕКСТ НЕ ИЗВЛЁКСЯ — скорее всего скан или картинка");
+      console.log("  ТЕКСТ НЕ ИЗВЛЁКСЯ даже распознаванием");
       continue;
     }
-
-    const parsed = parseResume(text);
 
     for (const field of FIELDS) {
       const value = parsed[field];
@@ -101,6 +110,9 @@ async function main() {
 
       console.log(`  ${filled ? "+" : " "} ${LABELS[field]}: ${shown}`);
     }
+
+    console.log(`    навыки: ${result.skills.join(", ") || "—"}`);
+    console.log(`    стаж по датам: ${formatMonths(result.experienceMonths)}`);
 
     for (const item of parsed.experience) {
       console.log(
@@ -133,4 +145,5 @@ async function main() {
   }
 }
 
-main();
+// Распознавание держит процесс открытым, поэтому закрываем его сами.
+main().finally(shutdownOcr);

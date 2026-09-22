@@ -32,6 +32,10 @@ export const ALLOWED_TYPES: Record<string, string> = {
   "text/plain": "txt",
   "application/rtf": "rtf",
   "text/rtf": "rtf",
+  // Сканы и фотографии резюме: текст из них достаётся распознаванием.
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
 };
 
 export function extensionFor(mimeType: string): string | null {

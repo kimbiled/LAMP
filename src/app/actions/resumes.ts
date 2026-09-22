@@ -15,8 +15,7 @@ import {
   removeFile,
   saveFile,
 } from "@/lib/storage";
-import { extractText } from "@/lib/resume/extract-text";
-import { parseResume } from "@/lib/resume/parse";
+import { processResume } from "@/lib/resume/pipeline";
 import { addHistory } from "@/lib/history";
 import { findDuplicates } from "@/lib/duplicates";
 import { phoneKey } from "@/lib/contacts";
@@ -63,12 +62,20 @@ async function prepareFile(
       mimeType = "text/plain";
     } else if (lower.endsWith(".rtf")) {
       mimeType = "application/rtf";
+    } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+      mimeType = "image/jpeg";
+    } else if (lower.endsWith(".png")) {
+      mimeType = "image/png";
+    } else if (lower.endsWith(".webp")) {
+      mimeType = "image/webp";
     }
   }
 
   const extension = extensionFor(mimeType);
   if (!extension) {
-    return { error: "Поддерживаются файлы PDF, DOCX, RTF и TXT" };
+    return {
+      error: "Поддерживаются PDF, DOCX, RTF, TXT и картинки JPG, PNG",
+    };
   }
 
   return {
@@ -94,16 +101,16 @@ export async function createCandidateFromResume(
     return { formError: prepared.error };
   }
 
-  const text = await extractText(prepared.data, prepared.mimeType);
+  // Конвейер сам решит, читать текстовый слой или распознавать картинку.
+  const processed = await processResume(prepared.data, prepared.mimeType);
+  const { text, parsed } = processed;
 
   if (text.trim().length < 30) {
     return {
       formError:
-        "Не удалось прочитать текст из файла. Возможно, резюме — это скан или картинка. Добавьте кандидата вручную",
+        "Не удалось прочитать текст из файла. Возможно, страница снята слишком мелко или под углом. Попробуйте другой файл или добавьте кандидата вручную",
     };
   }
-
-  const parsed = parseResume(text);
 
   const stage = await db.stage.findFirst({
     where: { companyId: scope.companyId },
@@ -161,6 +168,7 @@ export async function createCandidateFromResume(
       birthDate: parsed.birthDate ? new Date(parsed.birthDate) : null,
       currentPosition: parsed.currentPosition,
       experienceYears: parsed.experienceYears,
+      experienceMonths: processed.experienceMonths,
       salaryExpectation: parsed.salaryExpectation,
       currency: parsed.currency ?? "KZT",
       telegram: parsed.telegram,
@@ -193,6 +201,8 @@ export async function createCandidateFromResume(
           mimeType: prepared.mimeType,
           sizeBytes: prepared.data.length,
           parsedText: text.slice(0, 100_000),
+          textSource: processed.source,
+          parseScore: processed.quality.score,
           uploadedById: scope.session.user.id,
         },
       },
@@ -243,7 +253,8 @@ export async function attachResume(
     return { formError: prepared.error };
   }
 
-  const text = await extractText(prepared.data, prepared.mimeType);
+  const processed = await processResume(prepared.data, prepared.mimeType);
+  const text = processed.text;
 
   const storageKey = await saveFile({
     companyId: scope.companyId,
@@ -267,6 +278,8 @@ export async function attachResume(
       mimeType: prepared.mimeType,
       sizeBytes: prepared.data.length,
       parsedText: text.slice(0, 100_000),
+      textSource: processed.source,
+      parseScore: processed.quality.score,
       uploadedById: scope.session.user.id,
     },
   });
@@ -349,18 +362,21 @@ export async function reparseResume(formData: FormData): Promise<void> {
   const resume = candidate?.resumes[0];
   if (!candidate || !resume) return;
 
-  // Текст сохраняется при загрузке. Если его почему-то нет — читаем файл.
-  let text = resume.parsedText ?? "";
-  if (text.trim().length < 30) {
-    const data = await loadFile(resume.storageKey);
-    text = await extractText(data, resume.mimeType);
-    await db.resume.update({
-      where: { id: resume.id },
-      data: { parsedText: text.slice(0, 100_000) },
-    });
-  }
+  // Файл перечитываем заново: разбор мог улучшиться с прошлого раза,
+  // а сохранённый текст достался от старой версии. Заодно сработает
+  // распознавание, если это скан.
+  const data = await loadFile(resume.storageKey);
+  const processed = await processResume(data, resume.mimeType);
+  const { text, parsed } = processed;
 
-  const parsed = parseResume(text);
+  await db.resume.update({
+    where: { id: resume.id },
+    data: {
+      parsedText: text.slice(0, 100_000),
+      textSource: processed.source,
+      parseScore: processed.quality.score,
+    },
+  });
 
   // Опыт и образование заменяем целиком: это результат разбора файла.
   await db.candidateExperience.deleteMany({
@@ -382,6 +398,7 @@ export async function reparseResume(formData: FormData): Promise<void> {
         (parsed.birthDate ? new Date(parsed.birthDate) : null),
       currentPosition: candidate.currentPosition ?? parsed.currentPosition,
       experienceYears: candidate.experienceYears ?? parsed.experienceYears,
+      experienceMonths: processed.experienceMonths,
       salaryExpectation:
         candidate.salaryExpectation ?? parsed.salaryExpectation,
       telegram: candidate.telegram ?? parsed.telegram,

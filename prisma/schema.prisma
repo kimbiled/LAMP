@@ -224,6 +224,9 @@ model Candidate {
   birthDate         DateTime?
   currentPosition   String?
   experienceYears   Int?
+  // Стаж, посчитанный по датам мест работы, в месяцах.
+  // experienceYears человек пишет сам, а это — из его же дат.
+  experienceMonths  Int?
   salaryExpectation Int?
   currency          String   @default("KZT")
   telegram          String?
@@ -297,6 +300,12 @@ model Resume {
   mimeType     String
   sizeBytes    Int
   parsedText   String?
+  // Как получен текст: слой PDF, Word или распознавание картинки.
+  // Видно рекрутеру: к распознанному стоит присмотреться внимательнее.
+  textSource   String?
+  // Полнота разбора, 0-100. Считается правилами: сколько важных полей
+  // удалось найти. Нужна, чтобы понимать, что дозаполнить руками.
+  parseScore   Int?
   isCurrent    Boolean  @default(true)
   uploadedById String
   uploadedAt   DateTime @default(now())

@@ -502,6 +502,11 @@ function joinWrappedPeriods(lines: string[]): string[] {
 const DURATION =
   /^\d+\s*(?:год[а-яё]*|лет|месяц[а-яё]*)(?:\s+\d+\s*месяц[а-яё]*)?$/i;
 
+// Иногда длительность стоит не отдельной строкой, а прилипает к должности:
+// «2 года 1 месяц Менеджер по продажам». Отрезаем её от начала строки.
+const LEADING_DURATION =
+  /^\d+\s*(?:год[а-яё]*|лет|месяц[а-яё]*)(?:\s+\d+\s*месяц[а-яё]*)?\s+/i;
+
 // Строки вида «Астана, kcell.kz» или просто «Алматы» — это адрес компании,
 // а не должность. Такие строки пропускаем.
 const NOISE =
@@ -632,6 +637,10 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
         dutyIndex > 0
           ? (candidates[candidates.length - 1] ?? null)
           : (candidates[0] ?? null);
+
+      if (position) {
+        position = position.replace(LEADING_DURATION, "").trim() || null;
+      }
 
       // Длинные названия организаций переносятся на вторую строку,
       // и та выглядит как должность. Признаков два: обе строки написаны

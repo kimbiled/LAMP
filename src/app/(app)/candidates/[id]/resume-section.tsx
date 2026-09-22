@@ -9,7 +9,19 @@ type Resume = {
   sizeBytes: number;
   uploadedAt: Date;
   isCurrent: boolean;
+  // Как достали текст и насколько полно разобрали файл.
+  // Рекрутеру это подсказывает, где стоит перепроверить руками.
+  textSource: string | null;
+  parseScore: number | null;
   uploadedBy: { fullName: string };
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  PDF_TEXT: "текст из PDF",
+  PDF_OCR: "распознано со скана",
+  DOCX: "документ Word",
+  IMAGE_OCR: "распознано с фотографии",
+  PLAIN: "обычный текст",
 };
 
 export function ResumeSection({
@@ -43,6 +55,25 @@ export function ResumeSection({
                 {formatDateTime(current.uploadedAt)} ·{" "}
                 {current.uploadedBy.fullName}
               </p>
+
+              {current.textSource && (
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span
+                    className={
+                      current.textSource.includes("OCR")
+                        ? "rounded bg-accent/25 px-1.5 py-0.5 text-ink"
+                        : "rounded bg-muted px-1.5 py-0.5 text-ink-soft"
+                    }
+                  >
+                    {SOURCE_LABELS[current.textSource] ?? current.textSource}
+                  </span>
+                  {current.parseScore !== null && (
+                    <span className="text-ink-soft">
+                      разобрано на {current.parseScore}%
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 
