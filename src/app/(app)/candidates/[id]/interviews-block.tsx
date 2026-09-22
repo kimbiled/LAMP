@@ -10,6 +10,8 @@ import {
 import { TextField } from "@/components/ui/text-field";
 import { SelectField, TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { MeetingLinkButton } from "@/components/meeting-link-button";
+import { Linkify } from "@/components/linkify";
 
 // Интервью кандидата: список и форма назначения.
 // Даты приходят уже отформатированными с сервера — так не бывает
@@ -39,6 +41,7 @@ export function InterviewsBlock({
   canManage,
   defaultDate,
   defaultInterviewerId,
+  meetingLink,
 }: {
   candidateId: string;
   interviews: InterviewView[];
@@ -46,6 +49,7 @@ export function InterviewsBlock({
   canManage: boolean;
   defaultDate: string;
   defaultInterviewerId: string;
+  meetingLink: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(
@@ -76,7 +80,7 @@ export function InterviewsBlock({
       {open && canManage && (
         <form
           action={formAction}
-          className="mt-4 space-y-3 rounded-lg border border-muted bg-canvas p-4"
+          className="@container mt-4 space-y-3 rounded-lg border border-muted bg-canvas p-4"
         >
           {state.formError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
@@ -98,7 +102,10 @@ export function InterviewsBlock({
             error={state.fieldErrors?.type}
           />
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          {/* Ширину считаем от самого блока, а не от окна: блок стоит
+              в узкой правой колонке, и три поля в ряд там не помещались —
+              поле даты обрезалось вместе с кнопкой календаря. */}
+          <div className="grid gap-3 @md:grid-cols-2 @xl:grid-cols-3">
             <TextField
               label="Дата"
               name="date"
@@ -150,6 +157,8 @@ export function InterviewsBlock({
             error={state.fieldErrors?.comment}
           />
 
+          <MeetingLinkButton link={meetingLink} target="comment" />
+
           <div className="sm:w-48">
             <SubmitButton pendingLabel="Назначаем…">Назначить</SubmitButton>
           </div>
@@ -157,7 +166,9 @@ export function InterviewsBlock({
       )}
 
       {interviews.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-soft">Интервью пока не назначены.</p>
+        <p className="mt-3 text-sm text-ink-soft">
+          Интервью пока не назначены.
+        </p>
       ) : (
         <ul className="mt-3 space-y-2">
           {interviews.map((interview) => (
@@ -186,7 +197,9 @@ export function InterviewsBlock({
               </p>
 
               {interview.comment && (
-                <p className="mt-1 text-sm text-ink-soft">{interview.comment}</p>
+                <p className="mt-1 text-sm whitespace-pre-wrap text-ink-soft">
+                  <Linkify text={interview.comment} />
+                </p>
               )}
 
               {canManage && interview.status === "SCHEDULED" && (

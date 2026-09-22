@@ -90,6 +90,10 @@ enum NotificationType {
 model Company {
   id        String   @id @default(cuid())
   name      String
+  // Постоянная ссылка на видеовстречу компании: один раз создали
+  // комнату в Google Meet или Jitsi и вставляем её в интервью кнопкой.
+  // Так не нужно подключать календарь Google по API.
+  meetingLink String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -106,7 +106,7 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
 
   const canManage = scope.can("interviews.manage");
 
-  const [interviews, candidates, users] = await Promise.all([
+  const [interviews, candidates, users, company] = await Promise.all([
     db.interview.findMany({
       where: {
         companyId: scope.companyId,
@@ -145,6 +145,11 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
           orderBy: { fullName: "asc" },
         })
       : Promise.resolve([]),
+    // Постоянная ссылка компании на видеовстречу — для кнопки в форме.
+    db.company.findUnique({
+      where: { id: scope.companyId },
+      select: { meetingLink: true },
+    }),
   ]);
 
   // Раскладываем по сетке на сервере: день и минуты от полуночи
@@ -224,6 +229,7 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
         canManage={canManage}
         canDecide={scope.can("feedback.create")}
         canMoveStage={scope.can("candidates.move")}
+        meetingLink={company?.meetingLink ?? null}
         nowMarker={showNow ? nowParts : null}
         dayStartHour={DAY_START_HOUR}
         dayEndHour={DAY_END_HOUR}

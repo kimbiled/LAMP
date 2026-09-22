@@ -13,6 +13,13 @@ export default async function SettingsPage() {
 
   // Должность в сессии не лежит: она нужна редко, а сессия читается
   // на каждой странице.
+  const company = canManageCompany
+    ? await db.company.findUnique({
+        where: { id: scope.companyId },
+        select: { meetingLink: true },
+      })
+    : null;
+
   const profile = await db.user.findUnique({
     where: { id: scope.session.user.id },
     select: { position: true },
@@ -45,7 +52,10 @@ export default async function SettingsPage() {
       {canManageCompany && (
         <section className="rounded-xl border border-muted bg-surface p-6">
           <h2 className="mb-4 text-sm font-medium text-ink">Компания</h2>
-          <CompanyForm name={scope.session.company.name} />
+          <CompanyForm
+            name={scope.session.company.name}
+            meetingLink={company?.meetingLink ?? ""}
+          />
         </section>
       )}
 

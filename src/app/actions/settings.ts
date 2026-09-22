@@ -40,9 +40,25 @@ export async function updateCompany(
     return { fieldErrors: fieldErrorsFrom(parsed.error) };
   }
 
+  // Постоянную ссылку на встречу проверяем отдельно: она необязательна,
+  // но если указана — должна быть настоящим адресом, иначе кнопка
+  // «Вставить ссылку» подставит мусор.
+  const meetingLink = text(formData, "meetingLink");
+
+  if (meetingLink && !/^https?:\/\/\S+$/.test(meetingLink)) {
+    return {
+      fieldErrors: {
+        meetingLink: "Ссылка должна начинаться с https:// и быть без пробелов",
+      },
+    };
+  }
+
   await db.company.update({
     where: { id: scope.companyId },
-    data: { name: parsed.data.name },
+    data: {
+      name: parsed.data.name,
+      meetingLink: meetingLink || null,
+    },
   });
 
   await logAction({
@@ -56,7 +72,7 @@ export async function updateCompany(
 
   revalidatePath("/", "layout");
 
-  return { success: "Название компании обновлено" };
+  return { success: "Настройки компании сохранены" };
 }
 
 export async function changeOwnPassword(

@@ -30,7 +30,13 @@ function Message({ state }: { state: SettingsFormState }) {
   return null;
 }
 
-export function CompanyForm({ name }: { name: string }) {
+export function CompanyForm({
+  name,
+  meetingLink,
+}: {
+  name: string;
+  meetingLink: string;
+}) {
   const [state, formAction] = useActionState(updateCompany, initialState);
 
   return (
@@ -43,6 +49,15 @@ export function CompanyForm({ name }: { name: string }) {
         required
         defaultValue={name}
         error={state.fieldErrors?.name}
+      />
+
+      <TextField
+        label="Постоянная ссылка на встречу"
+        name="meetingLink"
+        placeholder="https://meet.google.com/abc-defg-hij"
+        hint="Создайте комнату один раз и вставьте адрес сюда. При назначении интервью её можно подставить одной кнопкой"
+        defaultValue={meetingLink}
+        error={state.fieldErrors?.meetingLink}
       />
 
       <div className="sm:w-48">

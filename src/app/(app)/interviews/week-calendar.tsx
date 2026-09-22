@@ -21,6 +21,8 @@ import {
 } from "@/app/actions/interviews";
 import type { Suggestion } from "@/lib/slots";
 import type { CalendarDay } from "@/lib/calendar";
+import { Linkify } from "@/components/linkify";
+import { MeetingLinkButton } from "@/components/meeting-link-button";
 
 // Недельная сетка интервью.
 //
@@ -107,6 +109,7 @@ export function WeekCalendar({
   canManage,
   canDecide,
   canMoveStage,
+  meetingLink,
   nowMarker,
   dayStartHour,
   dayEndHour,
@@ -121,6 +124,9 @@ export function WeekCalendar({
   // менеджера, хотя переставлять этапы он не может.
   canDecide: boolean;
   canMoveStage: boolean;
+  // Постоянная ссылка компании на видеовстречу. Кнопка в форме
+  // подставляет её в комментарий — без обращений к Google.
+  meetingLink: string | null;
   nowMarker: { date: string; minutes: number } | null;
   dayStartHour: number;
   dayEndHour: number;
@@ -284,6 +290,7 @@ export function WeekCalendar({
               interviewerId: "",
               comment: "",
             }}
+            meetingLink={meetingLink}
             onDone={() => setDialog(null)}
           />
         </Modal>
@@ -305,6 +312,7 @@ export function WeekCalendar({
               interviewerId: dialog.event.interviewerId ?? "",
               comment: dialog.event.comment ?? "",
             }}
+            meetingLink={meetingLink}
             onDone={() => setDialog(null)}
           />
         </Modal>
@@ -452,7 +460,9 @@ function EventDetails({
           Интервьюер: {event.interviewerName ?? "не назначен"}
         </p>
         {event.comment && (
-          <p className="mt-2 text-xs text-ink-soft">{event.comment}</p>
+          <p className="mt-2 text-xs whitespace-pre-wrap text-ink-soft">
+            <Linkify text={event.comment} />
+          </p>
         )}
       </div>
 
@@ -563,6 +573,7 @@ function InterviewForm({
   interviewId,
   candidates,
   users,
+  meetingLink,
   defaults,
   onDone,
 }: {
@@ -570,6 +581,7 @@ function InterviewForm({
   interviewId?: string;
   candidates: CandidateOption[];
   users: Person[];
+  meetingLink: string | null;
   defaults: {
     candidateId: string;
     type: string;
@@ -837,6 +849,10 @@ function InterviewForm({
           placeholder="Ссылка на встречу, адрес офиса"
           className={fieldClass}
         />
+
+        <div className="mt-2">
+          <MeetingLinkButton link={meetingLink} target="comment" />
+        </div>
       </div>
 
       <button

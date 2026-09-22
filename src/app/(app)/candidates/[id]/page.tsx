@@ -46,7 +46,7 @@ export default async function CandidatePage({
   const scope = await getScope();
 
   // Независимые запросы запускаем одновременно, а не по очереди.
-  const [candidate, stages, users, companyTags] = await Promise.all([
+  const [candidate, stages, users, company, companyTags] = await Promise.all([
     db.candidate.findFirst({
       where: {
         id,
@@ -103,6 +103,11 @@ export default async function CandidatePage({
           orderBy: { fullName: "asc" },
         })
       : Promise.resolve([]),
+    // Постоянная ссылка на встречу компании — для кнопки в форме интервью.
+    db.company.findUnique({
+      where: { id: scope.companyId },
+      select: { meetingLink: true },
+    }),
     // Метки, уже заведённые в компании, — для подсказок в поле ввода.
     db.tag.findMany({
       where: { companyId: scope.companyId },
@@ -330,6 +335,7 @@ export default async function CandidatePage({
             canManage={canManageInterviews}
             defaultDate={todayLocal()}
             defaultInterviewerId={scope.session.user.id}
+            meetingLink={company?.meetingLink ?? null}
           />
 
           <FeedbackBlock
