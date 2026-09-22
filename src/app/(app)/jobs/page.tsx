@@ -105,7 +105,9 @@ export default async function JobsPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    // Шире остальных страниц: плитке нужно место на три колонки,
+    // иначе карточки становятся узкими и названия переносятся.
+    <div className="mx-auto max-w-6xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink-strong">Вакансии</h1>
 
@@ -157,7 +159,10 @@ export default async function JobsPage({
           </p>
         </div>
       ) : (
-        <div className="mt-3 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+        // Плиткой, а не списком: строка во всю ширину оставляла справа
+        // пустоту, а десяток вакансий превращался в длинную простыню.
+        // Карточки в ряду одной высоты, число кандидатов прижато к низу.
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => {
             const counters = progressByJob.get(job.id);
 
@@ -174,28 +179,32 @@ export default async function JobsPage({
               <Link
                 key={job.id}
                 href={`/jobs/${job.id}`}
-                className="block p-4 transition hover:bg-canvas"
+                className="flex h-full flex-col rounded-xl border border-muted bg-surface p-4 transition hover:border-ink-soft hover:bg-canvas"
               >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-base font-semibold text-ink-strong">
-                      {job.title}
-                    </p>
-                    <JobStatusBadge status={job.status} />
-                  </div>
-
-                  <p className="mt-1 text-sm text-ink-soft">
-                    {formatSalary(job.salaryMin, job.salaryMax, job.currency)}
-                    {" · создана "}
-                    {formatDate(job.createdAt)}
+                <div className="flex flex-wrap items-start gap-2">
+                  <p className="min-w-0 flex-1 text-base leading-snug font-semibold text-ink-strong">
+                    {job.title}
                   </p>
-                  <p className="text-sm text-ink-soft">
-                    Рекрутер: {job.recruiter?.fullName ?? "не назначен"}
-                    {" · менеджер: "}
-                    {job.hiringManager?.fullName ?? "не назначен"}
-                  </p>
+                  <JobStatusBadge status={job.status} />
+                </div>
 
-                  <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm">
+                <p className="mt-2 text-sm text-ink-soft">
+                  {formatSalary(job.salaryMin, job.salaryMax, job.currency)}
+                </p>
+                <p className="text-sm text-ink-soft">
+                  Создана {formatDate(job.createdAt)}
+                </p>
+                <p className="mt-1 truncate text-sm text-ink-soft">
+                  Рекрутер: {job.recruiter?.fullName ?? "не назначен"}
+                </p>
+                <p className="truncate text-sm text-ink-soft">
+                  Менеджер: {job.hiringManager?.fullName ?? "не назначен"}
+                </p>
+
+                {/* mt-auto прижимает итог к низу карточки: у всех вакансий
+                    в ряду он оказывается на одной линии. */}
+                <div className="mt-auto pt-3">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-muted pt-3 text-sm">
                     <span className="font-medium text-ink">
                       {job._count.candidates}{" "}
                       {plural(job._count.candidates, CANDIDATE_FORMS)}
@@ -206,7 +215,7 @@ export default async function JobsPage({
                         {step.value} {step.label}
                       </span>
                     ))}
-                  </p>
+                  </div>
                 </div>
               </Link>
             );
