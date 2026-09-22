@@ -110,3 +110,83 @@ AI-инженер
     expect(parsed.currentPosition).toBe("AI-инженер");
   });
 });
+
+describe("Резюме не с hh", () => {
+  it("заголовок вразрядку распознаётся как раздел", () => {
+    // Дизайнерские резюме набирают заголовки «О П Ы Т  Р А Б О Т Ы».
+    const parsed = parseResume(`Иванов Пётр
+
+О П Ы Т  Р А Б О Т Ы
+QA-инженер · JETI ASPAN · Астана
+сен. 2025 – сен. 2026
+• Тестирование мобильных приложений`);
+
+    expect(parsed.experience).toHaveLength(1);
+    expect(parsed.experience[0].position).toBe("QA-инженер");
+    expect(parsed.experience[0].companyName).toBe("JETI ASPAN");
+  });
+
+  it("сокращённые месяцы понимаются как даты", () => {
+    const parsed = parseResume(`Опыт работы
+Аналитик · Робот · Астана
+янв. 2023 – мар. 2025
+- Работа с данными`);
+
+    expect(parsed.experience[0].period).toBe("янв. 2023 – мар. 2025");
+  });
+
+  it("город из строки-заголовка не становится должностью", () => {
+    const parsed = parseResume(`Опыт работы
+Менеджер · Компания · Astana
+май 2024 – май 2025
+- Продажи`);
+
+    expect(parsed.experience[0].position).toBe("Менеджер");
+    expect(parsed.experience[0].companyName).toBe("Компания");
+  });
+});
+
+describe("Имена", () => {
+  it("казахские буквы не мешают найти ФИО", () => {
+    expect(parseResume("Әбдіқан Арман\nМужчина, 22 года").fullName).toBe(
+      "Әбдіқан Арман",
+    );
+    expect(parseResume("Сапар Мейірлан Мұсаұлы\nМужчина").fullName).toBe(
+      "Сапар Мейірлан Мұсаұлы",
+    );
+    expect(parseResume("Қали Темірлан\nМужчина").fullName).toBe(
+      "Қали Темірлан",
+    );
+  });
+
+  it("имя латиницей тоже находится", () => {
+    expect(parseResume("Bekenov Rustam\nМужчина").fullName).toBe(
+      "Bekenov Rustam",
+    );
+  });
+
+  it("служебные строки за имя не принимаются", () => {
+    expect(parseResume("Desired position\nSales Manager").fullName).toBeNull();
+  });
+});
+
+describe("Выгрузка с hh на английском", () => {
+  it("дата рождения читается из «born on»", () => {
+    expect(
+      parseResume("Male, 22 years, born on 26 August 2004").birthDate,
+    ).toBe("2004-08-26");
+  });
+
+  it("месяц, оторванный от года, собирается обратно", () => {
+    // В английской выгрузке между месяцем и годом стоит компания.
+    const parsed = parseResume(`Work experience — 1 year
+September
+Жана адамдар
+2025 — till now
+Astana
+Спортивный менеджер`);
+
+    expect(parsed.experience).toHaveLength(1);
+    expect(parsed.experience[0].period).toBe("September 2025 — till now");
+  });
+});

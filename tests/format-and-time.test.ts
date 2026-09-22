@@ -70,11 +70,12 @@ describe("Проверка форм", () => {
   });
 
   it("требует пароль при входе", () => {
-    expect(loginSchema.safeParse({ email: "a@b.kz", password: "" }).success).toBe(
-      false,
-    );
     expect(
-      loginSchema.safeParse({ email: "не почта", password: "12345678" }).success,
+      loginSchema.safeParse({ email: "a@b.kz", password: "" }).success,
+    ).toBe(false);
+    expect(
+      loginSchema.safeParse({ email: "не почта", password: "12345678" })
+        .success,
     ).toBe(false);
   });
 

@@ -66,7 +66,8 @@ async function main() {
   });
 
   const users = await db.user.findMany({ where: { companyId: company.id } });
-  const byEmail = (email: string) => users.find((user) => user.email === email)!;
+  const byEmail = (email: string) =>
+    users.find((user) => user.email === email)!;
   const admin = byEmail("qa-admin@example.com");
   const recruiter = byEmail("qa-recruiter@example.com");
   const manager = byEmail("qa-manager@example.com");
@@ -102,11 +103,36 @@ async function main() {
   // path — через какие этапы кандидат прошёл (номера этапов по порядку).
   // Так воронка в аналитике получается похожей на настоящую.
   const people = [
-    { fullName: "Петров Иван Сергеевич", email: "ivan@mail.kz", position: "Frontend-разработчик", path: [0] },
-    { fullName: "Сидорова Мария Павловна", email: "maria@mail.kz", position: "React-разработчик", path: [0, 1] },
-    { fullName: "Ким Алексей Викторович", email: "alexey@mail.kz", position: "Senior Frontend", path: [0, 1, 2, 3, 4] },
-    { fullName: "Жумабаева Айгуль Ерлановна", email: "aigul@mail.kz", position: "Team Lead", path: [0, 1, 2, 3, 4, 5, 6] },
-    { fullName: "Оспанов Данияр Маратович", email: "daniyar@mail.kz", position: "Frontend-разработчик", path: [0, 1, 2, 3, 4, 8] },
+    {
+      fullName: "Петров Иван Сергеевич",
+      email: "ivan@mail.kz",
+      position: "Frontend-разработчик",
+      path: [0],
+    },
+    {
+      fullName: "Сидорова Мария Павловна",
+      email: "maria@mail.kz",
+      position: "React-разработчик",
+      path: [0, 1],
+    },
+    {
+      fullName: "Ким Алексей Викторович",
+      email: "alexey@mail.kz",
+      position: "Senior Frontend",
+      path: [0, 1, 2, 3, 4],
+    },
+    {
+      fullName: "Жумабаева Айгуль Ерлановна",
+      email: "aigul@mail.kz",
+      position: "Team Lead",
+      path: [0, 1, 2, 3, 4, 5, 6],
+    },
+    {
+      fullName: "Оспанов Данияр Маратович",
+      email: "daniyar@mail.kz",
+      position: "Frontend-разработчик",
+      path: [0, 1, 2, 3, 4, 8],
+    },
   ];
 
   for (const person of people) {
@@ -171,7 +197,9 @@ async function main() {
     }
   }
 
-  console.log("Тестовая компания создана: 2 вакансии, 5 кандидатов с историей.");
+  console.log(
+    "Тестовая компания создана: 2 вакансии, 5 кандидатов с историей.",
+  );
   console.log("  qa-admin@example.com      — администратор");
   console.log("  qa-recruiter@example.com  — рекрутер");
   console.log("  qa-manager@example.com    — нанимающий менеджер");

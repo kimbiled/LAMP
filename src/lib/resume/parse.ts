@@ -110,19 +110,36 @@ const CITIES = [
   "Берлин",
 ];
 
+// Месяц в любом написании: «Январь», «января», «янв.», «сен».
+// В дизайнерских резюме почти всегда сокращения с точкой.
+// Английские тоже: hh умеет отдавать резюме на английском,
+// и тогда в датах стоит «September», «Feb.».
 const MONTHS =
-  "январь|февраль|март|апрель|май|июнь|июль|август|сентябрь|октябрь|ноябрь|декабрь";
+  "(?:(?:янв|фев|мар|апр|ма[йя]|июн|июл|авг|сен|окт|ноя|дек)[а-яё]*|" +
+  "(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)\\.?";
+
+// Строка, в которой нет ничего, кроме названия месяца. В английской
+// выгрузке с hh месяц и год попадают в разные строки, между ними
+// вклинивается название компании.
+const MONTH_ALONE = new RegExp(`^${MONTHS}$`, "i");
+const STARTS_YEAR_RANGE = /^\d{4}\s*[—–-]/;
 
 // Важно: в JavaScript граница слова \b не работает с кириллицей,
 // поэтому вместо неё используем «дальше не идёт буква».
 const END = "(?![а-яёa-z])";
 
 const SECTIONS: { key: string; pattern: RegExp }[] = [
-  { key: "experience", pattern: new RegExp(`^опыт работы${END}`, "i") },
+  {
+    key: "experience",
+    pattern: new RegExp(
+      `^(опыт работы|опыт|профессиональный опыт|work experience|experience|employment)${END}`,
+      "i",
+    ),
+  },
   {
     key: "skills",
     pattern: new RegExp(
-      `^(ключевые навыки|профессиональные навыки|навыки|skills)${END}`,
+      `^(ключевые навыки|профессиональные навыки|навыки и инструменты|навыки|skills|tools|technical skills)${END}`,
       "i",
     ),
   },
@@ -143,7 +160,7 @@ const SECTIONS: { key: string; pattern: RegExp }[] = [
   {
     key: "about",
     pattern: new RegExp(
-      `^(обо мне|о себе|дополнительная информация)${END}`,
+      `^(обо мне|о себе|дополнительная информация|about me|summary|профессиональное резюме|further information)${END}`,
       "i",
     ),
   },
@@ -154,7 +171,7 @@ const SECTIONS: { key: string; pattern: RegExp }[] = [
   {
     key: "certificates",
     pattern: new RegExp(
-      `^(сертификаты|курсы|повышение квалификации)${END}`,
+      `^(сертификаты|курсы|повышение квалификации|certificates|courses)${END}`,
       "i",
     ),
   },
@@ -191,14 +208,29 @@ export function parseResume(text: string): ParsedResume {
 
 // ---------- разбивка на разделы ----------
 
+// Заголовки в дизайнерских резюме часто набраны вразрядку:
+// «О П Ы Т  Р А Б О Т Ы». При чтении PDF это приходит как строка
+// из отдельных букв, и обычный шаблон её не узнаёт. Поэтому заголовок
+// проверяем дважды: как есть и без единого пробела.
+function despace(line: string): string {
+  return line.replace(/\s+/g, "");
+}
+
+const SECTIONS_TIGHT = SECTIONS.map((section) => ({
+  key: section.key,
+  pattern: new RegExp(despace(section.pattern.source), "i"),
+}));
+
 function splitIntoSections(lines: string[]): Record<string, string[]> {
   const result: Record<string, string[]> = {};
   let current: string | null = null;
 
   for (const line of lines) {
-    const matched = SECTIONS.find(
-      (section) => line.length < 60 && section.pattern.test(line),
-    );
+    const short = line.length < 60;
+    const matched =
+      (short && SECTIONS.find((section) => section.pattern.test(line))) ||
+      (short &&
+        SECTIONS_TIGHT.find((section) => section.pattern.test(despace(line))));
 
     if (matched) {
       current = matched.key;
@@ -254,7 +286,21 @@ function findTelegram(text: string, email: string | null): string | null {
 // ---------- личные данные ----------
 
 const NAME_STOP_WORDS =
-  /резюме|опыт|навыки|образование|контакт|телефон|работа|проект|компани|должност|зарплат|гражданств/i;
+  /резюме|опыт|навыки|образование|контакт|телефон|работа|проект|компани|должност|зарплат|гражданств|мужчина|женщина|проживает|resume|experience|education|skills|contact|phone|email|position|salary|male|female|desired|citizenship|reside|specializations|employment/i;
+
+// Названия должностей латиницей похожи на имена: «Sales Manager» —
+// два слова с заглавных букв, как «Bekenov Rustam». Отличаем словарём.
+const JOB_WORDS =
+  /\b(manager|developer|engineer|analyst|designer|specialist|director|lead|head|senior|junior|middle|officer|consultant|assistant|coordinator|administrator|accountant|lawyer|driver|operator|support|product|project|marketing|sales|recruiter|architect|tester|intern|expert|advisor|planner|buyer|editor|writer|teacher|trainer|chief|owner|founder|partner|agent|broker|analyst|developer)\b/i;
+
+// Буквы, из которых состоят имена. Кроме русских нужны казахские —
+// Әбдіқан, Мейірлан, Қали — и латиница: hh отдаёт резюме и на английском.
+const UPPER = "А-ЯЁӘҒҚҢӨҰҮҺІA-Z";
+const LOWER = "а-яёәғқңөұүһіa-z";
+
+const NAME_LINE = new RegExp(
+  `^[${UPPER}][${LOWER}'-]+(?:\\s+[${UPPER}][${LOWER}'-]+){1,2}$`,
+);
 
 function findFullName(lines: string[]): string | null {
   const labelled = lines.find((line) => /^(фио|ф\.и\.о)/i.test(line));
@@ -266,7 +312,8 @@ function findFullName(lines: string[]): string | null {
   // Обычно ФИО стоит в самом начале отдельной строкой.
   for (const line of lines.slice(0, 15)) {
     if (NAME_STOP_WORDS.test(line)) continue;
-    if (/^[А-ЯЁ][а-яё-]+(?:\s+[А-ЯЁ][а-яё-]+){1,2}$/.test(line)) {
+    if (JOB_WORDS.test(line)) continue;
+    if (NAME_LINE.test(line)) {
       return line;
     }
   }
@@ -287,6 +334,21 @@ const MONTH_NAMES = [
   "октябр",
   "ноябр",
   "декабр",
+];
+
+const ENGLISH_MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
 ];
 
 // «родился 12 марта 1994», «Дата рождения: 12.03.1994»
@@ -310,11 +372,25 @@ function findBirthDate(text: string): string | null {
   }
 
   const digits = text.match(
-    /(?:родил[сa]?[сяь]{0,2}|дата рождения)\s*[:\-—]?\s*(\d{2})[.\/](\d{2})[.\/](\d{4})/i,
+    /(?:родил[а-яё]{0,3}|дата рождения|date of birth)\s*[:\-—]?\s*(\d{2})[.\/](\d{2})[.\/](\d{4})/i,
   );
 
   if (digits) {
     return `${digits[3]}-${digits[2]}-${digits[1]}`;
+  }
+
+  // Английская выгрузка с hh: «Male, 22 years, born on 26 August 2004».
+  const english = text.match(/born\s+on\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i);
+
+  if (english) {
+    const monthIndex = ENGLISH_MONTHS.findIndex((name) =>
+      english[2].toLowerCase().startsWith(name),
+    );
+    if (monthIndex >= 0) {
+      const day = english[1].padStart(2, "0");
+      const month = String(monthIndex + 1).padStart(2, "0");
+      return `${english[3]}-${month}-${day}`;
+    }
   }
 
   return null;
@@ -435,7 +511,7 @@ function findLanguages(lines: string[] | undefined): string[] {
 // ---------- места работы ----------
 
 const PERIOD_START = `(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4})`;
-const PERIOD_END = `(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4}|настоящее время|по настоящее время|сейчас)`;
+const PERIOD_END = `(?:(?:${MONTHS})\\s+\\d{4}|\\d{2}[./]\\d{4}|\\d{4}|настоящее время|по настоящее время|сейчас|till now|present|to date)`;
 
 const PERIOD = new RegExp(`^${PERIOD_START}\\s*[—–-]\\s*${PERIOD_END}`, "i");
 
@@ -453,10 +529,32 @@ const STARTS_PERIOD = new RegExp(`^${PERIOD_START}${END}`, "i");
 
 function joinWrappedPeriods(lines: string[]): string[] {
   const result: string[] = [];
+  // Строки, которые уже приклеили к месяцу выше по тексту.
+  const used = new Set<number>();
 
   for (let index = 0; index < lines.length; index++) {
+    if (used.has(index)) continue;
+
     const line = lines[index];
     const next = lines[index + 1];
+
+    // Одинокий месяц: год к нему приезжает через строку-другую,
+    // между ними стоит название компании. Ищем год поблизости
+    // и собираем период обратно.
+    if (MONTH_ALONE.test(line)) {
+      const at = [1, 2, 3]
+        .map((step) => index + step)
+        .find(
+          (candidate) =>
+            lines[candidate] && STARTS_YEAR_RANGE.test(lines[candidate]),
+        );
+
+      if (at !== undefined) {
+        result.push(`${line} ${lines[at]}`.replace(/\s+/g, " "));
+        used.add(at);
+        continue;
+      }
+    }
 
     if (next && STARTS_PERIOD.test(line)) {
       const endsWithDash = ENDS_WITH_DASH.test(line);
@@ -512,9 +610,46 @@ const LEADING_DURATION =
 const NOISE =
   /(^https?:\/\/|^www\.|\b[a-z0-9-]+\.(ru|kz|com|net|org|io|kg|uz)\b)/i;
 
+// В английской выгрузке города пишут латиницей, и без этого списка
+// «Astana» попадает в должность вместо того, чтобы быть отброшенной.
+const LATIN_CITIES = [
+  "astana",
+  "almaty",
+  "shymkent",
+  "karaganda",
+  "aktobe",
+  "taraz",
+  "pavlodar",
+  "atyrau",
+  "kostanay",
+  "aktau",
+  "semey",
+  "oral",
+  "uralsk",
+  "kyzylorda",
+  "petropavlovsk",
+  "kokshetau",
+  "turkestan",
+  "moscow",
+  "bishkek",
+  "tashkent",
+  "minsk",
+  "dubai",
+  "tbilisi",
+  "baku",
+  "yerevan",
+];
+
 function isLocationLine(line: string): boolean {
-  const cleaned = line.replace(/[.,;]$/, "").trim();
-  return CITIES.some((city) => cleaned.toLowerCase() === city.toLowerCase());
+  const cleaned = line
+    .replace(/[.,;]$/, "")
+    .trim()
+    .toLowerCase();
+
+  return (
+    CITIES.some((city) => cleaned === city.toLowerCase()) ||
+    LATIN_CITIES.includes(cleaned)
+  );
 }
 
 // Обязанности в резюме перечисляют через тире.
@@ -581,14 +716,42 @@ function findDescription(
   return text.length > 0 ? text.slice(0, 3000) : null;
 }
 
+// В дизайнерских резюме место работы описывают одной строкой через
+// разделители, а период ставят следующей строкой:
+//   «QA-инженер · JETI ASPAN · Астана»
+//   «сен. 2025 – сен. 2026»
+// Такая строка принадлежит следующему блоку, а не предыдущему.
+const HEADER_LINE = /\s[·|—]\s/;
+
 function findExperience(lines: string[] | undefined): ParsedExperience[] {
   if (!lines) return [];
 
-  const blocks: { period: string; body: string[] }[] = [];
+  const blocks: { period: string; header: string | null; body: string[] }[] =
+    [];
 
-  for (const line of joinWrappedPeriods(lines)) {
+  const stream = joinWrappedPeriods(lines);
+
+  for (const [index, line] of stream.entries()) {
     if (PERIOD.test(line)) {
-      blocks.push({ period: line, body: [] });
+      // Строка перед периодом описывает не предыдущую работу, а ту,
+      // период которой начинается сейчас. У первого блока предыдущего
+      // блока нет — тогда смотрим прямо в поток строк.
+      const previous = blocks[blocks.length - 1];
+      const candidate = previous
+        ? previous.body[previous.body.length - 1]
+        : stream[index - 1];
+
+      let header: string | null = null;
+      if (
+        candidate &&
+        HEADER_LINE.test(candidate) &&
+        !IS_DUTY.test(candidate)
+      ) {
+        header = candidate;
+        previous?.body.pop();
+      }
+
+      blocks.push({ period: line, header, body: [] });
     } else if (blocks.length > 0) {
       blocks[blocks.length - 1].body.push(line);
     }
@@ -597,6 +760,25 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
   return blocks
     .slice(0, 8)
     .map((block): ParsedExperience | null => {
+      // Если у блока есть строка-заголовок, она и содержит всё нужное:
+      // должность, компанию и город через разделители. Разбираем её
+      // и не гадаем по остальным строкам.
+      if (block.header) {
+        const parts = block.header
+          .split(/\s[·|—]\s/)
+          .map((part) => part.trim())
+          .filter((part) => part.length > 1 && !isLocationLine(part));
+
+        if (parts.length >= 2) {
+          return {
+            companyName: parts[1].slice(0, 150),
+            position: parts[0].slice(0, 150),
+            period: block.period,
+            description: findDescription(block.body, parts[1], parts[0]),
+          };
+        }
+      }
+
       // Отсекаем то, что заведомо не является ни компанией, ни должностью.
       const body = block.body.filter(
         (line) =>

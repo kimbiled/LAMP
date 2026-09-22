@@ -9,17 +9,17 @@ const db = new PrismaClient({ adapter });
 
 async function main() {
   const counts = {
-    "Компании": await db.company.count(),
-    "Пользователи": await db.user.count(),
-    "Этапы": await db.stage.count(),
-    "Вакансии": await db.job.count(),
-    "Кандидаты": await db.candidate.count(),
-    "Резюме": await db.resume.count(),
-    "Интервью": await db.interview.count(),
-    "Фидбэки": await db.feedback.count(),
-    "История": await db.candidateHistory.count(),
+    Компании: await db.company.count(),
+    Пользователи: await db.user.count(),
+    Этапы: await db.stage.count(),
+    Вакансии: await db.job.count(),
+    Кандидаты: await db.candidate.count(),
+    Резюме: await db.resume.count(),
+    Интервью: await db.interview.count(),
+    Фидбэки: await db.feedback.count(),
+    История: await db.candidateHistory.count(),
     "Ссылки «Поделиться»": await db.shareLink.count(),
-    "Уведомления": await db.notification.count(),
+    Уведомления: await db.notification.count(),
     "Журнал действий": await db.auditLog.count(),
   };
 

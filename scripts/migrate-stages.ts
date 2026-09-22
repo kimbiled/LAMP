@@ -25,7 +25,9 @@ const MOVE: Partial<Record<string, StageKey>> = {
 };
 
 async function main() {
-  const companies = await db.company.findMany({ select: { id: true, name: true } });
+  const companies = await db.company.findMany({
+    select: { id: true, name: true },
+  });
 
   for (const company of companies) {
     console.log(`\nКомпания «${company.name}»`);
