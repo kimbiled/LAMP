@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { FileJson, Plus, Search } from "lucide-react";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { can, jobVisibilityFilter } from "@/lib/permissions";
@@ -232,13 +232,23 @@ export default async function CandidatesPage({
         </div>
 
         {scope.can("candidates.create") && (
-          <Link
-            href="/candidates/new"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-accent-hover sm:w-auto"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            Добавить кандидата
-          </Link>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Link
+              href="/candidates/import"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-muted bg-surface px-4 py-2.5 text-sm font-medium text-ink transition hover:border-ink-soft sm:flex-none"
+            >
+              <FileJson className="h-4 w-4" strokeWidth={1.8} />
+              Импорт с hh
+            </Link>
+
+            <Link
+              href="/candidates/new"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-accent-hover sm:flex-none"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Добавить кандидата
+            </Link>
+          </div>
         )}
       </div>
 

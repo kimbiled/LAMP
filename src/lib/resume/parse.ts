@@ -270,8 +270,12 @@ function findPhone(text: string): string | null {
 }
 
 function findTelegram(text: string, email: string | null): string | null {
+  // Перед меткой обязательно не-буква. Без этой проверки «tg» находилось
+  // внутри слова PostgreSQL, и у каждого, кто его упомянул, появлялся
+  // выдуманный ник @reSQL. После метки обязателен разделитель или @:
+  // иначе меткой становится начало любого слова на «tg».
   const labelled = text.match(
-    /(?:telegram|телеграм|телеграмм|tg)\s*[:\-—]?\s*@?([A-Za-z0-9_]{4,32})/i,
+    /(?<![\p{L}\p{N}])(?:telegram|телеграм|телеграмм|tg)(?:\s*[:\-—]\s*|\s+|\s*@)@?([A-Za-z0-9_]{4,32})/iu,
   );
   if (labelled) return labelled[1];
 

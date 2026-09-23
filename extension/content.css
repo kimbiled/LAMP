@@ -1,0 +1,65 @@
+/* Кнопка и сообщения сборщика.
+   Имена классов с приставкой lamp-, чтобы ничего не задеть на hh. */
+
+.lamp-button {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+
+  background: #ffd44d;
+  color: #1a1a1a;
+  font: 500 14px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.lamp-button:hover {
+  background: #ffc61a;
+}
+
+.lamp-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 72px;
+  z-index: 2147483000;
+
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 10px;
+
+  background: #1a1a1a;
+  color: #fff;
+  font: 400 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+  pointer-events: none;
+}
+
+.lamp-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lamp-toast[data-kind="ok"] {
+  background: #15803d;
+}
+
+.lamp-toast[data-kind="warn"] {
+  background: #a16207;
+}
+
+.lamp-toast[data-kind="error"] {
+  background: #b91c1c;
+}

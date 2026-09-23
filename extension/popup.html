@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 280px;
+        margin: 0;
+        padding: 16px;
+        background: #fbfbf9;
+        color: #1a1a1a;
+        font: 400 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .count {
+        margin-bottom: 4px;
+        font-size: 28px;
+        font-weight: 600;
+      }
+
+      .hint {
+        margin: 0 0 14px;
+        color: #6b6b6b;
+        font-size: 12px;
+      }
+
+      button {
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 9px 12px;
+        border: none;
+        border-radius: 8px;
+        font: 500 13px/1.2 inherit;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: #ffd44d;
+        color: #1a1a1a;
+      }
+
+      .primary:hover {
+        background: #ffc61a;
+      }
+
+      .primary:disabled {
+        background: #ececea;
+        color: #9a9a9a;
+        cursor: default;
+      }
+
+      .ghost {
+        background: transparent;
+        color: #6b6b6b;
+      }
+
+      .ghost:hover {
+        background: #ececea;
+      }
+
+      .keys {
+        margin: 12px 0 0;
+        padding-top: 12px;
+        border-top: 1px solid #e6e6e3;
+        color: #6b6b6b;
+        font-size: 11px;
+      }
+
+      kbd {
+        padding: 1px 4px;
+        border: 1px solid #d5d5d2;
+        border-radius: 4px;
+        background: #fff;
+        font-size: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Сборщик резюме с hh</h1>
+
+    <div class="count" id="count">0</div>
+    <p class="hint" id="hint">резюме в пачке</p>
+
+    <button class="primary" id="download" disabled>Скачать файл</button>
+    <button class="ghost" id="clear">Очистить пачку</button>
+
+    <p class="keys">
+      На странице hh: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> или кнопка
+      «Собрать в LAMP» внизу справа. Запасное сочетание —
+      <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd>.
+    </p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

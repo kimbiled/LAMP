@@ -96,3 +96,25 @@ describe("Разбор резюме", () => {
     expect(empty.skills).toEqual([]);
   });
 });
+
+describe("Telegram не выдумывается из похожих слов", () => {
+  // «PostgreSQL» содержит «tg», и раньше метка Telegram находилась
+  // прямо внутри слова: у каждого айтишника появлялся ник @reSQL.
+  it("не принимает PostgreSQL за метку Telegram", () => {
+    const parsed = parseResume(
+      "Иван Петров\nНавыки: Python, PostgreSQL, Docker, Git",
+    );
+    expect(parsed.telegram).toBeNull();
+  });
+
+  it("находит настоящий ник рядом с PostgreSQL", () => {
+    const parsed = parseResume(
+      "Иван Петров\nНавыки: PostgreSQL, Docker\nTelegram: @ivan_petrov",
+    );
+    expect(parsed.telegram).toBe("ivan_petrov");
+  });
+
+  it("понимает короткую метку tg", () => {
+    expect(parseResume("Связь\ntg @nurlan_ab").telegram).toBe("nurlan_ab");
+  });
+});

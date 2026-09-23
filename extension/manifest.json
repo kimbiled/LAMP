@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "LAMP — сборщик резюме с hh",
+  "version": "1.0.0",
+  "description": "Собирает резюме с hh.kz в один файл, который потом импортируется в LAMP.",
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": ["https://hh.kz/*", "https://hh.ru/*"],
+  "action": {
+    "default_title": "LAMP — сборщик резюме",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://hh.kz/*", "https://hh.ru/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

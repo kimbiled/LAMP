@@ -17,8 +17,9 @@ import {
 } from "@/lib/storage";
 import { processResume } from "@/lib/resume/pipeline";
 import { addHistory } from "@/lib/history";
-import { findDuplicates } from "@/lib/duplicates";
-import { phoneKey } from "@/lib/contacts";
+// Общий путь создания карточки: им же пользуется точка приёма
+// для расширения Chrome, чтобы поведение не разъезжалось.
+import { createCandidateFromResume as createCandidate } from "@/lib/candidate-from-resume";
 
 export type ResumeFormState = {
   formError?: string;
@@ -103,23 +104,13 @@ export async function createCandidateFromResume(
 
   // Конвейер сам решит, читать текстовый слой или распознавать картинку.
   const processed = await processResume(prepared.data, prepared.mimeType);
-  const { text, parsed } = processed;
+  const { text } = processed;
 
   if (text.trim().length < 30) {
     return {
       formError:
         "Не удалось прочитать текст из файла. Возможно, страница снята слишком мелко или под углом. Попробуйте другой файл или добавьте кандидата вручную",
     };
-  }
-
-  const stage = await db.stage.findFirst({
-    where: { companyId: scope.companyId },
-    orderBy: { position: "asc" },
-    select: { id: true },
-  });
-
-  if (!stage) {
-    return { formError: "В компании не настроены этапы подбора" };
   }
 
   const rawJobId = formData.get("jobId");
@@ -137,90 +128,25 @@ export async function createCandidateFromResume(
         )?.id ?? null)
       : null;
 
+  const created = await createCandidate({
+    companyId: scope.companyId,
+    actorId: scope.session.user.id,
+    actorName: scope.session.user.fullName,
+    jobId,
+    file: prepared,
+    processed,
+    source: { label: "Резюме" },
+  });
+
+  if ("error" in created) {
+    return { formError: created.error };
+  }
+
   // Заводить кандидата всё равно нужно — файл уже загружен, и просить
   // выбрать его заново было бы издевательством. Поэтому о совпадении
   // предупреждаем на следующем шаге, при проверке распознанных данных.
-  const duplicates = await findDuplicates({
-    companyId: scope.companyId,
-    phone: parsed.phone,
-    email: parsed.email,
-  });
-
-  const storageKey = await saveFile({
-    companyId: scope.companyId,
-    data: prepared.data,
-    extension: prepared.extension,
-    mimeType: prepared.mimeType,
-  });
-
-  const candidate = await db.candidate.create({
-    data: {
-      companyId: scope.companyId,
-      jobId,
-      stageId: stage.id,
-      // Если ФИО распознать не удалось, подставляем имя файла:
-      // рекрутер увидит это и исправит.
-      fullName: parsed.fullName ?? prepared.fileName.replace(/\.[^.]+$/, ""),
-      phone: parsed.phone,
-      phoneKey: phoneKey(parsed.phone),
-      email: parsed.email,
-      city: parsed.city,
-      birthDate: parsed.birthDate ? new Date(parsed.birthDate) : null,
-      currentPosition: parsed.currentPosition,
-      experienceYears: parsed.experienceYears,
-      experienceMonths: processed.experienceMonths,
-      salaryExpectation: parsed.salaryExpectation,
-      currency: parsed.currency ?? "KZT",
-      telegram: parsed.telegram,
-      skills: parsed.skills,
-      languages: parsed.languages,
-      source: "Резюме",
-      createdById: scope.session.user.id,
-      experience: {
-        create: parsed.experience.map((item, index) => ({
-          companyName: item.companyName,
-          position: item.position,
-          period: item.period,
-          description: item.description,
-          sortOrder: index,
-        })),
-      },
-      education: {
-        create: parsed.education.map((item, index) => ({
-          institution: item.institution,
-          specialty: item.specialty,
-          years: item.years,
-          sortOrder: index,
-        })),
-      },
-      resumes: {
-        create: {
-          companyId: scope.companyId,
-          fileName: prepared.fileName,
-          storageKey,
-          mimeType: prepared.mimeType,
-          sizeBytes: prepared.data.length,
-          parsedText: text.slice(0, 100_000),
-          textSource: processed.source,
-          parseScore: processed.quality.score,
-          uploadedById: scope.session.user.id,
-        },
-      },
-    },
-  });
-
-  await addHistory({
-    companyId: scope.companyId,
-    candidateId: candidate.id,
-    type: "CANDIDATE_CREATED",
-    toStageId: stage.id,
-    comment: "Из загруженного резюме",
-    actorId: scope.session.user.id,
-    actorName: scope.session.user.fullName,
-  });
-
   redirect(
-    `/candidates/${candidate.id}/edit?parsed=1${duplicates.length > 0 ? "&duplicate=1" : ""}`,
+    `/candidates/${created.candidateId}/edit?parsed=1${created.duplicates.length > 0 ? "&duplicate=1" : ""}`,
   );
 }
 

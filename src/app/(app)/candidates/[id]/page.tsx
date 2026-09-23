@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Pencil, RefreshCw } from "lucide-react";
+import { ExternalLink, Pencil, RefreshCw } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
@@ -191,7 +191,9 @@ export default async function CandidatePage({
           ? formatMoney(candidate.salaryExpectation, candidate.currency)
           : null,
     },
-    { label: "Источник", value: candidate.source },
+    // Пришедшие с hh несут ссылку на исходное резюме: оттуда видно,
+    // что человек поменял у себя после того, как мы его завели.
+    { label: "Источник", value: candidate.source, href: candidate.sourceUrl },
     { label: "Добавил", value: candidate.createdBy.fullName },
   ].filter((fact) => fact.value);
 
@@ -449,7 +451,21 @@ export default async function CandidatePage({
               {facts.map((fact) => (
                 <div key={fact.label}>
                   <dt className="text-xs text-ink-soft">{fact.label}</dt>
-                  <dd className="text-sm break-words text-ink">{fact.value}</dd>
+                  <dd className="text-sm break-words text-ink">
+                    {"href" in fact && fact.href ? (
+                      <a
+                        href={fact.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 underline decoration-accent underline-offset-2 transition hover:decoration-2"
+                      >
+                        {fact.value}
+                        <ExternalLink className="h-3 w-3" strokeWidth={1.8} />
+                      </a>
+                    ) : (
+                      fact.value
+                    )}
+                  </dd>
                 </div>
               ))}
             </dl>
