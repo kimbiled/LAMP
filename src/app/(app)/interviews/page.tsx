@@ -115,7 +115,9 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
         scheduledAt: { gte: from, lt: to },
       },
       include: {
-        candidate: { select: { id: true, fullName: true } },
+        candidate: {
+          select: { id: true, fullName: true, currentPosition: true },
+        },
         interviewer: { select: { id: true, fullName: true } },
         // Решение по итогам встречи: по нему красится блок в сетке.
         feedbacks: {
@@ -161,6 +163,7 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
       id: interview.id,
       candidateId: interview.candidate.id,
       candidateName: interview.candidate.fullName,
+      candidatePosition: interview.candidate.currentPosition,
       type: interview.type,
       typeLabel: INTERVIEW_TYPE_LABELS[interview.type],
       status: interview.status,

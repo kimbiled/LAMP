@@ -34,6 +34,9 @@ export type CalendarEvent = {
   id: string;
   candidateId: string;
   candidateName: string;
+  // Должность кандидата из его карточки. В сетке важнее типа встречи:
+  // по ней сразу видно, кого именно собеседуем.
+  candidatePosition: string | null;
   type: string;
   typeLabel: string;
   status: "SCHEDULED" | "COMPLETED" | "CANCELED";
@@ -75,6 +78,30 @@ const DECISION_STYLES = {
   NEXT: "bg-green-100 border-green-400 text-green-900",
   REJECT: "bg-red-100 border-red-400 text-red-900",
 } as const;
+
+// text-xs с leading-snug: 12 пикселей на 1,375.
+const LINE_HEIGHT = 16.5;
+
+// Строки под именем кандидата — в порядке важности: должность, тип
+// встречи, интервьюер. Показываем столько, сколько влезает по высоте:
+// строка текста занимает около 17 пикселей, получас — 44.
+//
+// Раньше тип и интервьюер были привязаны к длительности жёстко, и в
+// 45-минутную встречу не попадала третья строка, хотя место под неё
+// было. Теперь пустых мест не остаётся.
+function extraLines(event: CalendarEvent): string[] {
+  const height = Math.max(
+    (event.durationMinutes / 30) * SLOT_HEIGHT - 3,
+    SLOT_HEIGHT - 3,
+  );
+
+  // Минус отступы сверху и снизу, минус строка с именем.
+  const room = Math.floor((height - 4 - LINE_HEIGHT) / LINE_HEIGHT);
+
+  return [event.candidatePosition, event.typeLabel, event.interviewerName]
+    .filter((line): line is string => Boolean(line))
+    .slice(0, Math.max(room, 1));
+}
 
 function eventStyle(event: CalendarEvent): string {
   if (event.decision) return DECISION_STYLES[event.decision];
@@ -257,15 +284,15 @@ export function WeekCalendar({
                       <span className="block truncate font-medium">
                         {event.timeText} {event.candidateName}
                       </span>
-                      <span className="block truncate opacity-80">
-                        {event.typeLabel}
-                      </span>
-                      {/* На встречу от часа остаётся место на третью строку */}
-                      {event.durationMinutes >= 60 && event.interviewerName && (
-                        <span className="block truncate opacity-70">
-                          {event.interviewerName}
+
+                      {extraLines(event).map((line, index) => (
+                        <span
+                          key={line}
+                          className={`block truncate ${index === 0 ? "opacity-80" : "opacity-70"}`}
+                        >
+                          {line}
                         </span>
-                      )}
+                      ))}
                     </button>
                   ))}
                 </div>
@@ -452,6 +479,12 @@ function EventDetails({
   return (
     <div className="space-y-3 text-sm">
       <div className="rounded-lg border border-muted bg-canvas p-3">
+        {/* В заголовке окна стоит имя, поэтому должность идёт первой
+            строкой: без неё непонятно, на какую роль человек идёт. */}
+        {event.candidatePosition && (
+          <p className="mb-1 text-ink">{event.candidatePosition}</p>
+        )}
+
         <p className="text-ink">{event.typeLabel}</p>
         <p className="mt-1 text-xs text-ink-soft">
           {event.timeText} · {event.durationMinutes} минут · {event.statusLabel}
