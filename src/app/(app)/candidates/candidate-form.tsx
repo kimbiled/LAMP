@@ -294,7 +294,13 @@ export function CandidateForm({
 
       <EducationEditor initial={education} />
 
-      <div className="flex gap-3">
+      {/* Кнопка сохранения не уезжает вверх при прокрутке. Форма длинная,
+          а после разбора резюме она ещё и открывается целиком заполненной:
+          проверил поле в середине — и сохраняй, не пролистывая до конца.
+
+          На телефоне панель поднята над нижним меню: оно прибито к низу
+          экрана и иначе перекрыло бы кнопку. */}
+      <div className="sticky bottom-14 z-20 flex gap-3 rounded-xl border border-muted bg-surface/95 p-3 shadow-lg backdrop-blur md:bottom-0">
         <Link
           href={cancelHref}
           className="flex-1 rounded-lg border border-muted px-4 py-2.5 text-center text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink sm:flex-none sm:px-8"
