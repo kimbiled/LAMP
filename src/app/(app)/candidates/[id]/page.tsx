@@ -21,6 +21,7 @@ import {
   ROLE_LABELS,
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
+import { minutesToTime, placeInDay } from "@/lib/calendar";
 import { telLink } from "@/lib/contacts";
 import { publicBaseUrl } from "@/lib/app-url";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
@@ -125,18 +126,30 @@ export default async function CandidatePage({
 
   // Готовим данные для блоков заранее: даты форматируем на сервере,
   // чтобы в браузере не было расхождений часовых поясов.
-  const interviewViews = candidate.interviews.map((interview) => ({
-    id: interview.id,
-    typeLabel: INTERVIEW_TYPE_LABELS[interview.type],
-    statusLabel: INTERVIEW_STATUS_LABELS[interview.status],
-    status: interview.status,
-    whenText: formatDateTime(interview.scheduledAt),
-    durationText: interview.durationMinutes
-      ? `${interview.durationMinutes} мин`
-      : null,
-    interviewerName: interview.interviewer?.fullName ?? null,
-    comment: interview.comment,
-  }));
+  const interviewViews = candidate.interviews.map((interview) => {
+    // Для формы изменения нужны не подписи, а сами значения: дата и время
+    // в часовом поясе компании, а не в том, что стоит у браузера.
+    const placed = placeInDay(interview.scheduledAt);
+
+    return {
+      id: interview.id,
+      typeLabel: INTERVIEW_TYPE_LABELS[interview.type],
+      statusLabel: INTERVIEW_STATUS_LABELS[interview.status],
+      status: interview.status,
+      whenText: formatDateTime(interview.scheduledAt),
+      durationText: interview.durationMinutes
+        ? `${interview.durationMinutes} мин`
+        : null,
+      interviewerName: interview.interviewer?.fullName ?? null,
+      comment: interview.comment,
+
+      type: interview.type,
+      date: placed.date,
+      time: minutesToTime(placed.minutes),
+      durationMinutes: String(interview.durationMinutes ?? 60),
+      interviewerId: interview.interviewerId ?? "",
+    };
+  });
 
   const feedbackViews = candidate.feedbacks.map((feedback) => ({
     id: feedback.id,

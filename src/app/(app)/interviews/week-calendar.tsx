@@ -297,7 +297,7 @@ export function WeekCalendar({
       )}
 
       {dialog?.kind === "edit" && (
-        <Modal title="Перенести интервью" onClose={() => setDialog(null)}>
+        <Modal title="Изменить интервью" onClose={() => setDialog(null)}>
           <InterviewForm
             mode="edit"
             interviewId={dialog.event.id}
@@ -538,7 +538,10 @@ function EventDetails({
             disabled={pending}
             className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover disabled:opacity-60"
           >
-            Перенести
+            {/* Не «Перенести»: за этой кнопкой меняется всё — тип, время,
+                интервьюер и комментарий со ссылкой на встречу. По старому
+                названию догадаться об этом было нельзя. */}
+            Изменить
           </button>
 
           {event.status !== "COMPLETED" && (
