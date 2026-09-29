@@ -23,6 +23,7 @@ import type { Suggestion } from "@/lib/slots";
 import type { CalendarDay } from "@/lib/calendar";
 import { Linkify } from "@/components/linkify";
 import { MeetingLinkButton } from "@/components/meeting-link-button";
+import { CANDIDATE_FORMS, plural } from "@/lib/format";
 
 // Недельная сетка интервью.
 //
@@ -58,7 +59,10 @@ type CandidateOption = { id: string; fullName: string };
 type Dialog =
   | { kind: "create"; date: string; time: string }
   | { kind: "event"; event: CalendarEvent }
-  | { kind: "edit"; event: CalendarEvent };
+  | { kind: "edit"; event: CalendarEvent }
+  // Пачка встреч на одно время: сначала показываем список, из него
+  // открывается конкретная встреча.
+  | { kind: "group"; events: CalendarEvent[]; title: string };
 
 // Высота получаса в пикселях. При 28 получасовая встреча занимала
 // 26 пикселей, и две строки текста в неё не помещались — было видно
@@ -82,6 +86,16 @@ const DECISION_STYLES = {
 // text-xs с leading-snug: 12 пикселей на 1,375.
 const LINE_HEIGHT = 16.5;
 
+function blockHeight(minutes: number): number {
+  return Math.max((minutes / 30) * SLOT_HEIGHT - 3, SLOT_HEIGHT - 3);
+}
+
+// Сколько строк помещается под первой. Минус отступы сверху и снизу,
+// минус сама первая строка.
+function linesRoom(height: number): number {
+  return Math.max(Math.floor((height - 4 - LINE_HEIGHT) / LINE_HEIGHT), 1);
+}
+
 // Строки под именем кандидата — в порядке важности: должность, тип
 // встречи, интервьюер. Показываем столько, сколько влезает по высоте:
 // строка текста занимает около 17 пикселей, получас — 44.
@@ -90,22 +104,128 @@ const LINE_HEIGHT = 16.5;
 // 45-минутную встречу не попадала третья строка, хотя место под неё
 // было. Теперь пустых мест не остаётся.
 function extraLines(event: CalendarEvent): string[] {
-  const height = Math.max(
-    (event.durationMinutes / 30) * SLOT_HEIGHT - 3,
-    SLOT_HEIGHT - 3,
-  );
-
-  // Минус отступы сверху и снизу, минус строка с именем.
-  const room = Math.floor((height - 4 - LINE_HEIGHT) / LINE_HEIGHT);
-
   return [event.candidatePosition, event.typeLabel, event.interviewerName]
     .filter((line): line is string => Boolean(line))
-    .slice(0, Math.max(room, 1));
+    .slice(0, linesRoom(blockHeight(event.durationMinutes)));
+}
+
+// Пачка встреч, налезающих друг на друга по времени.
+//
+// Раньше каждая встреча рисовалась во всю ширину дня, и поставленные
+// на одно время ложились ровно одна на другую: видно было только
+// верхнюю, а сколько их всего — никак. На массовых вакансиях на один
+// час ставят по десятку человек, поэтому такую пачку показываем одной
+// плашкой: сколько человек и кто именно.
+//
+// Раскладывать их столбиками рядом, как в Google Calendar, здесь нельзя:
+// колонка дня в недельной сетке около 95 пикселей, на двоих это уже
+// по 45 — туда не помещается даже имя.
+type Cluster = {
+  startMinutes: number;
+  endMinutes: number;
+  events: CalendarEvent[];
+};
+
+function clusterEvents(dayEvents: CalendarEvent[]): Cluster[] {
+  const sorted = [...dayEvents].sort((a, b) => a.startMinutes - b.startMinutes);
+  const clusters: Cluster[] = [];
+
+  for (const event of sorted) {
+    const end = event.startMinutes + event.durationMinutes;
+    const last = clusters[clusters.length - 1];
+
+    // Начинается раньше, чем кончилась предыдущая пачка, — значит,
+    // они наложились бы друг на друга.
+    if (last && event.startMinutes < last.endMinutes) {
+      last.events.push(event);
+      last.endMinutes = Math.max(last.endMinutes, end);
+      continue;
+    }
+
+    clusters.push({
+      startMinutes: event.startMinutes,
+      endMinutes: end,
+      events: [event],
+    });
+  }
+
+  return clusters;
+}
+
+// Имена в плашке пачки. Если все не помещаются, последняя строка
+// говорит, сколько осталось за кадром.
+function groupLines(events: CalendarEvent[], room: number): string[] {
+  const names = events.map((event) => event.candidateName);
+  if (names.length <= room) return names;
+
+  // В получасовую плашку помещается всего одна строка. Отдавать её
+  // под «+ ещё 5» бессмысленно: счётчик уже стоит в заголовке.
+  // Пишем имена подряд, лишнее обрежется многоточием.
+  if (room === 1) return [names.join(", ")];
+
+  return [...names.slice(0, room - 1), `+ ещё ${names.length - room + 1}`];
 }
 
 function eventStyle(event: CalendarEvent): string {
   if (event.decision) return DECISION_STYLES[event.decision];
   return STATUS_STYLES[event.status];
+}
+
+// Короткая подпись справа в списке пачки: решение важнее статуса.
+function shortResult(event: CalendarEvent): string {
+  if (event.decision === "NEXT") return "дальше";
+  if (event.decision === "REJECT") return "отказ";
+  return event.statusLabel;
+}
+
+// Список людей, записанных на одно время. Открывается по нажатию
+// на плашку пачки; отсюда открывается конкретная встреча.
+function GroupList({
+  events,
+  onPick,
+}: {
+  events: CalendarEvent[];
+  onPick: (event: CalendarEvent) => void;
+}) {
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="text-xs text-ink-soft">
+        Нажмите на человека, чтобы открыть его встречу.
+      </p>
+
+      <ul className="divide-y divide-muted overflow-hidden rounded-lg border border-muted">
+        {events.map((event) => (
+          <li key={event.id}>
+            <button
+              type="button"
+              onClick={() => onPick(event)}
+              className="flex w-full items-start gap-3 p-3 text-left transition hover:bg-canvas"
+            >
+              <span className="w-12 shrink-0 font-medium text-ink">
+                {event.timeText}
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-ink">
+                  {event.candidateName}
+                </span>
+                <span className="block truncate text-xs text-ink-soft">
+                  {event.candidatePosition ?? event.typeLabel}
+                  {event.interviewerName ? ` · ${event.interviewerName}` : ""}
+                </span>
+              </span>
+
+              <span
+                className={`shrink-0 rounded-md border px-2 py-0.5 text-xs ${eventStyle(event)}`}
+              >
+                {shortResult(event)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 const DURATIONS = [
@@ -266,35 +386,92 @@ export function WeekCalendar({
                     </div>
                   )}
 
-                  {/* Сами интервью */}
-                  {dayEvents.map((event) => (
-                    <button
-                      key={event.id}
-                      type="button"
-                      onClick={() => setDialog({ kind: "event", event })}
-                      className={`absolute right-1 left-1 z-20 overflow-hidden rounded-md border px-2 py-0.5 text-left text-xs leading-snug transition hover:brightness-95 ${eventStyle(event)}`}
-                      style={{
-                        top: offsetOf(event.startMinutes),
-                        height: Math.max(
-                          (event.durationMinutes / 30) * SLOT_HEIGHT - 3,
-                          SLOT_HEIGHT - 3,
-                        ),
-                      }}
-                    >
-                      <span className="block truncate font-medium">
-                        {event.timeText} {event.candidateName}
-                      </span>
+                  {/* Сами интервью. Наложенные друг на друга по времени
+                      идут одной плашкой — иначе в сетке видно только
+                      верхнюю из них. */}
+                  {clusterEvents(dayEvents).map((cluster) => {
+                    const single =
+                      cluster.events.length === 1 ? cluster.events[0] : null;
 
-                      {extraLines(event).map((line, index) => (
-                        <span
-                          key={line}
-                          className={`block truncate ${index === 0 ? "opacity-80" : "opacity-70"}`}
+                    const height = blockHeight(
+                      single
+                        ? single.durationMinutes
+                        : cluster.endMinutes - cluster.startMinutes,
+                    );
+
+                    if (single) {
+                      return (
+                        <button
+                          key={single.id}
+                          type="button"
+                          onClick={() =>
+                            setDialog({ kind: "event", event: single })
+                          }
+                          className={`absolute right-1 left-1 z-20 overflow-hidden rounded-md border px-2 py-0.5 text-left text-xs leading-snug transition hover:brightness-95 ${eventStyle(single)}`}
+                          style={{
+                            top: offsetOf(single.startMinutes),
+                            height,
+                          }}
                         >
-                          {line}
+                          <span className="block truncate font-medium">
+                            {single.timeText} {single.candidateName}
+                          </span>
+
+                          {extraLines(single).map((line, index) => (
+                            <span
+                              key={line}
+                              className={`block truncate ${index === 0 ? "opacity-80" : "opacity-70"}`}
+                            >
+                              {line}
+                            </span>
+                          ))}
+                        </button>
+                      );
+                    }
+
+                    const count = cluster.events.length;
+                    const title = `${cluster.events[0].timeText} · ${count} ${plural(count, CANDIDATE_FORMS)}`;
+
+                    return (
+                      <button
+                        key={`${day.date}-${cluster.startMinutes}`}
+                        type="button"
+                        onClick={() =>
+                          setDialog({
+                            kind: "group",
+                            events: cluster.events,
+                            title,
+                          })
+                        }
+                        title={title}
+                        className="absolute right-1 left-1 z-20 overflow-hidden rounded-md border border-ink-soft bg-surface px-2 py-0.5 text-left text-xs leading-snug text-ink shadow-sm transition hover:brightness-95"
+                        style={{ top: offsetOf(cluster.startMinutes), height }}
+                      >
+                        {/* Число вынесено в значок и не сжимается: колонка
+                            дня узкая, и подпись «5 кандидатов» в ней
+                            обрезалась ровно на самом важном месте. */}
+                        <span className="flex items-center justify-between gap-1 font-semibold">
+                          <span className="truncate">
+                            {cluster.events[0].timeText}
+                          </span>
+                          <span className="shrink-0 rounded bg-ink-strong px-1 text-[10px] leading-4 text-canvas">
+                            {count}
+                          </span>
                         </span>
-                      ))}
-                    </button>
-                  ))}
+
+                        {groupLines(cluster.events, linesRoom(height)).map(
+                          (line, index) => (
+                            <span
+                              key={`${line}-${index}`}
+                              className="block truncate opacity-75"
+                            >
+                              {line}
+                            </span>
+                          ),
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -341,6 +518,15 @@ export function WeekCalendar({
             }}
             meetingLink={meetingLink}
             onDone={() => setDialog(null)}
+          />
+        </Modal>
+      )}
+
+      {dialog?.kind === "group" && (
+        <Modal title={dialog.title} onClose={() => setDialog(null)}>
+          <GroupList
+            events={dialog.events}
+            onPick={(event) => setDialog({ kind: "event", event })}
           />
         </Modal>
       )}
