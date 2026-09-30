@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Flame, Snowflake, UserPlus } from "lucide-react";
 import Link from "next/link";
 import type { CandidateFormState } from "@/app/actions/candidates";
 import { TextField } from "@/components/ui/text-field";
@@ -15,6 +16,34 @@ import {
 } from "./experience-editor";
 
 const initialState: CandidateFormState = {};
+
+// Каналы привлечения кнопками. Иконка помогает узнавать их с одного
+// взгляда: снежинка — холод, огонь — тепло, человек с плюсом — привели.
+const CHANNELS: {
+  value: string;
+  label: string;
+  icon: typeof Flame;
+  active: string;
+}[] = [
+  {
+    value: "COLD",
+    label: "Холодный поиск",
+    icon: Snowflake,
+    active: "border-sky-400 bg-sky-50 text-sky-900",
+  },
+  {
+    value: "WARM",
+    label: "Тёплый контакт",
+    icon: Flame,
+    active: "border-amber-400 bg-amber-50 text-amber-900",
+  },
+  {
+    value: "REFERRAL",
+    label: "Реферал",
+    icon: UserPlus,
+    active: "border-green-400 bg-green-50 text-green-900",
+  },
+];
 
 export type CandidateFormValues = {
   fullName: string;
@@ -59,6 +88,8 @@ export function CandidateForm({
   cancelHref: string;
 }) {
   const [state, formAction] = useActionState(action, initialState);
+
+  const [channel, setChannel] = useState(values.sourceChannel);
 
   // После отправки формы React сбрасывает поля к начальным значениям.
   // Если сервер вернул ошибку или предупреждение о дубле, начальными
@@ -138,6 +169,46 @@ export function CandidateForm({
           defaultValue={v.fullName}
           error={state.fieldErrors?.fullName}
         />
+
+        {/* Канал стоит в начале и кнопками: это первое, что известно
+            о человеке, и выбор из трёх вариантов быстрее нажать, чем
+            открывать список. Значение уходит скрытым полем. */}
+        <div>
+          <p className="text-sm text-ink">Канал привлечения</p>
+
+          <input type="hidden" name="sourceChannel" value={channel} />
+
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {CHANNELS.map((item) => {
+              const Icon = item.icon;
+              const chosen = channel === item.value;
+
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={chosen}
+                  // Повторное нажатие снимает выбор: канал необязателен.
+                  onClick={() => setChannel(chosen ? "" : item.value)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition ${
+                    chosen
+                      ? item.active
+                      : "border-muted text-ink-soft hover:border-ink-soft hover:text-ink"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={1.8} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-1.5 text-xs text-ink-soft">
+            {channel
+              ? "Нажмите ещё раз, чтобы снять отметку"
+              : "Необязательно. Сами нашли, откликнулся сам или привели свои"}
+          </p>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -271,24 +342,9 @@ export function CandidateForm({
           defaultValue={v.languages}
         />
 
-        {/* Два разных вопроса, поэтому два поля. «Источник» — откуда
-            взялся контакт (hh, сайт, файл резюме). «Канал» — каким
-            способом человека нашли: по нему потом видно, что работает,
-            а что нет. */}
+        {/* «Источник» остался здесь: это не решение рекрутёра, а отметка
+            о том, откуда взялся файл. Канал переехал в начало формы. */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField
-            label="Канал привлечения"
-            name="sourceChannel"
-            defaultValue={v.sourceChannel}
-            options={[
-              { value: "", label: "Не указан" },
-              { value: "COLD", label: "Холодный поиск" },
-              { value: "WARM", label: "Тёплый контакт" },
-              { value: "REFERRAL", label: "Реферал" },
-            ]}
-            hint="Сами нашли, откликнулся сам или привели свои"
-            error={state.fieldErrors?.sourceChannel}
-          />
           <TextField
             label="Источник"
             name="source"
