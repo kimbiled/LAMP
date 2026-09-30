@@ -176,6 +176,7 @@ export default async function EditCandidatePage({
             skills: candidate.skills.join(", "),
             languages: candidate.languages.join(", "),
             source: candidate.source ?? "",
+            sourceChannel: candidate.sourceChannel ?? "",
             note: candidate.note ?? "",
           }}
         />

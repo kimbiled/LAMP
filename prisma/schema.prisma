@@ -60,6 +60,15 @@ enum InterviewStatus {
   CANCELED
 }
 
+// Как кандидат к нам попал. Отдельно от source: source говорит,
+// откуда взялся файл (hh.kz, загруженное резюме), а это — каким
+// способом человека нашли. По нему считается, какой канал работает.
+enum SourceChannel {
+  COLD // холодный поиск: сами нашли и написали первыми
+  WARM // тёплый контакт: откликнулся сам, знакомы раньше, с мероприятия
+  REFERRAL // реферал: привёл кто-то из своих
+}
+
 enum FeedbackResult {
   POSITIVE
   NEGATIVE
@@ -241,6 +250,7 @@ model Candidate {
   skills            String[]
   languages         String[]
   source            String?
+  sourceChannel     SourceChannel?
   // Откуда пришёл человек, ссылкой: например, его резюме на hh.
   // Заполняется расширением, руками не вводится.
   sourceUrl         String?

@@ -19,6 +19,7 @@ import {
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_TYPE_LABELS,
   ROLE_LABELS,
+  SOURCE_CHANNEL_LABELS,
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { minutesToTime, placeInDay } from "@/lib/calendar";
@@ -198,6 +199,13 @@ export default async function CandidatePage({
         candidate.salaryExpectation !== null
           ? formatMoney(candidate.salaryExpectation, candidate.currency)
           : null,
+    },
+    // Канал привлечения: сами нашли, откликнулся сам или привели свои.
+    {
+      label: "Канал",
+      value: candidate.sourceChannel
+        ? SOURCE_CHANNEL_LABELS[candidate.sourceChannel]
+        : null,
     },
     // Пришедшие с hh несут ссылку на исходное резюме: оттуда видно,
     // что человек поменял у себя после того, как мы его завели.

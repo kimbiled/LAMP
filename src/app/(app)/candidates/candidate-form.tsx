@@ -32,6 +32,7 @@ export type CandidateFormValues = {
   skills: string;
   languages: string;
   source: string;
+  sourceChannel: string;
   note: string;
 };
 
@@ -270,7 +271,24 @@ export function CandidateForm({
           defaultValue={v.languages}
         />
 
+        {/* Два разных вопроса, поэтому два поля. «Источник» — откуда
+            взялся контакт (hh, сайт, файл резюме). «Канал» — каким
+            способом человека нашли: по нему потом видно, что работает,
+            а что нет. */}
         <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            label="Канал привлечения"
+            name="sourceChannel"
+            defaultValue={v.sourceChannel}
+            options={[
+              { value: "", label: "Не указан" },
+              { value: "COLD", label: "Холодный поиск" },
+              { value: "WARM", label: "Тёплый контакт" },
+              { value: "REFERRAL", label: "Реферал" },
+            ]}
+            hint="Сами нашли, откликнулся сам или привели свои"
+            error={state.fieldErrors?.sourceChannel}
+          />
           <TextField
             label="Источник"
             name="source"

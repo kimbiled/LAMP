@@ -92,6 +92,7 @@ export default async function NewCandidatePage({
             skills: "",
             languages: "",
             source: "",
+            sourceChannel: "",
             note: "",
           }}
         />

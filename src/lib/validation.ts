@@ -137,6 +137,12 @@ export const candidateSchema = z.object({
   skills: z.array(z.string()),
   languages: z.array(z.string()),
   source: z.string().max(100, "Слишком длинное значение"),
+  // Пустая строка означает «не указан»: заставлять выбирать канал
+  // при быстром добавлении кандидата незачем. Поле необязательное и
+  // на случай, если форма старой версии его вовсе не пришлёт.
+  sourceChannel: z
+    .union([z.literal(""), z.enum(["COLD", "WARM", "REFERRAL"])])
+    .optional(),
   note: z.string().max(5000, "Слишком длинный комментарий"),
 });
 

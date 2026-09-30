@@ -5,6 +5,7 @@ import type {
   InterviewType,
   JobStatus,
   Role,
+  SourceChannel,
 } from "@/generated/prisma/enums";
 
 // Человеческие названия для значений, которые в базе хранятся по-английски.
@@ -58,6 +59,12 @@ export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = {
   SCHEDULED: "Назначено",
   COMPLETED: "Проведено",
   CANCELED: "Отменено",
+};
+
+export const SOURCE_CHANNEL_LABELS: Record<SourceChannel, string> = {
+  COLD: "Холодный поиск",
+  WARM: "Тёплый контакт",
+  REFERRAL: "Реферал",
 };
 
 export const FEEDBACK_RESULT_LABELS: Record<FeedbackResult, string> = {

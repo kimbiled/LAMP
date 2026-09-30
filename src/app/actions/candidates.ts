@@ -99,6 +99,7 @@ function readForm(formData: FormData) {
     skills: list(formData, "skills"),
     languages: list(formData, "languages"),
     source: text(formData, "source"),
+    sourceChannel: text(formData, "sourceChannel"),
     note: text(formData, "note"),
   };
 }
@@ -218,6 +219,7 @@ export async function createCandidate(
       skills: parsed.data.skills,
       languages: parsed.data.languages,
       source: parsed.data.source || null,
+      sourceChannel: parsed.data.sourceChannel || null,
       note: parsed.data.note || null,
       createdById: scope.session.user.id,
       experience: { create: readExperience(formData) },
@@ -304,6 +306,7 @@ export async function updateCandidate(
       skills: parsed.data.skills,
       languages: parsed.data.languages,
       source: parsed.data.source || null,
+      sourceChannel: parsed.data.sourceChannel || null,
       note: parsed.data.note || null,
       ...(stageChanged ? { stageChangedAt: new Date() } : {}),
       // Списки заменяем, только если форма их прислала. Если полей нет
