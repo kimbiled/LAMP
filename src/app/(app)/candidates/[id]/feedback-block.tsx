@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { MessageSquarePlus } from "lucide-react";
+import { CircleDashed, ThumbsDown, ThumbsUp } from "lucide-react";
 import { createFeedback, type FeedbackFormState } from "@/app/actions/feedback";
 import { Avatar } from "@/components/avatar";
-import { SelectField, TextareaField } from "@/components/ui/fields";
+import { TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 // Фидбэки по кандидату. Оставить может любая роль, включая
@@ -37,22 +37,46 @@ const RESULT_STYLES: Record<string, string> = {
   EXTRA_STAGE: "bg-accent/25 text-ink",
 };
 
+// Тон мнения. Кнопками, а не выпадающим списком: выбор из трёх
+// вариантов в списке — это два лишних нажатия на каждый фидбэк.
+const TONES: {
+  value: FeedbackView["result"];
+  label: string;
+  icon: typeof ThumbsUp;
+  active: string;
+}[] = [
+  {
+    value: "POSITIVE",
+    label: "Берём дальше",
+    icon: ThumbsUp,
+    active: "border-green-400 bg-green-100 text-green-900",
+  },
+  {
+    value: "EXTRA_STAGE",
+    label: "Нужен ещё этап",
+    icon: CircleDashed,
+    active: "border-accent bg-accent/25 text-ink",
+  },
+  {
+    value: "NEGATIVE",
+    label: "Не подходит",
+    icon: ThumbsDown,
+    active: "border-red-400 bg-red-100 text-red-900",
+  },
+];
+
 export function FeedbackBlock({
   candidateId,
   feedbacks,
-  stages,
-  interviews,
   currentStageId,
   canCreate,
 }: {
   candidateId: string;
   feedbacks: FeedbackView[];
-  stages: { id: string; name: string }[];
-  interviews: { id: string; label: string }[];
   currentStageId: string;
   canCreate: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [tone, setTone] = useState<FeedbackView["result"]>("POSITIVE");
   const [state, formAction] = useActionState(
     createFeedback.bind(null, candidateId),
     {} as FeedbackFormState,
@@ -60,85 +84,63 @@ export function FeedbackBlock({
 
   return (
     <section className="rounded-xl border border-muted bg-surface p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink">Фидбэк</h2>
-        {canCreate && (
-          <button
-            type="button"
-            onClick={() => setOpen((value) => !value)}
-            className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
-          >
-            <MessageSquarePlus className="h-4 w-4" strokeWidth={1.8} />
-            {open ? "Свернуть" : "Добавить фидбэк"}
-          </button>
-        )}
-      </div>
+      <h2 className="text-sm font-medium text-ink">Фидбэк</h2>
 
-      {state.success && !open && (
-        <p className="mt-2 text-xs text-ink-soft">{state.success}</p>
-      )}
-
-      {open && canCreate && (
-        <form
-          action={formAction}
-          className="mt-4 space-y-3 rounded-lg border border-muted bg-canvas p-4"
-        >
+      {/* Поле открыто всегда. Раньше его прятала кнопка «Добавить
+          фидбэк», и чтобы написать две строки, нужно было сначала
+          развернуть форму, потом выбрать этап, результат и встречу.
+          Этап подставляется текущий, привязка к встрече убрана —
+          она нигде не показывалась и только отнимала время. */}
+      {canCreate && (
+        <form action={formAction} className="mt-3 space-y-2">
           {state.formError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
               {state.formError}
             </div>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField
-              label="Этап"
-              name="stageId"
-              defaultValue={currentStageId}
-              options={stages.map((stage) => ({
-                value: stage.id,
-                label: stage.name,
-              }))}
-            />
-            <SelectField
-              label="Результат"
-              name="result"
-              defaultValue="POSITIVE"
-              options={[
-                { value: "POSITIVE", label: "Положительный" },
-                { value: "NEGATIVE", label: "Отрицательный" },
-                { value: "EXTRA_STAGE", label: "Нужен дополнительный этап" },
-              ]}
-              error={state.fieldErrors?.result}
-            />
-          </div>
-
-          {interviews.length > 0 && (
-            <SelectField
-              label="Интервью"
-              name="interviewId"
-              defaultValue=""
-              options={[
-                { value: "", label: "Не привязывать" },
-                ...interviews.map((interview) => ({
-                  value: interview.id,
-                  label: interview.label,
-                })),
-              ]}
-              hint="Если фидбэк по конкретной встрече"
-            />
-          )}
+          <input type="hidden" name="stageId" value={currentStageId} />
+          <input type="hidden" name="result" value={tone} />
 
           <TextareaField
-            label="Комментарий"
+            label="Ваше мнение о кандидате"
             name="comment"
-            rows={4}
+            rows={3}
             placeholder="Что понравилось, что насторожило, рекомендация"
             error={state.fieldErrors?.comment}
           />
 
-          <div className="sm:w-48">
-            <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
+          <div className="flex flex-wrap items-center gap-2">
+            {TONES.map((item) => {
+              const Icon = item.icon;
+              const chosen = tone === item.value;
+
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setTone(item.value)}
+                  aria-pressed={chosen}
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition ${
+                    chosen
+                      ? item.active
+                      : "border-muted text-ink-soft hover:border-ink-soft hover:text-ink"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.8} />
+                  {item.label}
+                </button>
+              );
+            })}
+
+            <div className="ml-auto w-36">
+              <SubmitButton pendingLabel="Сохраняем…">Отправить</SubmitButton>
+            </div>
           </div>
+
+          {state.success && (
+            <p className="text-xs text-ink-soft">{state.success}</p>
+          )}
         </form>
       )}
 

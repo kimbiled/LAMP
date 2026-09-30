@@ -74,3 +74,17 @@ export function dateToLocalParts(value: Date): { date: string; time: string } {
 export function todayLocal(): string {
   return dateToLocalParts(new Date()).date;
 }
+
+// Сколько дней прошло между двумя датами вида «2026-09-30».
+//
+// Считает по датам, а не по часам: человек, переведённый вчера вечером,
+// сегодня утром сидит на этапе «1 день», а не «0». Функция чистая —
+// текущее время сюда передают снаружи, поэтому её видно в проверках.
+export function daysBetween(from: string, to: string): number {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+
+  if (Number.isNaN(start) || Number.isNaN(end)) return 0;
+
+  return Math.max(Math.round((end - start) / 86_400_000), 0);
+}

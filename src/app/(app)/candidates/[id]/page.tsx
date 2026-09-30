@@ -179,11 +179,6 @@ export default async function CandidatePage({
     feedbackCount: link._count.feedbacks,
   }));
 
-  const interviewOptions = candidate.interviews.map((interview) => ({
-    id: interview.id,
-    label: `${INTERVIEW_TYPE_LABELS[interview.type]} · ${formatDateTime(interview.scheduledAt)}`,
-  }));
-
   const birthText = formatBirth(candidate.birthDate);
   const tone = TONE_STYLES[stageTone(candidate.stage.key)];
 
@@ -356,8 +351,6 @@ export default async function CandidatePage({
           <FeedbackBlock
             candidateId={candidate.id}
             feedbacks={feedbackViews}
-            stages={stages}
-            interviews={interviewOptions}
             currentStageId={candidate.stage.id}
             canCreate={scope.can("feedback.create")}
           />

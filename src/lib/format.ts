@@ -75,6 +75,8 @@ export const CANDIDATE_FORMS: [string, string, string] = [
 
 export const YEAR_FORMS: [string, string, string] = ["год", "года", "лет"];
 
+export const DAY_FORMS: [string, string, string] = ["день", "дня", "дней"];
+
 // Полный возраст на сегодня.
 export function ageFrom(birthDate: Date | null | undefined): number | null {
   if (!birthDate) return null;
