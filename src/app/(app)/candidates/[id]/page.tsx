@@ -358,6 +358,7 @@ export default async function CandidatePage({
             feedbacks={feedbackViews}
             currentStageId={candidate.stage.id}
             canCreate={scope.can("feedback.create")}
+            canManage={scope.can("feedback.manage")}
           />
         </div>
 

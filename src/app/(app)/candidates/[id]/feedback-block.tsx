@@ -1,8 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { CircleDashed, ThumbsDown, ThumbsUp } from "lucide-react";
-import { createFeedback, type FeedbackFormState } from "@/app/actions/feedback";
+import { CircleDashed, Pencil, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
+import {
+  createFeedback,
+  deleteFeedback,
+  updateFeedback,
+  type FeedbackFormState,
+} from "@/app/actions/feedback";
 import { Avatar } from "@/components/avatar";
 import { TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -70,13 +75,18 @@ export function FeedbackBlock({
   feedbacks,
   currentStageId,
   canCreate,
+  canManage,
 }: {
   candidateId: string;
   feedbacks: FeedbackView[];
   currentStageId: string;
   canCreate: boolean;
+  // Править и удалять чужие мнения может только администратор.
+  canManage: boolean;
 }) {
   const [tone, setTone] = useState<FeedbackView["result"]>("POSITIVE");
+  const [editing, setEditing] = useState<string | null>(null);
+
   const [state, formAction] = useActionState(
     createFeedback.bind(null, candidateId),
     {} as FeedbackFormState,
@@ -171,27 +181,160 @@ export function FeedbackBlock({
                 </div>
               </div>
 
-              {feedback.comment && (
-                <p className="mt-2.5 whitespace-pre-wrap text-sm text-ink">
-                  {feedback.comment}
-                </p>
-              )}
+              {editing === feedback.id ? (
+                <EditForm
+                  feedback={feedback}
+                  onDone={() => setEditing(null)}
+                />
+              ) : (
+                <>
+                  {feedback.comment && (
+                    <p className="mt-2.5 text-sm whitespace-pre-wrap text-ink">
+                      {feedback.comment}
+                    </p>
+                  )}
 
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-md px-2 py-0.5 text-xs ${RESULT_STYLES[feedback.result]}`}
-                >
-                  {feedback.resultLabel}
-                </span>
-                <span className="text-xs text-ink-soft">
-                  {feedback.whenText}
-                  {feedback.stageName ? ` · ${feedback.stageName}` : ""}
-                </span>
-              </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs ${RESULT_STYLES[feedback.result]}`}
+                    >
+                      {feedback.resultLabel}
+                    </span>
+                    <span className="text-xs text-ink-soft">
+                      {feedback.whenText}
+                      {feedback.stageName ? ` · ${feedback.stageName}` : ""}
+                    </span>
+
+                    {canManage && (
+                      <span className="ml-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(feedback.id)}
+                          className="rounded-md p-1 text-ink-soft transition hover:bg-surface hover:text-ink"
+                          title="Изменить фидбэк"
+                        >
+                          <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
+                        </button>
+
+                        <DeleteButton feedbackId={feedback.id} />
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+// Правка фидбэка. Меняются только тон и текст: этап и встреча остаются
+// прежними — фидбэк описывает конкретный момент, и переносить его
+// задним числом было бы подделкой истории.
+function EditForm({
+  feedback,
+  onDone,
+}: {
+  feedback: FeedbackView;
+  onDone: () => void;
+}) {
+  const [tone, setTone] = useState<FeedbackView["result"]>(feedback.result);
+
+  const [state, formAction] = useActionState(
+    async (previous: FeedbackFormState, formData: FormData) => {
+      const result = await updateFeedback(previous, formData);
+      if (result.success) onDone();
+      return result;
+    },
+    {} as FeedbackFormState,
+  );
+
+  return (
+    <form action={formAction} className="mt-2.5 space-y-2">
+      {state.formError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {state.formError}
+        </div>
+      )}
+
+      <input type="hidden" name="feedbackId" value={feedback.id} />
+      <input type="hidden" name="result" value={tone} />
+
+      <TextareaField
+        label="Текст фидбэка"
+        name="comment"
+        rows={3}
+        defaultValue={feedback.comment ?? ""}
+        error={state.fieldErrors?.comment}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {TONES.map((item) => {
+          const Icon = item.icon;
+          const chosen = tone === item.value;
+
+          return (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setTone(item.value)}
+              aria-pressed={chosen}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition ${
+                chosen
+                  ? item.active
+                  : "border-muted text-ink-soft hover:border-ink-soft hover:text-ink"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" strokeWidth={1.8} />
+              {item.label}
+            </button>
+          );
+        })}
+
+        <span className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onDone}
+            className="rounded-lg border border-muted px-3 py-1.5 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          >
+            Отмена
+          </button>
+          <div className="w-28">
+            <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
+          </div>
+        </span>
+      </div>
+    </form>
+  );
+}
+
+// Удаление с подтверждением: чужое мнение стирается безвозвратно,
+// в базе его не останется. Текст сохраняется в журнале действий.
+function DeleteButton({ feedbackId }: { feedbackId: string }) {
+  const [state, formAction] = useActionState(
+    deleteFeedback,
+    {} as FeedbackFormState,
+  );
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        if (!confirm("Удалить этот фидбэк? Вернуть его будет нельзя.")) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input type="hidden" name="feedbackId" value={feedbackId} />
+      <button
+        type="submit"
+        title={state.formError ?? "Удалить фидбэк"}
+        className="rounded-md p-1 text-ink-soft transition hover:bg-red-50 hover:text-red-600"
+      >
+        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+      </button>
+    </form>
   );
 }

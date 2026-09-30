@@ -4,8 +4,13 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
-import { feedbackSchema, fieldErrorsFrom } from "@/lib/validation";
+import {
+  feedbackSchema,
+  feedbackEditSchema,
+  fieldErrorsFrom,
+} from "@/lib/validation";
 import { addHistory } from "@/lib/history";
+import { logAction } from "@/lib/audit";
 import { FEEDBACK_RESULT_LABELS } from "@/lib/labels";
 import { jobWatchers, notify } from "@/lib/notifications";
 
@@ -115,4 +120,111 @@ export async function createFeedback(
   revalidatePath(`/candidates/${candidate.id}`);
 
   return { success: "Фидбэк добавлен" };
+}
+
+// Правка и удаление чужого мнения — только администратору.
+//
+// Написать фидбэк может любой, включая нанимающего менеджера: для него
+// это основная работа. А вот менять или стирать написанное коллегой —
+// право администратора. Иначе неудобное мнение можно тихо переписать,
+// и история найма перестанет быть историей.
+//
+// Оба действия пишутся в журнал: кто, у кого и что именно тронул.
+
+async function feedbackForManage(feedbackId: string) {
+  const scope = await getScope();
+
+  if (!scope.can("feedback.manage")) {
+    return { error: "Менять и удалять фидбэк может только администратор" };
+  }
+
+  // Фидбэк обязан принадлежать той же компании: подставленный
+  // в форму чужой идентификатор ничего не даст.
+  const feedback = await db.feedback.findFirst({
+    where: { id: feedbackId, companyId: scope.companyId },
+    select: {
+      id: true,
+      candidateId: true,
+      comment: true,
+      result: true,
+      authorName: true,
+      author: { select: { fullName: true } },
+    },
+  });
+
+  if (!feedback) return { error: "Фидбэк не найден" };
+
+  return { scope, feedback };
+}
+
+export async function updateFeedback(
+  _prevState: FeedbackFormState,
+  formData: FormData,
+): Promise<FeedbackFormState> {
+  const found = await feedbackForManage(text(formData, "feedbackId"));
+  if ("error" in found) return { formError: found.error };
+
+  const { scope, feedback } = found;
+
+  const parsed = feedbackEditSchema.safeParse({
+    result: text(formData, "result"),
+    comment: text(formData, "comment"),
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+  }
+
+  await db.feedback.update({
+    where: { id: feedback.id },
+    data: { result: parsed.data.result, comment: parsed.data.comment },
+  });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "FEEDBACK_UPDATED",
+    entityType: "Feedback",
+    entityId: feedback.id,
+    meta: {
+      автор: feedback.author?.fullName ?? feedback.authorName ?? "гость",
+      былоРешение: feedback.result,
+      сталоРешение: parsed.data.result,
+    },
+  });
+
+  revalidatePath(`/candidates/${feedback.candidateId}`);
+
+  return { success: "Фидбэк изменён" };
+}
+
+export async function deleteFeedback(
+  _prevState: FeedbackFormState,
+  formData: FormData,
+): Promise<FeedbackFormState> {
+  const found = await feedbackForManage(text(formData, "feedbackId"));
+  if ("error" in found) return { formError: found.error };
+
+  const { scope, feedback } = found;
+
+  await db.feedback.delete({ where: { id: feedback.id } });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "FEEDBACK_DELETED",
+    entityType: "Feedback",
+    entityId: feedback.id,
+    meta: {
+      автор: feedback.author?.fullName ?? feedback.authorName ?? "гость",
+      решение: feedback.result,
+      // Текст сохраняем в журнале: удалённое мнение должно оставаться
+      // восстановимым хотя бы для разбора спорной ситуации.
+      текст: (feedback.comment ?? "").slice(0, 500),
+    },
+  });
+
+  revalidatePath(`/candidates/${feedback.candidateId}`);
+
+  return { success: "Фидбэк удалён" };
 }

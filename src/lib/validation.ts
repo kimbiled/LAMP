@@ -163,6 +163,14 @@ export const feedbackSchema = z.object({
     .max(4000, "Слишком длинный комментарий"),
 });
 
+// При правке меняются только тон и текст. Этап и встреча остаются
+// прежними: фидбэк — запись о конкретном моменте, и переносить его
+// на другой этап задним числом нельзя.
+export const feedbackEditSchema = feedbackSchema.pick({
+  result: true,
+  comment: true,
+});
+
 export const companySettingsSchema = z.object({
   name: z
     .string()

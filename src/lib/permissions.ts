@@ -17,6 +17,9 @@ export type Permission =
   | "candidates.move" // перемещать между этапами
   | "interviews.manage" // назначать интервью
   | "feedback.create"
+  // Править и удалять чужие мнения. Отдельно от feedback.create:
+  // написать своё может каждый, трогать чужое — только администратор.
+  | "feedback.manage"
   | "share.create" // создавать ссылки «Поделиться»
   | "analytics.view";
 
@@ -34,6 +37,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "candidates.move",
     "interviews.manage",
     "feedback.create",
+    "feedback.manage",
     "share.create",
     "analytics.view",
   ],
