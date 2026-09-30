@@ -264,7 +264,7 @@ async function ListView({ view, scope }: { view?: string; scope: Scope }) {
       ...period,
     },
     include: {
-      candidate: { select: { id: true, fullName: true } },
+      candidate: { select: { id: true, fullName: true, photoKey: true } },
       job: { select: { title: true } },
       interviewer: { select: { fullName: true } },
     },
@@ -316,7 +316,12 @@ async function ListView({ view, scope }: { view?: string; scope: Scope }) {
                     {timeText(interview.scheduledAt)}
                   </span>
 
-                  <Avatar name={interview.candidate.fullName} size="sm" />
+                  <Avatar
+                    name={interview.candidate.fullName}
+                    size="sm"
+                    candidateId={interview.candidate.id}
+                    hasPhoto={Boolean(interview.candidate.photoKey)}
+                  />
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

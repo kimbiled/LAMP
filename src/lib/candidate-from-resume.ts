@@ -64,6 +64,17 @@ export async function createCandidateFromResume(params: {
     mimeType: params.file.mimeType,
   });
 
+  // Фотография лежит отдельным файлом: так её можно отдать в карточке
+  // и в списках, не читая каждый раз всё резюме.
+  const photoKey = params.processed.photo
+    ? await saveFile({
+        companyId: params.companyId,
+        data: params.processed.photo.data,
+        extension: params.processed.photo.extension,
+        mimeType: params.processed.photo.mimeType,
+      })
+    : null;
+
   const candidate = await db.candidate.create({
     data: {
       companyId: params.companyId,
@@ -87,6 +98,7 @@ export async function createCandidateFromResume(params: {
       languages: parsed.languages,
       source: params.source.label,
       sourceUrl: params.source.url ?? null,
+      photoKey,
       createdById: params.actorId,
       experience: {
         create: parsed.experience.map((item, index) => ({

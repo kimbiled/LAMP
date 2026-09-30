@@ -3,7 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { processResume } from "../src/lib/resume/pipeline";
 import { shutdownOcr } from "../src/lib/resume/ocr";
-import { readFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { phoneKey } from "../src/lib/contacts";
 
@@ -15,6 +16,15 @@ const ROOT = process.env.STORAGE_DIR
   : path.join(process.cwd(), "storage");
 
 const readStored = (key: string) => readFile(path.join(ROOT, key));
+
+// Запись фото — тем же способом и с тем же видом ключа, что и saveFile.
+async function writeStored(companyId: string, data: Buffer, ext: string) {
+  const key = `${companyId}/${randomBytes(16).toString("hex")}.${ext}`;
+  const full = path.join(ROOT, key);
+  await mkdir(path.dirname(full), { recursive: true });
+  await writeFile(full, data);
+  return key;
+}
 
 // Перечитать резюме всех кандидатов заново.
 //
@@ -70,6 +80,17 @@ async function main() {
     }
 
     const parsed = processed.parsed;
+
+    // Фото ставим только тем, у кого его ещё нет.
+    const photoKey =
+      candidate.photoKey ??
+      (processed.photo
+        ? await writeStored(
+            candidate.companyId,
+            processed.photo.data,
+            processed.photo.extension,
+          )
+        : null);
     const replaceLists = force || candidate._count.experience === 0;
 
     const gained: string[] = [];
@@ -100,6 +121,7 @@ async function main() {
         phoneKey: candidate.phoneKey ?? phoneKey(parsed.phone),
         email: candidate.email ?? parsed.email,
         city: candidate.city ?? parsed.city,
+        photoKey,
         birthDate:
           candidate.birthDate ??
           (parsed.birthDate ? new Date(parsed.birthDate) : null),

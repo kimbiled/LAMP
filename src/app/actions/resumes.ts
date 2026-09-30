@@ -312,6 +312,19 @@ export async function reparseResume(formData: FormData): Promise<void> {
     where: { candidateId: candidate.id },
   });
 
+  // Фото сохраняем, только если его ещё нет: перечитывание не должно
+  // затирать снимок, который рекрутер поставил вручную.
+  const photoKey =
+    candidate.photoKey ??
+    (processed.photo
+      ? await saveFile({
+          companyId: scope.companyId,
+          data: processed.photo.data,
+          extension: processed.photo.extension,
+          mimeType: processed.photo.mimeType,
+        })
+      : null);
+
   // Остальные поля трогаем, только если рекрутер их ещё не заполнил.
   await db.candidate.update({
     where: { id: candidate.id },
@@ -319,6 +332,7 @@ export async function reparseResume(formData: FormData): Promise<void> {
       phone: candidate.phone ?? parsed.phone,
       email: candidate.email ?? parsed.email,
       city: candidate.city ?? parsed.city,
+      photoKey,
       birthDate:
         candidate.birthDate ??
         (parsed.birthDate ? new Date(parsed.birthDate) : null),

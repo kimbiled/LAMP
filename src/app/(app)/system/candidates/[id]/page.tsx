@@ -114,7 +114,12 @@ export default async function SystemCandidatePage({
         className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}
       >
         <div className="flex flex-wrap items-start gap-4">
-          <Avatar name={candidate.fullName} size="lg" />
+          <Avatar
+            name={candidate.fullName}
+            size="lg"
+            candidateId={candidate.id}
+            hasPhoto={Boolean(candidate.photoKey)}
+          />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">

@@ -203,7 +203,11 @@ export default async function SystemCandidatesPage({
               href={`/system/candidates/${candidate.id}`}
               className={`flex items-center gap-3 p-4 transition hover:brightness-95 ${TONE_STYLES[stageTone(candidate.stage.key)].card}`}
             >
-              <Avatar name={candidate.fullName} />
+              <Avatar
+                name={candidate.fullName}
+                candidateId={candidate.id}
+                hasPhoto={Boolean(candidate.photoKey)}
+              />
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

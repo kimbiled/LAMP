@@ -2,6 +2,7 @@
 // так конвейер можно прогнать из скрипта npm run resume:check.
 import { extractText } from "./extract-text";
 import { recognizeImage, recognizePdf, TEXT_LAYER_THRESHOLD } from "./ocr";
+import { extractPhotoFromPdf, type ExtractedPhoto } from "./photo";
 import { parseResume, type ParsedResume } from "./parse";
 import { findSkills } from "./skills";
 import { parseQuality, totalExperienceMonths } from "./score";
@@ -44,6 +45,9 @@ export type ProcessedResume = {
   skills: string[];
   experienceMonths: number;
   quality: { score: number; missing: string[] };
+  // Фотография, если нашлась в файле. Необязательна: у половины
+  // резюме её просто нет.
+  photo: ExtractedPhoto | null;
 };
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -53,6 +57,11 @@ export async function processResume(
   mimeType: string,
 ): Promise<ProcessedResume> {
   const { text, source } = await extractAnything(data, mimeType);
+
+  // Фото ищем только в PDF: в сканах и картинках пришлось бы искать
+  // лицо на странице, а это уже совсем другая задача.
+  const photo =
+    mimeType === "application/pdf" ? await extractPhotoFromPdf(data) : null;
 
   const parsed = parseResume(text);
 
@@ -69,6 +78,7 @@ export async function processResume(
     skills,
     experienceMonths: totalExperienceMonths(withSkills.experience),
     quality: parseQuality(withSkills),
+    photo,
   };
 }
 

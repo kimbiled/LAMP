@@ -234,7 +234,10 @@ model Candidate {
   salaryExpectation Int?
   currency          String   @default("KZT")
   telegram          String?
-  photoUrl          String?
+  // Ключ файла с фотографией в хранилище. Вынута из резюме при
+  // загрузке; отдаётся только через /api/candidates/[id]/photo,
+  // как и само резюме.
+  photoKey          String?
   skills            String[]
   languages         String[]
   source            String?

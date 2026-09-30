@@ -21,6 +21,7 @@ export type JobCandidate = {
   currentPosition: string | null;
   city: string | null;
   stageId: string;
+  hasPhoto: boolean;
   // Сколько дней человек сидит на текущем этапе. Считается на сервере,
   // чтобы у всех было одно и то же число независимо от часового пояса.
   daysOnStage: number;
@@ -108,7 +109,12 @@ export function JobCandidates({
               className={`flex h-full flex-col rounded-xl border p-4 transition hover:brightness-95 ${tone.border} ${tone.card}`}
             >
               <div className="flex items-start gap-3">
-                <Avatar name={candidate.fullName} size="md" />
+                <Avatar
+                  name={candidate.fullName}
+                  size="md"
+                  candidateId={candidate.id}
+                  hasPhoto={candidate.hasPhoto}
+                />
 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-ink-strong">

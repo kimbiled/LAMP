@@ -59,6 +59,7 @@ export default async function JobPage({
         city: true,
         stageId: true,
         stageChangedAt: true,
+        photoKey: true,
       },
       orderBy: { stageChangedAt: "desc" },
     }),
@@ -80,6 +81,7 @@ export default async function JobPage({
     currentPosition: candidate.currentPosition,
     city: candidate.city,
     stageId: candidate.stageId,
+    hasPhoto: Boolean(candidate.photoKey),
     daysOnStage: daysBetween(placeInDay(candidate.stageChangedAt).date, today),
   }));
 

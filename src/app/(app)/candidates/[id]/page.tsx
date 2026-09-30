@@ -218,7 +218,12 @@ export default async function CandidatePage({
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-4">
-            <Avatar name={candidate.fullName} size="lg" />
+            <Avatar
+              name={candidate.fullName}
+              size="lg"
+              candidateId={candidate.id}
+              hasPhoto={Boolean(candidate.photoKey)}
+            />
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
