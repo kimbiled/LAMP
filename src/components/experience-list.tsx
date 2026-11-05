@@ -23,6 +23,13 @@ function duration(period: string | null): string | null {
 // Подзаголовок внутри описания: «Достижения:», «Обязанности:».
 const isHeading = (line: string) => line.endsWith(":") && line.length < 50;
 
+// Пункт с номером: «1 - Заменил бумажный учёт…».
+const isNumbered = (line: string) => /^\d{1,2}\s*[-–—.)]\s+\S/.test(line);
+
+// Перечень технологий: «React · TypeScript · Zustand».
+const isTechStack = (line: string) =>
+  (line.match(/\s·\s/g) ?? []).length >= 2;
+
 function Description({ text }: { text: string }) {
   const lines = text
     .split("\n")
@@ -39,6 +46,15 @@ function Description({ text }: { text: string }) {
       {lines.map((line, index) =>
         isHeading(line) ? (
           <li key={index} className="pt-1.5 font-medium">
+            {line}
+          </li>
+        ) : isTechStack(line) ? (
+          <li key={index} className="break-words text-xs text-ink-soft">
+            {line}
+          </li>
+        ) : isNumbered(line) ? (
+          // Номер сам служит маркером — точку не ставим.
+          <li key={index} className="break-words">
             {line}
           </li>
         ) : (

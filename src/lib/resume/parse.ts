@@ -248,6 +248,18 @@ function splitIntoSections(lines: string[]): Record<string, string[]> {
     if (matched) {
       current = matched.key;
       if (!result[current]) result[current] = [];
+
+      // В выгрузке hh заголовок и первая запись стоят в одной строке:
+      // «Знание языков Казахский — Родной». Без этого казахский
+      // уходил вместе с заголовком. Опыт работы не трогаем: там после
+      // заголовка стоит общий стаж «— 3 года 8 месяцев», а не запись.
+      const head = matched.pattern.exec(line);
+      const rest = head
+        ? line.slice(head[0].length).replace(/^[\s:—–-]+/, "").trim()
+        : "";
+      if (rest && current !== "experience") {
+        result[current].push(rest);
+      }
       continue;
     }
 
@@ -319,6 +331,12 @@ const NAME_LINE = new RegExp(
   `^[${UPPER}][${LOWER}'-]+(?:\\s+[${UPPER}][${LOWER}'-]+){1,2}$`,
 );
 
+// Отчество: русское (-ович, -евна…), казахское (-ұлы, -қызы)
+// и латиницей (-uly, -kyzy, -ovich).
+const PATRONYMIC = new RegExp(
+  `^[${UPPER}][${LOWER}'-]+(?:ович|евич|ьич|овна|евна|ична|инична|ұлы|улы|уулу|қызы|кызы|uly|ulu|kyzy|qyzy|ovich|evich|ovna|evna)$`,
+);
+
 function findFullName(lines: string[]): string | null {
   const labelled = lines.find((line) => /^(фио|ф\.и\.о)/i.test(line));
   if (labelled) {
@@ -327,10 +345,23 @@ function findFullName(lines: string[]): string | null {
   }
 
   // Обычно ФИО стоит в самом начале отдельной строкой.
-  for (const line of lines.slice(0, 15)) {
+  const head = lines.slice(0, 15);
+  for (const [index, line] of head.entries()) {
     if (NAME_STOP_WORDS.test(line)) continue;
     if (JOB_WORDS.test(line)) continue;
     if (NAME_LINE.test(line)) {
+      // hh набирает ФИО крупно, и отчество переносится на вторую
+      // строку: «Мейрамбеков Нұрсұлтан» + «Миржанұлы». Подклеиваем,
+      // если в имени два слова, а следующая строка — одно слово
+      // с окончанием отчества.
+      const next = head[index + 1];
+      if (
+        line.split(/\s+/).length === 2 &&
+        next &&
+        PATRONYMIC.test(next)
+      ) {
+        return `${line} ${next}`;
+      }
       return line;
     }
   }
@@ -838,6 +869,14 @@ function isShouting(line: string): boolean {
   return !/[а-яёa-z]/.test(line) && (line.match(/[А-ЯЁA-Z]/g) ?? []).length > 3;
 }
 
+// Нумерованный пункт: «1 - …», «2. …», «3) …».
+const NUMBERED = /^\d{1,2}\s*[-–—.)]\s+\S/;
+
+// Перечень технологий через точки: «React · TypeScript · Zustand».
+function isTechStack(line: string): boolean {
+  return (line.match(/\s·\s/g) ?? []).length >= 2;
+}
+
 // Строка-подзаголовок внутри описания: «Достижения:», «Обязанности:».
 function isInlineHeading(line: string): boolean {
   return line.endsWith(":") && line.length < 50;
@@ -889,21 +928,33 @@ function buildDescription(lines: string[]): string | null {
   const source = lines.slice(start);
   // Если пункты размечены маркерами, то строка без маркера
   // посреди списка — это хвост предыдущего пункта.
-  const hasBullets = source.some((line) => BULLET.test(line) && line.length > 2);
+  // Номера сюда не входят: после «1. Стратегическое планирование»
+  // идут обычные строки — это пункты раздела, а не хвост заголовка.
+  const hasBullets = source.some(
+    (line) => BULLET.test(line) && line.length > 2,
+  );
 
   const items: { text: string; bullet: boolean }[] = [];
 
   for (const raw of source) {
-    const isBullet = BULLET.test(raw);
-    const text = raw.replace(BULLET, "").trim();
+    // Нумерованный пункт («1 - …») начинает новую строку, но номер
+    // оставляем: в резюме бывает два уровня — проекты и пункты внутри.
+    const isNumbered = NUMBERED.test(raw);
+    const isBullet = BULLET.test(raw) && !isNumbered;
+    const text = (isNumbered ? raw : raw.replace(BULLET, "")).trim();
     if (text.length === 0) continue;
 
     const last = items[items.length - 1];
     const continues =
       last !== undefined &&
       !isBullet &&
+      !isNumbered &&
       !isInlineHeading(last.text) &&
       !isInlineHeading(text) &&
+      // Стек технологий — всегда отдельная строка, и к нему ничего
+      // не подклеивается: «Python 3.11 · FastAPI · Docker».
+      !isTechStack(text) &&
+      !isTechStack(last.text) &&
       ((hasBullets && last.bullet) || continuesPrevious(last.text, text));
 
     if (continues) {
@@ -1179,6 +1230,12 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
 
 // ---------- образование ----------
 
+// Уровень образования — не вуз и не специальность.
+const EDUCATION_LEVEL = new RegExp(
+  `^(высшее|среднее|среднее специальное|специальное|неоконченное высшее|бакалавр|магистр|кандидат наук|доктор наук|higher|secondary|bachelor|master)${END}\\.?$`,
+  "i",
+);
+
 function findEducation(lines: string[] | undefined): ParsedEducation[] {
   if (!lines) return [];
 
@@ -1191,6 +1248,32 @@ function findEducation(lines: string[] | undefined): ParsedEducation[] {
 
     const institution = line.replace(/\b(19|20)\d{2}\b/g, "").trim();
     const nextLine = lines[index + 1];
+
+    // Выгрузка hh: год отдельной строкой, ниже вуз, затем уровень
+    // («Высшее») и специальность:
+    //   «2027» + «AITU» + «Высшее» + «Информационные технологии, SE»
+    if (institution.length <= 2 && nextLine) {
+      let at = index + 2;
+      while (
+        at < lines.length &&
+        (EDUCATION_LEVEL.test(lines[at]) || isPageNoise(lines[at]))
+      ) {
+        at++;
+      }
+      const specialty = lines[at];
+      const usable =
+        specialty !== undefined &&
+        specialty.length < 200 &&
+        !/\b(19|20)\d{2}\b/.test(specialty);
+
+      result.push({
+        institution: nextLine.slice(0, 200),
+        specialty: usable ? specialty : null,
+        years: yearMatch[0],
+      });
+      index = usable ? at : index + 1;
+      continue;
+    }
 
     result.push({
       institution:
