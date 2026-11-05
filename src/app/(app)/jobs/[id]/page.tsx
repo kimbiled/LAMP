@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buttonClass } from "@/components/ui/styles";
 import { Pencil, Plus } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
 import { JobStatusBadge } from "@/components/job-status-badge";
+import { JobPriorityBadge } from "@/components/job-priority-badge";
 import { formatDate, formatSalary } from "@/lib/format";
-import { stageTone } from "@/lib/stages";
+import { stageGroup, stageTone } from "@/lib/stages";
+import { rejectionSide } from "@/lib/rejection";
 import { todayLocal, daysBetween } from "@/lib/time";
 import { placeInDay } from "@/lib/calendar";
 import { JobStatusSelect } from "./status-select";
+import { JobPrioritySelect } from "./priority-select";
 import { JobCandidates } from "./job-candidates";
 
 export const metadata: Metadata = { title: "Вакансия — LAMP" };
@@ -89,11 +93,13 @@ export default async function JobPage({
     id: stage.id,
     name: stage.name,
     tone: stageTone(stage.key),
+    group: stageGroup(stage.key),
+    rejectionSide: rejectionSide(stage.key),
   }));
 
   return (
     // Шире прежнего: кандидаты теперь во всю ширину, а не в узкой колонке.
-    <div className="mx-auto max-w-5xl">
+    <div>
       <BackButton fallbackHref="/jobs" fallbackLabel="К списку вакансий" />
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
@@ -102,7 +108,10 @@ export default async function JobPage({
             <h1 className="text-xl font-semibold text-ink-strong">
               {job.title}
             </h1>
-            <JobStatusBadge status={job.status} />
+            {/* Тем, кто может менять статус и приоритет, они видны
+                в списках справа — второй раз бейджем не повторяем. */}
+            {!canManage && <JobPriorityBadge priority={job.priority} />}
+            {!canManage && <JobStatusBadge status={job.status} />}
           </div>
           <p className="mt-1 text-sm text-ink-soft">
             {formatSalary(job.salaryMin, job.salaryMax, job.currency)}
@@ -113,10 +122,11 @@ export default async function JobPage({
 
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
+            <JobPrioritySelect jobId={job.id} priority={job.priority} />
             <JobStatusSelect jobId={job.id} status={job.status} />
             <Link
               href={`/jobs/${job.id}/edit`}
-              className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+              className={buttonClass({ variant: "secondary" })}
             >
               <Pencil className="h-4 w-4" strokeWidth={1.8} />
               Изменить
@@ -137,28 +147,31 @@ export default async function JobPage({
           и выше описания. В боковой колонке на 320 пикселей их было
           не разобрать. */}
       <div className="mt-6">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-ink-strong">Кандидаты</h2>
-
-          {scope.can("candidates.create") && (
-            <Link
-              href={`/candidates/new?job=${job.id}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2} />
-              Добавить кандидата
-            </Link>
-          )}
-        </div>
-
-        <JobCandidates stages={stageViews} candidates={candidateViews} />
+        <JobCandidates
+          stages={stageViews}
+          candidates={candidateViews}
+          canMove={scope.can("candidates.move")}
+          action={
+            scope.can("candidates.create") ? (
+              <Link
+                href={`/candidates/new?job=${job.id}`}
+                className={buttonClass({ variant: "primary" })}
+              >
+                <Plus className="h-4 w-4" strokeWidth={2} />
+                Добавить кандидата
+              </Link>
+            ) : null
+          }
+        />
       </div>
 
       {(job.description || job.requirements) && (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           {job.description && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Описание</h2>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Описание
+              </h2>
               <p className="mt-2 text-sm whitespace-pre-wrap text-ink-soft">
                 {job.description}
               </p>
@@ -166,8 +179,10 @@ export default async function JobPage({
           )}
 
           {job.requirements && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Требования</h2>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Требования
+              </h2>
               <p className="mt-2 text-sm whitespace-pre-wrap text-ink-soft">
                 {job.requirements}
               </p>

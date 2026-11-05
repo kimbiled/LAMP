@@ -32,13 +32,13 @@ export default async function EditJobPage({
   const action = updateJob.bind(null, job.id);
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <h1 className="text-xl font-semibold text-ink-strong">
         Редактирование вакансии
       </h1>
       <p className="mt-1 text-sm text-ink-soft">{job.title}</p>
 
-      <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
+      <div className="mt-6 rounded-xl border border-line bg-surface p-6 shadow-sm">
         <JobForm
           action={action}
           users={users}
@@ -52,6 +52,7 @@ export default async function EditJobPage({
             salaryMax: job.salaryMax?.toString() ?? "",
             currency: job.currency,
             status: job.status,
+            priority: job.priority,
             recruiterId: job.recruiterId ?? "",
             hiringManagerId: job.hiringManagerId ?? "",
           }}

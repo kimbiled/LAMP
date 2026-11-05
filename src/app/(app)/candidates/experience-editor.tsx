@@ -21,7 +21,7 @@ export type EducationRow = {
 };
 
 const inputClass =
-  "w-full rounded-lg border border-muted bg-surface px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30";
+  "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent";
 
 function emptyExperience(): ExperienceRow {
   return { companyName: "", position: "", period: "", description: "" };
@@ -43,12 +43,12 @@ export function ExperienceEditor({ initial }: { initial: ExperienceRow[] }) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
+      <h2 className="text-base font-semibold text-ink-strong">Опыт работы</h2>
 
       {rows.map((row, index) => (
         <div
           key={index}
-          className="space-y-2 rounded-lg border border-muted bg-canvas p-3"
+          className="space-y-2 rounded-lg border border-line bg-canvas p-3"
         >
           <div className="grid gap-2 sm:grid-cols-2">
             <input
@@ -97,7 +97,7 @@ export function ExperienceEditor({ initial }: { initial: ExperienceRow[] }) {
           <button
             type="button"
             onClick={() => setRows((c) => c.filter((_, i) => i !== index))}
-            className="inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-red-600"
+            className="-ml-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-ink-soft transition hover:bg-danger-soft hover:text-danger"
           >
             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
             Удалить место работы
@@ -108,7 +108,7 @@ export function ExperienceEditor({ initial }: { initial: ExperienceRow[] }) {
       <button
         type="button"
         onClick={() => setRows((c) => [...c, emptyExperience()])}
-        className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-sm text-ink transition hover:bg-canvas"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
         Добавить место работы
@@ -129,12 +129,12 @@ export function EducationEditor({ initial }: { initial: EducationRow[] }) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-medium text-ink">Образование</h2>
+      <h2 className="text-base font-semibold text-ink-strong">Образование</h2>
 
       {rows.map((row, index) => (
         <div
           key={index}
-          className="space-y-2 rounded-lg border border-muted bg-canvas p-3"
+          className="space-y-2 rounded-lg border border-line bg-canvas p-3"
         >
           <input
             name="eduInstitution"
@@ -171,7 +171,7 @@ export function EducationEditor({ initial }: { initial: EducationRow[] }) {
           <button
             type="button"
             onClick={() => setRows((c) => c.filter((_, i) => i !== index))}
-            className="inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-red-600"
+            className="-ml-2 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-ink-soft transition hover:bg-danger-soft hover:text-danger"
           >
             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
             Удалить
@@ -182,7 +182,7 @@ export function EducationEditor({ initial }: { initial: EducationRow[] }) {
       <button
         type="button"
         onClick={() => setRows((c) => [...c, emptyEducation()])}
-        className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-2 text-sm text-ink transition hover:bg-canvas"
       >
         <Plus className="h-4 w-4" strokeWidth={2} />
         Добавить образование

@@ -83,14 +83,14 @@ export default async function EditCandidatePage({
     : [];
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <h1 className="text-xl font-semibold text-ink-strong">
         Редактирование карточки
       </h1>
       <p className="mt-1 text-sm text-ink-soft">{candidate.fullName}</p>
 
       {parsed && (
-        <div className="mt-4 rounded-xl border border-accent/40 bg-accent/10 p-4">
+        <div className="mt-4 rounded-xl border border-line bg-glow p-4">
           <p className="text-sm font-medium text-ink">
             Данные распознаны из резюме
           </p>
@@ -103,7 +103,7 @@ export default async function EditCandidatePage({
       )}
 
       {duplicates.length > 0 && (
-        <div className="mt-4 rounded-xl border border-red-200 bg-red-50/60 p-4">
+        <div className="mt-4 rounded-xl border border-danger-line bg-danger-soft/60 p-4">
           <p className="text-sm font-medium text-ink">
             Похоже, этот человек уже есть в базе
           </p>
@@ -116,7 +116,7 @@ export default async function EditCandidatePage({
             {duplicates.map((item) => (
               <li
                 key={item.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-muted bg-surface px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink">{item.fullName}</p>
@@ -128,7 +128,7 @@ export default async function EditCandidatePage({
                 </div>
                 <Link
                   href={`/candidates/${item.id}`}
-                  className="rounded-lg border border-muted px-3 py-1.5 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                  className="rounded-lg border border-line-strong px-3 py-1.5 text-xs text-ink transition hover:bg-canvas"
                 >
                   Открыть карточку
                 </Link>
@@ -140,11 +140,12 @@ export default async function EditCandidatePage({
 
       {resumeText && <ResumeText text={resumeText} />}
 
-      <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
+      <div className="mt-6 rounded-xl border border-line bg-surface p-6 shadow-sm">
         <CandidateForm
           action={action}
           jobs={jobs}
           stages={stages}
+          fromParse={Boolean(parsed)}
           submitLabel="Сохранить"
           cancelHref={`/candidates/${candidate.id}`}
           experience={candidate.experience.map((item) => ({

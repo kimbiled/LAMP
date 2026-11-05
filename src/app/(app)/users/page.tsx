@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireScope } from "@/lib/tenant";
-import { setUserActive } from "@/app/actions/users";
+import { BlockButton } from "./block-button";
+import { badgeClass } from "@/components/ui/styles";
 import { ROLE_LABELS } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
 import { RoleSelect } from "./role-select";
@@ -21,10 +22,12 @@ export default async function UsersPage() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-ink-strong">Пользователи</h1>
+          <h1 className="text-xl font-semibold text-ink-strong">
+            Пользователи
+          </h1>
           <p className="mt-1 text-sm text-ink-soft">
             Сотрудники компании «{scope.session.company.name}»
           </p>
@@ -39,7 +42,7 @@ export default async function UsersPage() {
         </Link>
       </div>
 
-      <div className="mt-6 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+      <div className="mt-6 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
         {users.map((user) => {
           const isSelf = user.id === scope.session.user.id;
 
@@ -54,12 +57,12 @@ export default async function UsersPage() {
                     {user.fullName}
                   </p>
                   {isSelf && (
-                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft">
+                    <span className={badgeClass("neutral")}>
                       это вы
                     </span>
                   )}
                   {!user.isActive && (
-                    <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
+                    <span className={badgeClass("danger")}>
                       заблокирован
                     </span>
                   )}
@@ -76,24 +79,15 @@ export default async function UsersPage() {
                     {ROLE_LABELS[user.role]}
                   </span>
                 ) : (
-                  <RoleSelect userId={user.id} role={user.role} />
+                  <RoleSelect userId={user.id} userName={user.fullName} role={user.role} />
                 )}
 
                 {!isSelf && (
-                  <form action={setUserActive}>
-                    <input type="hidden" name="userId" value={user.id} />
-                    <input
-                      type="hidden"
-                      name="isActive"
-                      value={user.isActive ? "false" : "true"}
-                    />
-                    <button
-                      type="submit"
-                      className="w-full rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink md:w-auto"
-                    >
-                      {user.isActive ? "Заблокировать" : "Разблокировать"}
-                    </button>
-                  </form>
+                  <BlockButton
+                    userId={user.id}
+                    userName={user.fullName}
+                    isActive={user.isActive}
+                  />
                 )}
               </div>
             </div>

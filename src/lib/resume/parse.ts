@@ -129,6 +129,19 @@ const STARTS_YEAR_RANGE = /^\d{4}\s*[—–-]/;
 const END = "(?![а-яёa-z])";
 
 const SECTIONS: { key: string; pattern: RegExp }[] = [
+  // Разделы, которые нам не нужны, но которые обязаны закрыть
+  // предыдущий. Стоят первыми: «Опыт вождения» иначе совпадает
+  // с «опыт» и открывает раздел опыта работы заново — и тогда
+  // «Имеется собственный автомобиль» и служебные блоки hh
+  // («История общения с кандидатом», «Отклики») попадают
+  // в описание последнего места работы.
+  {
+    key: "other",
+    pattern: new RegExp(
+      `^(опыт вождения|driving experience|история общения с кандидатом|отклики|комментарии|рекомендации|recommendations|портфолио|portfolio)${END}`,
+      "i",
+    ),
+  },
   {
     key: "experience",
     pattern: new RegExp(
@@ -501,15 +514,99 @@ function findSkills(lines: string[] | undefined): string[] {
     .slice(0, 30);
 }
 
+// Слова, которыми описывают владение языком. Сами по себе это не языки.
+// В резюме они стоят рядом с названием — «Казахский, разговорный уровень», —
+// и при разбиении строки по запятой превращались в отдельный «язык».
+// Если в резюме два языка с одинаковым уровнем, в карточке появлялись
+// две одинаковые метки «разговорный уровень».
+//
+// Окончания перечислены явно: \b и \w с кириллицей не работают.
+// Если встретится незнакомая формулировка — допишите её в этот список.
+const LEVEL_WORDS = [
+  "родн(?:ой|ым|ое)",
+  "носитель(?: языка)?",
+  "свободн(?:ый|ое|ая|о)",
+  "разговорн(?:ый|ое|ая|о)",
+  "базов(?:ый|ое|ая|ые|о)",
+  "начальн(?:ый|ое|ая)",
+  "средн(?:ий|ее|яя)",
+  "выше среднего",
+  "продвинут(?:ый|ое|ая)",
+  "профессиональн(?:ый|ое|ая)",
+  "техническ(?:ий|ое|ая)",
+  "уверенн(?:ый|ое|ая|о)",
+  "со словар[её]м",
+  "чтение(?: со словар[её]м)?",
+  "[abc][12]",
+  "native",
+  "mother tongue",
+  "fluent",
+  "basic",
+  "beginner",
+  "elementary",
+  "pre[- ]?intermediate",
+  "upper[- ]?intermediate",
+  "intermediate",
+  "advanced",
+  "proficient",
+  "conversational",
+];
+
+// После самого слова может идти «уровень», «владение» и подобное.
+const LANGUAGE_LEVEL = new RegExp(
+  `^(?:${LEVEL_WORDS.join("|")})(?: (?:уровень|уровня|уровнем|level|владение|владения|знание|знания))?$`,
+  "i",
+);
+
 function findLanguages(lines: string[] | undefined): string[] {
   if (!lines) return [];
 
-  return lines
-    .slice(0, 8)
-    .flatMap((line) => line.split(/[,;•·|]/))
-    .map((item) => item.trim())
-    .filter((item) => item.length > 2 && item.length < 50)
-    .slice(0, 10);
+  const result: string[] = [];
+  const seen = new Set<string>();
+  // Чтобы не приписать два уровня одному языку.
+  let lastHasLevel = false;
+
+  for (const line of lines.slice(0, 8)) {
+    for (const piece of line.split(/[,;•·|]/)) {
+      const item = piece
+        .trim()
+        .replace(/^[—–-]+s*/, "")
+        .trim();
+
+      if (item.length === 0 || item.length > 50) continue;
+
+      // Уровень проверяем до ограничения по длине: «B2» короче трёх букв,
+      // но это осмысленная запись, а не мусор.
+      if (LANGUAGE_LEVEL.test(item)) {
+        // Приписываем к языку, который шёл перед ним. Если языка ещё
+        // не было — отбрасываем: «разговорный уровень» сам по себе
+        // в карточке бесполезен.
+        if (result.length > 0 && !lastHasLevel) {
+          const level = /^[abc][12]$/i.test(item)
+            ? item.toUpperCase()
+            : item.toLowerCase();
+          result[result.length - 1] += ` — ${level}`;
+          lastHasLevel = true;
+        }
+        continue;
+      }
+
+      if (item.length < 3) continue;
+
+      // Повторы отбрасываем без учёта регистра: «Русский» и «русский» —
+      // один язык. Остаётся написание, которое встретилось первым.
+      const key = item.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      result.push(item);
+      lastHasLevel = false;
+
+      if (result.length >= 10) return result;
+    }
+  }
+
+  return result;
 }
 
 // ---------- места работы ----------
@@ -530,6 +627,8 @@ const ENDS_WITH_DASH_AND_MONTH = new RegExp(`[—–-]\\s*(?:${MONTHS})\\s*$`, "
 const STARTS_PERIOD_END = new RegExp(`^${PERIOD_END}${END}`, "i");
 const IS_YEAR = /^\d{4}$/;
 const STARTS_PERIOD = new RegExp(`^${PERIOD_START}${END}`, "i");
+// Строка, в которой нет ничего, кроме окончания периода: «сейчас», «Июн 2025».
+const PERIOD_END_ONLY = new RegExp(`^${PERIOD_END}\\s*$`, "i");
 
 function joinWrappedPeriods(lines: string[]): string[] {
   const result: string[] = [];
@@ -573,6 +672,23 @@ function joinWrappedPeriods(lines: string[]): string[] {
         continue;
       }
 
+      // Второй случай: между началом и концом периода вклинилось
+      // название компании. Так выглядит новая выгрузка с hh:
+      //   «Июл 2025 –» + «AMANBAY TECH» + «сейчас»
+      // Собираем период в одну строку, компанию ставим следующей.
+      const afterNext = lines[index + 2];
+      if (
+        endsWithDash &&
+        afterNext &&
+        !STARTS_PERIOD_END.test(next) &&
+        PERIOD_END_ONLY.test(afterNext)
+      ) {
+        result.push(`${line} ${afterNext}`.replace(/\s+/g, " "));
+        result.push(next);
+        index += 2;
+        continue;
+      }
+
       // Третий случай: период и название компании стоят в одной строке
       // рядом («Январь 2025 — Okori Kazakhstan»), а окончание периода
       // перенесено ниже («настоящее время»). Так свёрстан PDF с hh.
@@ -601,13 +717,14 @@ function joinWrappedPeriods(lines: string[]): string[] {
 }
 
 // [а-яё]* вместо \w*: \w в JavaScript не включает кириллицу.
+// «мес» без окончания — так пишет новая выгрузка hh: «1 год 4 мес».
 const DURATION =
-  /^\d+\s*(?:год[а-яё]*|лет|месяц[а-яё]*)(?:\s+\d+\s*месяц[а-яё]*)?$/i;
+  /^\d+\s*(?:год[а-яё]*|лет|мес[а-яё]*\.?|years?|months?)(?:\s+\d+\s*(?:мес[а-яё]*\.?|months?))?$/i;
 
 // Иногда длительность стоит не отдельной строкой, а прилипает к должности:
 // «2 года 1 месяц Менеджер по продажам». Отрезаем её от начала строки.
 const LEADING_DURATION =
-  /^\d+\s*(?:год[а-яё]*|лет|месяц[а-яё]*)(?:\s+\d+\s*месяц[а-яё]*)?\s+/i;
+  /^\d+\s*(?:год[а-яё]*|лет|мес[а-яё]*\.?|years?|months?)(?:\s+\d+\s*(?:мес[а-яё]*\.?|months?))?\s+/i;
 
 // Строки вида «Астана, kcell.kz» или просто «Алматы» — это адрес компании,
 // а не должность. Такие строки пропускаем.
@@ -644,6 +761,26 @@ const LATIN_CITIES = [
   "yerevan",
 ];
 
+// hh иногда пишет вместо города страну: «Казахстан». Без этого списка
+// страна становится должностью.
+const COUNTRIES = [
+  "казахстан",
+  "kazakhstan",
+  "россия",
+  "russia",
+  "узбекистан",
+  "uzbekistan",
+  "кыргызстан",
+  "киргизия",
+  "kyrgyzstan",
+  "беларусь",
+  "belarus",
+  "грузия",
+  "georgia",
+  "оаэ",
+  "uae",
+];
+
 function isLocationLine(line: string): boolean {
   const cleaned = line
     .replace(/[.,;]$/, "")
@@ -652,15 +789,34 @@ function isLocationLine(line: string): boolean {
 
   return (
     CITIES.some((city) => cleaned === city.toLowerCase()) ||
-    LATIN_CITIES.includes(cleaned)
+    LATIN_CITIES.includes(cleaned) ||
+    COUNTRIES.includes(cleaned)
   );
 }
 
-// Обязанности в резюме перечисляют через тире.
-const IS_DUTY = /^[-–—]\s*\S/;
+// Колонтитулы страниц PDF: hh печатает внизу каждой страницы
+// «Иванов Иван • Резюме обновлено 14 сентября 2026 в 14:45»
+// и номер «1/3». Они разрывают описание обязанностей посередине.
+const PAGE_NOISE = [
+  /резюме обновлено\s+\d/i,
+  /resume updated\s/i,
+  /^\d{1,2}\s*\/\s*\d{1,2}$/,
+  /^(страница|page)\s+\d+(\s+(из|of)\s+\d+)?$/i,
+];
 
-// Отрасли компании перечисляют через точки-маркеры — это не должность.
-const IS_MARKER = /^[•·*]\s*\S/;
+function isPageNoise(line: string): boolean {
+  return PAGE_NOISE.some((pattern) => pattern.test(line));
+}
+
+// Обязанности в резюме перечисляют через тире.
+// Звёздочка — тоже обязанность: так их оформляет выгрузка с hh.
+const IS_DUTY = /^[-–—*]\s*\S/;
+
+// Отрасли компании hh перечисляет через точки-маркеры — это не должность.
+const IS_MARKER = /^[•·]\s*\S/;
+
+// Любой маркер пункта списка — его срезаем, в карточке точки рисуются сами.
+const BULLET = /^[-–—*•·▪●◦■]\s*/;
 
 // Строка с перечислением отраслей компании: длинная, через запятые.
 // В выгрузках с сайтов вакансий она стоит между названием и должностью.
@@ -682,42 +838,130 @@ function isShouting(line: string): boolean {
   return !/[а-яёa-z]/.test(line) && (line.match(/[А-ЯЁA-Z]/g) ?? []).length > 3;
 }
 
-// Описание обязанностей. Обычно это список через тире после должности.
-// Если списка нет — берём осмысленные строки после должности.
-function findDescription(
-  body: string[],
-  companyName: string,
-  position: string | null,
-): string | null {
-  const duties = body.filter((line) => IS_DUTY.test(line));
+// Строка-подзаголовок внутри описания: «Достижения:», «Обязанности:».
+function isInlineHeading(line: string): boolean {
+  return line.endsWith(":") && line.length < 50;
+}
 
-  const source =
-    duties.length > 0
-      ? duties
-      : body
-          .slice(
-            position
-              ? body.indexOf(position) + 1
-              : body.indexOf(companyName) + 1,
-          )
-          .filter(
-            (line) =>
-              !IS_MARKER.test(line) &&
-              !looksLikeIndustryList(line) &&
-              line.length > 25,
-          );
+// PDF не знает, где кончается фраза: длинный пункт он просто
+// переносит на следующую строку. Признаки того, что строка —
+// продолжение предыдущей, а не новый пункт:
+//   - начинается с маленькой буквы («…выдачи» + «ключей.»);
+//   - предыдущая оборвана на запятой, скобке или переносе слова;
+//   - предыдущая почти во всю ширину страницы и не закончена точкой.
+function continuesPrevious(previous: string, line: string): boolean {
+  if (/^[а-яёa-z]/.test(line)) return true;
+  if (/[,(–-]$/.test(previous)) return true;
+  return previous.length >= 70 && !/[.!?;:]$/.test(previous);
+}
 
-  if (source.length === 0) {
-    return null;
+// Склейка слова, разорванного переносом: «бизнес-» + «процессов».
+function joinWrapped(previous: string, line: string): string {
+  return /[а-яёa-z]-$/i.test(previous)
+    ? `${previous}${line}`
+    : `${previous} ${line}`;
+}
+
+const DESCRIPTION_LIMIT = 5000;
+
+// Описание обязанностей: всё, что стоит после должности.
+// Раньше отсюда брались только строки с тире, а всё прочее
+// выбрасывалось — и от пункта, перенесённого на две строки,
+// оставалась половина. Теперь берём все строки и собираем
+// из них пункты: один пункт — одна строка в результате.
+function buildDescription(lines: string[]): string | null {
+  // Где описание начинается, решает вызывающий; здесь только
+  // отбрасываем служебные строки, которые могли остаться в начале.
+  let start = 0;
+  while (
+    start < lines.length &&
+    (DURATION.test(lines[start]) ||
+      // Только короткая строка-адрес («Алматы neocode.kz»): длинная
+      // строка с сайтом — это уже обязанность.
+      (NOISE.test(lines[start]) &&
+        lines[start].length < 40 &&
+        !BULLET.test(lines[start])) ||
+      isLocationLine(lines[start]))
+  ) {
+    start++;
   }
 
-  const text = source
-    // Убираем сам маркер списка — в карточке он рисуется своими средствами.
-    .map((line) => line.replace(/^[-–—]\s*/, "").trim())
-    .filter((line) => line.length > 0)
-    .join("\n");
+  const source = lines.slice(start);
+  // Если пункты размечены маркерами, то строка без маркера
+  // посреди списка — это хвост предыдущего пункта.
+  const hasBullets = source.some((line) => BULLET.test(line) && line.length > 2);
 
-  return text.length > 0 ? text.slice(0, 3000) : null;
+  const items: { text: string; bullet: boolean }[] = [];
+
+  for (const raw of source) {
+    const isBullet = BULLET.test(raw);
+    const text = raw.replace(BULLET, "").trim();
+    if (text.length === 0) continue;
+
+    const last = items[items.length - 1];
+    const continues =
+      last !== undefined &&
+      !isBullet &&
+      !isInlineHeading(last.text) &&
+      !isInlineHeading(text) &&
+      ((hasBullets && last.bullet) || continuesPrevious(last.text, text));
+
+    if (continues) {
+      last.text = joinWrapped(last.text, text);
+    } else {
+      items.push({ text, bullet: isBullet });
+    }
+  }
+
+  // Режем по целым пунктам, чтобы не обрывать фразу на полуслове.
+  const kept: string[] = [];
+  let length = 0;
+  for (const item of items) {
+    if (length + item.text.length + 1 > DESCRIPTION_LIMIT) break;
+    kept.push(item.text);
+    length += item.text.length + 1;
+  }
+
+  return kept.length > 0 ? kept.join("\n") : null;
+}
+
+// В выгрузке hh между компанией и должностью стоят отрасль
+// и виды деятельности через «•»:
+//   «Автомобильный бизнес»
+//   «• Розничная торговля автомобилями (дилерский центр)»
+//   «координатор по обучению персонала»   ← должность
+// Возвращает номер строки сразу после списка — там должность.
+// Если списка нет или после него ничего не осталось (значит,
+// через «•» были перечислены обязанности), возвращает null.
+function afterIndustryList(body: string[]): number | null {
+  const first = body.findIndex((line) => IS_MARKER.test(line));
+  if (first < 0 || first > 5) return null;
+
+  let index = first + 1;
+  while (index < body.length) {
+    const line = body[index];
+    const previous = body[index - 1];
+    // Длинный вид деятельности переносится на вторую строку:
+    // «…бизнес-процессов предприятия,» + «ИТ-консалтинг».
+    // Хвост — это строка после запятой или строка с маленькой буквы
+    // после строки во всю ширину. Должность после длинной отрасли
+    // («Руководитель отдела продаж») начинается с заглавной — её не берём.
+    const wrapped =
+      /[,(–-]$/.test(previous) ||
+      (previous.length >= 70 && /^[а-яёa-z]/.test(line));
+    // Отраслей бывает несколько подряд: «Розничная торговля» + «• …»,
+    // затем «Товары народного потребления» + «• …». Строка, за которой
+    // снова идёт «•», — название следующей отрасли, а не должность.
+    const nextIsMarker =
+      index + 1 < body.length && IS_MARKER.test(body[index + 1]);
+    if (IS_MARKER.test(line) || wrapped || nextIsMarker) {
+      index++;
+      continue;
+    }
+    break;
+  }
+
+  return index < body.length ? index : null;
 }
 
 // В дизайнерских резюме место работы описывают одной строкой через
@@ -733,7 +977,7 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
   const blocks: { period: string; header: string | null; body: string[] }[] =
     [];
 
-  const stream = joinWrappedPeriods(lines);
+  const stream = joinWrappedPeriods(lines.filter((line) => !isPageNoise(line)));
 
   for (const [index, line] of stream.entries()) {
     if (PERIOD.test(line)) {
@@ -778,7 +1022,7 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
             companyName: parts[1].slice(0, 150),
             position: parts[0].slice(0, 150),
             period: block.period,
-            description: findDescription(block.body, parts[1], parts[0]),
+            description: buildDescription(block.body),
           };
         }
       }
@@ -801,28 +1045,66 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
       );
       if (!companyName) return null;
 
-      // Должность стоит последней строкой перед описанием обязанностей.
-      const dutyIndex = body.findIndex((line) => IS_DUTY.test(line));
+      // Строка, с которой начинается описание: всё, что после неё,
+      // — обязанности. Запоминаем её до того, как отрежем от должности
+      // длительность, чтобы потом найти в исходных строках блока.
+      let positionLine: string | null = null;
 
-      const candidates = (
-        dutyIndex > 0 ? body.slice(0, dutyIndex) : body
-      ).filter(
-        (line) =>
-          line !== companyName &&
-          !IS_DUTY.test(line) &&
-          !IS_MARKER.test(line) &&
-          !looksLikeIndustryList(line) &&
-          !looksLikeWrappedTail(line) &&
-          // Название должности короткое и без точек: «Media Planner»,
-          // а не «Строю AI-агентов и интеграции для клиентов.»
-          !/[.!?]\s/.test(line) &&
-          line.length < 70,
-      );
+      const industryEnd = afterIndustryList(body);
+      if (industryEnd !== null) {
+        // Выгрузка hh: должность стоит сразу после списка отраслей.
+        // Она бывает и с маленькой буквы — «координатор по обучению».
+        const line = body[industryEnd];
+        if (!IS_DUTY.test(line) && !IS_MARKER.test(line) && line.length < 90) {
+          positionLine = line;
+        }
+      } else {
+        // Должность стоит последней строкой перед описанием обязанностей.
+        const dutyIndex = body.findIndex((line) => IS_DUTY.test(line));
 
-      let position: string | null =
-        dutyIndex > 0
-          ? (candidates[candidates.length - 1] ?? null)
-          : (candidates[0] ?? null);
+        const candidates = (
+          dutyIndex > 0 ? body.slice(0, dutyIndex) : body
+        ).filter(
+          (line) =>
+            line !== companyName &&
+            !IS_DUTY.test(line) &&
+            !IS_MARKER.test(line) &&
+            !looksLikeIndustryList(line) &&
+            !looksLikeWrappedTail(line) &&
+            !isInlineHeading(line) &&
+            // Название должности короткое и без точек: «Media Planner»,
+            // а не «Строю AI-агентов и интеграции для клиентов.»
+            !/[.!?]\s/.test(line) &&
+            line.length < 70,
+        );
+
+        // Сначала смотрим на строку, где должность стоит по раскладке:
+        // прямо перед обязанностями или прямо после компании. Её берём
+        // даже с маленькой буквы — в старых резюме hh пишут
+        // «кассир - операционист, старший кассир».
+        const companyIndex = body.indexOf(companyName);
+        const expected =
+          dutyIndex > 0 ? body[dutyIndex - 1] : body[companyIndex + 1];
+
+        positionLine =
+          expected &&
+          expected !== companyName &&
+          !IS_DUTY.test(expected) &&
+          !IS_MARKER.test(expected) &&
+          !looksLikeIndustryList(expected) &&
+          !isInlineHeading(expected) &&
+          // Конец предложения — точка и заглавная буква. «тех. поддержки»
+          // — сокращение, такая должность годится.
+          !/[.!?]\s+[А-ЯЁA-Z]/.test(expected) &&
+          !/[.!?]$/.test(expected) &&
+          expected.length < 80
+            ? expected
+            : dutyIndex > 0
+              ? (candidates[candidates.length - 1] ?? null)
+              : (candidates[0] ?? null);
+      }
+
+      let position: string | null = positionLine;
 
       if (position) {
         position = position.replace(LEADING_DURATION, "").trim() || null;
@@ -842,13 +1124,54 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
       ) {
         fullCompanyName = `${companyName} ${position}`;
         position = null;
+
+        // Тогда должность — следующая строка после второй половины
+        // названия: «АО «Центр … Национального» + «Банка РК»» + «Главный
+        // инженер-программист».
+        // Строку берём, только если за ней есть описание: последняя
+        // строка блока — обычно отрасль («Государственные организации»).
+        const tailIndex = positionLine ? body.indexOf(positionLine) : -1;
+        const next = tailIndex >= 0 ? body[tailIndex + 1] : undefined;
+        const afterNext = tailIndex >= 0 ? body[tailIndex + 2] : undefined;
+        if (
+          next &&
+          afterNext !== undefined &&
+          !IS_MARKER.test(afterNext) &&
+          !IS_DUTY.test(next) &&
+          !IS_MARKER.test(next) &&
+          !isInlineHeading(next) &&
+          !/[.!?]\s+[А-ЯЁA-Z]/.test(next) &&
+          !/[.!?]$/.test(next) &&
+          next.length < 80
+        ) {
+          position = next;
+          positionLine = next;
+        }
+      }
+
+      // Описание берём из исходных строк блока, а не из отфильтрованных:
+      // фильтр выше выкидывает строки с адресами сайтов, а в обязанностях
+      // они бывают («Запуск интернет-магазина shop.kz»).
+      let descriptionFrom: number;
+      if (positionLine) {
+        descriptionFrom = block.body.indexOf(positionLine) + 1;
+      } else {
+        // Должности нет — начинаем после компании и пропускаем отрасли.
+        descriptionFrom = block.body.indexOf(companyName) + 1;
+        while (
+          descriptionFrom < block.body.length &&
+          (IS_MARKER.test(block.body[descriptionFrom]) ||
+            looksLikeIndustryList(block.body[descriptionFrom]))
+        ) {
+          descriptionFrom++;
+        }
       }
 
       return {
         companyName: fullCompanyName.slice(0, 150),
-        position,
+        position: position?.slice(0, 150) ?? null,
         period: block.period,
-        description: findDescription(body, companyName, position),
+        description: buildDescription(block.body.slice(descriptionFrom)),
       };
     })
     .filter((item): item is ParsedExperience => item !== null);

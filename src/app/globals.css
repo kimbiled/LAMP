@@ -1,26 +1,199 @@
 @import "tailwindcss";
 
+/* Шрифт лежит в проекте, а не скачивается с серверов Google.
+   Раньше он подключался через next/font/google, и на каждой отрисовке
+   страницы сервер ходил в сеть за fonts.googleapis.com. Когда достучаться
+   не удавалось — а это случалось постоянно, — он ждал ответа, и страница
+   подвисала на секунду-две. Теперь сеть не нужна совсем.
+
+   Файлы разбиты по алфавитам: браузер скачивает только тот, буквы
+   которого встретились на странице. cyrillic-ext нужен обязательно —
+   казахские Ә, Қ, Ң, Ө, Ү, Һ лежат именно там.
+
+   Обновить шрифт: scripts/download-font.ts */
+
+/* cyrillic-ext */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-cyrillic-ext.woff2") format("woff2");
+  unicode-range:
+    U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+
+/* cyrillic */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin-ext.woff2") format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* latin */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
 @theme {
-  --color-accent: #FFC83D;
-  --color-accent-hover: #F2B92C;
-  --color-ink: #242424;
-  --color-ink-strong: #18181B;
-  --color-ink-soft: #6B7280;
-  --color-canvas: #FAFAF7;
-  --color-surface: #FFFFFF;
-  --color-muted: #F3F4F6;
+  /* Цветовой язык Lamp.
+     Графит — структура и глубина, тёплый ivory — спокойная рабочая
+     поверхность, приглушённый жёлтый — свет Lamp, хаки — второй,
+     сдержанный акцент. Насыщенного цвета в интерфейсе мало: он нужен,
+     чтобы подсвечивать важное, а не заливать экран.
 
-  /* Тёмное боковое меню */
-  --color-sidebar: #18181B;
-  --color-sidebar-hover: #27272A;
-  --color-sidebar-border: #2E2E33;
-  --color-sidebar-text: #A1A1AA;
-  --color-sidebar-text-active: #FAFAF7;
+     Все пары «текст на фоне» дают контраст не ниже 5:1, рамки полей
+     и обводка фокуса — не ниже 3:1. Это запас для людей старшего
+     возраста и для плохих мониторов. Разбор: docs/design-review. */
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* --- Боковое и нижнее меню: светлые --- */
+  /* Раньше меню было графитовым и оказывалось самым контрастным
+     пятном на экране — глаз весь день тянуло влево. Теперь оно
+     светлое и тихое: внимание на кандидате, а не на навигации.
+     Фон чуть темнее рабочей области и отделён линией — так меню
+     не сливается с содержимым. Текст пунктов — 6,5:1. */
+  --color-sidebar: #f0ece3;
+  --color-sidebar-hover: #e6e1d5;
+  --color-sidebar-border: #ded8cc;
+  --color-sidebar-text: #57534c;
+  --color-sidebar-text-active: #141414;
+
+  /* --- Поверхности --- */
+  /* Фон рабочей области — тёплый ivory, карточки почти белые.
+     Разница небольшая, но её хватает, чтобы блоки читались. */
+  --color-canvas: #f7f5ef;
+  --color-surface: #fffefb;
+  /* Спокойная тёплая поверхность: правая панель с фидбэком и историей.
+     Намеренно не жёлтая — жёлтый внутри неё работает точечно. */
+  --color-warm: #f1eee6;
+  /* Обычная граница карточек и разделителей. */
+  --color-line: #ded8cc;
+  /* Рамка полей ввода и вторичных кнопок: её должно быть видно (3,5:1). */
+  --color-line-strong: #8f887b;
+  --color-muted: #ede9df;
+
+  /* --- Свет Lamp --- */
+  /* Приглушённый тёплый жёлтый: основное действие. */
+  --color-accent: #f2c35b;
+  --color-accent-hover: #e0b34f;
+  /* Мягкое свечение: текущий этап, назначенная встреча, найденное
+     в тексте, важное уведомление — то, на что надо посмотреть. */
+  --color-glow: #fff1c2;
+  /* Тёмный тон того же жёлтого: предупреждающий текст. */
+  --color-accent-ink: #765a22;
+
+  /* --- Хаки: второй акцент --- */
+  /* Спокойные положительные состояния и выбор. Зелёного в интерфейсе
+     нет: он выглядит дешевле и спорит с тёплой гаммой.
+     khaki — только рамки и иконки; под белый текст — khaki-strong. */
+  --color-khaki: #8a8f6a;
+  --color-khaki-hover: #767b5a;
+  --color-khaki-strong: #646a48;
+  --color-khaki-strong-hover: #555a3c;
+  --color-khaki-soft: #eef0e3;
+  --color-khaki-line: #c9cdb0;
+  --color-khaki-ink: #4e5236;
+
+  /* --- Текст --- */
+  --color-ink: #181818;
+  --color-ink-strong: #0f0f0f;
+  /* Вспомогательный текст. Без прозрачности: ink-soft/70 уже не читается. */
+  --color-ink-soft: #5f5b54;
+  /* Только подсказка внутри пустого поля и отключённое. */
+  --color-ink-faint: #8a847a;
+
+  /* --- Состояния --- */
+  /* Опасно и ошибка: тёплый кирпичный, а не холодный красный Tailwind. */
+  --color-danger: #b3261e;
+  --color-danger-hover: #93201a;
+  --color-danger-soft: #fbe9e4;
+  --color-danger-line: #e8b4a8;
+  --color-danger-ink: #8c1d16;
+
+  /* Успех: хаки бренда. */
+  --color-success: #646a48;
+  --color-success-soft: #eef0e3;
+  --color-success-line: #c9cdb0;
+  --color-success-ink: #4e5236;
+
+  /* Предупреждение: жёлтый бренда. */
+  --color-warning: #f2c35b;
+  --color-warning-soft: #fff1c2;
+  --color-warning-line: #e9cf86;
+  --color-warning-ink: #765a22;
+
+  /* Информация: приглушённый сине-серый, единственный холодный тон. */
+  --color-info: #2f5674;
+  --color-info-soft: #e6eef3;
+  --color-info-line: #b9cbd8;
+  --color-info-ink: #24445c;
+
+  /* Обводка фокуса при работе с клавиатуры. */
+  --color-focus: #1f1f1f;
+
+  /* --- Размеры текста --- */
+  /* Базовые размеры чуть крупнее стандартных Tailwind (12 и 14 px):
+     системой пользуются и в 25, и в 60 лет. Один шаг здесь поднимает
+     читаемость во всём приложении. 10–11 px не используем вовсе. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.4rem;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
+}
+
+/* Видимая обводка у всего, что нажимается, — но только при работе
+   с клавиатуры (Tab), мышью она не мешает. */
+:where(a, button, summary, [role="button"], [tabindex], input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+
+/* iPhone приближает страницу, если шрифт поля меньше 16 px.
+   На телефоне поля — 16 px, на компьютере — обычные. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Кто отключил анимацию в системе — тот её не видит. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -61,7 +61,7 @@ export function TagsBlock({
       {tags.map((tag) => (
         <span
           key={tag.id}
-          className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs text-ink"
+          className="inline-flex items-center gap-0.5 rounded-md bg-muted py-0.5 pl-2.5 pr-0.5 text-xs text-ink"
         >
           {tag.name}
           {canEdit && (
@@ -70,9 +70,10 @@ export function TagsBlock({
               onClick={() => drop(tag.id)}
               disabled={pending}
               aria-label={`Снять метку ${tag.name}`}
-              className="text-ink-soft transition hover:text-red-600 disabled:opacity-50"
+              title={`Снять метку ${tag.name}`}
+              className="flex size-7 items-center justify-center rounded text-ink-soft transition hover:bg-danger-soft hover:text-danger disabled:opacity-50"
             >
-              <X className="h-3 w-3" strokeWidth={2.4} />
+              <X className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
             </button>
           )}
         </span>
@@ -101,7 +102,7 @@ export function TagsBlock({
                 }
               }}
               onBlur={submit}
-              className="w-44 rounded-md border border-muted bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+              className="min-h-8 w-44 rounded-md border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
             />
             <datalist id="tag-suggestions">
               {suggestions.map((name) => (
@@ -113,7 +114,7 @@ export function TagsBlock({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-dashed border-muted px-2 py-1 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            className="inline-flex min-h-8 items-center gap-1 rounded-md border border-dashed border-line-strong px-2.5 text-xs text-ink-soft transition hover:border-ink hover:text-ink"
           >
             <Plus className="h-3 w-3" strokeWidth={2.4} />
             Метка

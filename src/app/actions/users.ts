@@ -1,5 +1,6 @@
 "use server";
 
+import { done, fail, type ActionResult } from "@/lib/action-result";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -8,6 +9,7 @@ import { hashPassword } from "@/lib/password";
 import { logAction } from "@/lib/audit";
 import { createUserSchema, fieldErrorsFrom } from "@/lib/validation";
 import type { Role } from "@/generated/prisma/enums";
+import { ROLE_LABELS } from "@/lib/labels";
 
 export type UserFormState = {
   formError?: string;
@@ -86,23 +88,23 @@ export async function createUser(
   redirect("/users");
 }
 
-export async function changeUserRole(formData: FormData): Promise<void> {
+export async function changeUserRole(formData: FormData): Promise<ActionResult> {
   const scope = await getScope();
   if (!scope.can("users.manage")) {
-    return;
+    return fail("Недостаточно прав");
   }
 
   const userId = text(formData, "userId");
   const role = text(formData, "role");
 
   if (!ROLES.includes(role as Role)) {
-    return;
+    return fail("Неизвестная роль");
   }
 
   // Себе роль менять нельзя: иначе администратор способен
   // случайно лишить компанию единственного администратора.
   if (userId === scope.session.user.id) {
-    return;
+    return fail("Свою роль изменить нельзя");
   }
 
   // findFirst с companyId — пользователь из чужой компании просто не найдётся.
@@ -110,8 +112,11 @@ export async function changeUserRole(formData: FormData): Promise<void> {
     where: { id: userId, companyId: scope.companyId },
   });
 
-  if (!target || target.role === role) {
-    return;
+  if (!target) {
+    return fail("Сотрудник не найден");
+  }
+  if (target.role === role) {
+    return done();
   }
 
   await db.user.update({
@@ -129,19 +134,20 @@ export async function changeUserRole(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/users");
+  return done(`Роль изменена: ${ROLE_LABELS[role as Role]}`);
 }
 
-export async function setUserActive(formData: FormData): Promise<void> {
+export async function setUserActive(formData: FormData): Promise<ActionResult> {
   const scope = await getScope();
   if (!scope.can("users.manage")) {
-    return;
+    return fail("Недостаточно прав");
   }
 
   const userId = text(formData, "userId");
   const isActive = text(formData, "isActive") === "true";
 
   if (userId === scope.session.user.id) {
-    return;
+    return fail("Себя заблокировать нельзя");
   }
 
   const target = await db.user.findFirst({
@@ -149,7 +155,7 @@ export async function setUserActive(formData: FormData): Promise<void> {
   });
 
   if (!target) {
-    return;
+    return fail("Сотрудник не найден");
   }
 
   await db.user.update({
@@ -173,4 +179,5 @@ export async function setUserActive(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/users");
+  return done(isActive ? "Сотрудник разблокирован" : "Сотрудник заблокирован и вышел из системы");
 }

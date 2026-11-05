@@ -36,7 +36,7 @@ export default async function SystemJobsPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <BackButton fallbackHref="/system" fallbackLabel="К разделу «Система»" />
 
       <h1 className="mt-4 text-xl font-semibold text-ink-strong">
@@ -51,7 +51,7 @@ export default async function SystemJobsPage({
           name="company"
           defaultValue={filters.company ?? ""}
           aria-label="Компания"
-          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
         >
           <option value="">Все компании</option>
           {companies.map((company) => (
@@ -63,18 +63,18 @@ export default async function SystemJobsPage({
 
         <button
           type="submit"
-          className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="rounded-lg border border-line-strong px-4 py-2.5 text-sm text-ink transition hover:bg-canvas"
         >
           Показать
         </button>
       </form>
 
       {jobs.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+        <div className="mt-5 rounded-xl border border-dashed border-line bg-surface p-10 text-center">
           <p className="text-sm text-ink-soft">Вакансий нет.</p>
         </div>
       ) : (
-        <div className="mt-5 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+        <div className="mt-5 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {jobs.map((job) => (
             <Link
               key={job.id}
@@ -83,7 +83,7 @@ export default async function SystemJobsPage({
             >
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium text-ink">{job.title}</p>
-                <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft">
+                <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-ink-soft">
                   {job.company.name}
                 </span>
                 <JobStatusBadge status={job.status} />

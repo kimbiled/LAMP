@@ -88,3 +88,10 @@ export function daysBetween(from: string, to: string): number {
 
   return Math.max(Math.round((end - start) / 86_400_000), 0);
 }
+
+// Момент «N дней назад» — для фильтров «за 7 / 30 / 90 дней».
+// Отдельной функцией, а не Date.now() прямо в странице: так страница
+// остаётся «чистой» для проверок React, а время берётся в одном месте.
+export function daysAgo(days: number): Date | null {
+  return days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
+}

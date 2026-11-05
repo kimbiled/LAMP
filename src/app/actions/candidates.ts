@@ -1,5 +1,6 @@
 "use server";
 
+import { done, fail, type ActionResult } from "@/lib/action-result";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -38,11 +39,23 @@ function numberOrNull(formData: FormData, name: string): number | null {
 }
 
 // «React, TypeScript, Figma» превращаем в список из трёх значений.
+// Навыки и языки человек пишет через запятую. Повторы убираем:
+// «Русский, русский» — это один язык, а в списке на странице повтор
+// ещё и ломал отрисовку: React различает элементы списка по значению.
+// Остаётся то написание, которое человек ввёл первым.
 function list(formData: FormData, name: string): string[] {
+  const seen = new Set<string>();
+
   return text(formData, name)
     .split(/[,;\n]/)
     .map((item) => item.trim())
-    .filter((item) => item.length > 0)
+    .filter((item) => {
+      if (item.length === 0) return false;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .slice(0, 50);
 }
 
@@ -247,7 +260,9 @@ export async function createCandidate(
     entityId: candidate.id,
   });
 
-  redirect(`/candidates/${candidate.id}`);
+  // Заменяем в истории форму добавления: после создания кандидата
+  // «назад» ведёт к списку, а не к только что заполненной форме.
+  redirect(`/candidates/${candidate.id}`, "replace");
 }
 
 export async function updateCandidate(
@@ -331,13 +346,20 @@ export async function updateCandidate(
     actorName: scope.session.user.fullName,
   });
 
-  redirect(`/candidates/${existing.id}`);
+  // Проверка распознанного резюме — последний шаг добавления, и в истории
+  // он остаться не должен: иначе «назад» с карточки возвращает в форму
+  // с данными из резюме. Обычную правку карточки это не касается —
+  // туда человек пришёл сам и может захотеть вернуться.
+  redirect(
+    `/candidates/${existing.id}`,
+    formData.get("fromParse") === "1" ? "replace" : "push",
+  );
 }
 
-export async function moveCandidateToStage(formData: FormData): Promise<void> {
+export async function moveCandidateToStage(formData: FormData): Promise<ActionResult> {
   const scope = await getScope();
   if (!scope.can("candidates.move")) {
-    return;
+    return fail("Недостаточно прав, чтобы менять этап");
   }
 
   const candidateId = text(formData, "candidateId");
@@ -348,8 +370,11 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
     where: { id: candidateId, companyId: scope.companyId },
   });
 
-  if (!candidate || candidate.stageId === stageId) {
-    return;
+  if (!candidate) {
+    return fail("Кандидат не найден");
+  }
+  if (candidate.stageId === stageId) {
+    return done();
   }
 
   // Ключ этапа нужен сразу: по нему понятно, отказ это или нет.
@@ -359,7 +384,7 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
   });
 
   if (!stage) {
-    return;
+    return fail("Этап не найден. Обновите страницу");
   }
 
   const validStage = stage.id;
@@ -419,6 +444,8 @@ export async function moveCandidateToStage(formData: FormData): Promise<void> {
   if (candidate.jobId) {
     revalidatePath(`/jobs/${candidate.jobId}`);
   }
+
+  return done(`Этап изменён: «${stage.name}»`);
 }
 
 export async function deleteCandidate(formData: FormData): Promise<void> {

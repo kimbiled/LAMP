@@ -11,6 +11,8 @@ import {
 import { TextField } from "@/components/ui/text-field";
 import { SelectField, TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { ConfirmForm } from "@/components/ui/confirm-form";
+import { buttonClass } from "@/components/ui/styles";
 import { MeetingLinkButton } from "@/components/meeting-link-button";
 import { Linkify } from "@/components/linkify";
 
@@ -41,8 +43,8 @@ export type InterviewView = {
 type Person = { id: string; fullName: string };
 
 const STATUS_STYLES: Record<string, string> = {
-  SCHEDULED: "bg-accent/25 text-ink",
-  COMPLETED: "bg-green-100 text-green-800",
+  SCHEDULED: "bg-glow text-ink",
+  COMPLETED: "bg-khaki-soft text-khaki-ink",
   CANCELED: "bg-muted text-ink-soft",
 };
 
@@ -164,14 +166,19 @@ export function InterviewsBlock({
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Обе формы закрываются сами после удачного сохранения — и делается
+  // это прямо здесь, а не эффектом: список выше уже перерисовался
+  // новыми данными, и открытая форма показывала бы введённое так,
+  // будто оно ещё не сохранено.
   const [state, formAction] = useActionState(
-    createInterview.bind(null, candidateId),
+    async (previous: InterviewFormState, formData: FormData) => {
+      const result = await createInterview(candidateId, previous, formData);
+      if (result.success) setOpen(false);
+      return result;
+    },
     {} as InterviewFormState,
   );
 
-  // После удачного сохранения форму закрываем прямо здесь, а не эффектом:
-  // список выше уже перерисовался новыми данными, и открытая форма
-  // показывала бы введённое так, будто оно ещё не сохранено.
   const [editState, editAction] = useActionState(
     async (previous: InterviewFormState, formData: FormData) => {
       const result = await rescheduleInterview(previous, formData);
@@ -182,14 +189,14 @@ export function InterviewsBlock({
   );
 
   return (
-    <section className="rounded-xl border border-muted bg-surface p-5">
+    <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink">Интервью</h2>
+        <h2 className="text-base font-semibold text-ink-strong">Интервью</h2>
         {canManage && (
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
           >
             <CalendarPlus className="h-4 w-4" strokeWidth={1.8} />
             {open ? "Свернуть" : "Назначить интервью"}
@@ -204,10 +211,10 @@ export function InterviewsBlock({
       {open && canManage && (
         <form
           action={formAction}
-          className="@container mt-4 space-y-3 rounded-lg border border-muted bg-canvas p-4"
+          className="@container mt-4 space-y-3 rounded-lg border border-line bg-canvas p-4"
         >
           {state.formError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
               {state.formError}
             </div>
           )}
@@ -241,7 +248,7 @@ export function InterviewsBlock({
           {interviews.map((interview) => (
             <li
               key={interview.id}
-              className="rounded-lg border border-muted bg-canvas p-3"
+              className="rounded-lg border border-line bg-canvas p-3"
             >
               {editingId === interview.id ? (
                 <form action={editAction} className="@container space-y-3">
@@ -252,7 +259,7 @@ export function InterviewsBlock({
                   />
 
                   {editState.formError && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+                    <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
                       {editState.formError}
                     </div>
                   )}
@@ -271,20 +278,17 @@ export function InterviewsBlock({
                     errors={editState.fieldErrors}
                   />
 
-                  <div className="flex flex-wrap gap-2">
-                    <div className="w-40">
-                      <SubmitButton pendingLabel="Сохраняем…">
-                        Сохранить
-                      </SubmitButton>
-                    </div>
-
+                  <div className="flex justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setEditingId(null)}
-                      className="rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                      className={buttonClass({ variant: "secondary" })}
                     >
                       Отмена
                     </button>
+                    <SubmitButton pendingLabel="Сохраняем…" full={false}>
+                      Сохранить
+                    </SubmitButton>
                   </div>
                 </form>
               ) : (
@@ -325,9 +329,9 @@ export function InterviewsBlock({
                       <button
                         type="button"
                         onClick={() => setEditingId(interview.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+                        className={buttonClass({ variant: "secondary", size: "sm" })}
                       >
-                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} />
+                        <Pencil className="h-4 w-4" strokeWidth={1.8} aria-hidden />
                         Изменить
                       </button>
 
@@ -346,14 +350,23 @@ export function InterviewsBlock({
                             />
                             <button
                               type="submit"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+                              className={buttonClass({ variant: "secondary", size: "sm" })}
                             >
-                              <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                              <Check className="h-4 w-4" strokeWidth={2} aria-hidden />
                               Проведено
                             </button>
                           </form>
 
-                          <form action={setInterviewStatus}>
+                          <ConfirmForm
+                            action={setInterviewStatus}
+                            confirm={{
+                              title: "Отменить встречу?",
+                              message: `${interview.typeLabel}, ${interview.whenText}. Встреча останется в истории как отменённая.`,
+                              confirmLabel: "Отменить встречу",
+                              cancelLabel: "Не отменять",
+                              danger: true,
+                            }}
+                          >
                             <input
                               type="hidden"
                               name="interviewId"
@@ -366,12 +379,12 @@ export function InterviewsBlock({
                             />
                             <button
                               type="submit"
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                              className={buttonClass({ variant: "danger-outline", size: "sm" })}
                             >
-                              <X className="h-3.5 w-3.5" strokeWidth={2} />
-                              Отменить
+                              <X className="h-4 w-4" strokeWidth={2} aria-hidden />
+                              Отменить встречу
                             </button>
-                          </form>
+                          </ConfirmForm>
                         </>
                       )}
                     </div>

@@ -193,27 +193,184 @@ function splitLine(pieces: TextPiece[], pageWidth: number): string[] {
 
 // ---------- RTF ----------
 
-// Простое резюме в RTF — это текст, перемешанный со служебными
-// командами вида \b и \par. Убираем команды, оставляем текст.
+// Резюме в RTF — это текст, перемешанный со служебными командами
+// (\b, \par) и целыми служебными разделами: таблицей шрифтов, набором
+// стилей и — главное — картинками. Картинка внутри RTF записана
+// шестнадцатеричными цифрами, и её кусок легко принять за телефон:
+// у пяти разных кандидатов оказался «номер» +7 445 200 00 00,
+// вырезанный из заголовка одной и той же картинки.
 //
-// Русские буквы записаны кодами вида \'ef\'f0 в кодировке Windows-1251,
-// поэтому идущие подряд коды собираем и переводим в буквы разом.
+// Поэтому читаем файл по-настоящему, со счётом скобок, а не заменами
+// по образцу: внутри служебных разделов текста нет, и пропускаем их
+// целиком вместе со всем содержимым.
+
+// Разделы, в которых текста резюме не бывает.
+const RTF_SKIP = new Set([
+  "fonttbl", // список шрифтов
+  "colortbl", // список цветов
+  "stylesheet", // набор стилей
+  "listtable",
+  "listoverridetable",
+  "rsidtbl",
+  "revtbl",
+  "filetbl",
+  "xmlnstbl",
+  "latentstyles",
+  "info", // автор, дата создания файла
+  "generator", // чем файл сделан
+  "themedata",
+  "colorschememapping",
+  "datastore",
+  "pict", // картинка
+  "shppict",
+  "nonshppict",
+  "object", // встроенный документ
+  "objdata",
+]);
+
 function rtfToText(source: string): string {
+  // Русские буквы записаны кодами вида \'ef\'f0 в кодировке Windows-1251.
+  // Идущие подряд коды собираем и переводим в буквы разом: по одному
+  // байту кириллица не складывается.
   const decoder = new TextDecoder("windows-1251");
 
-  return source
-    .replace(/(?:\\'[0-9a-f]{2})+/gi, (run) => {
-      const bytes = [...run.matchAll(/\\'([0-9a-f]{2})/gi)].map((match) =>
-        parseInt(match[1], 16),
-      );
-      return decoder.decode(new Uint8Array(bytes));
-    })
-    .replace(/\\par[d]?\b/g, "\n")
-    .replace(/\\line\b/g, "\n")
-    .replace(/\\tab\b/g, " ")
-    .replace(/\{\\\*[^{}]*\}/g, "")
-    .replace(/\\[a-z]+-?\d*\s?/gi, "")
-    .replace(/[{}]/g, "");
+  const out: string[] = [];
+  let bytes: number[] = [];
+
+  const flush = () => {
+    if (bytes.length > 0) {
+      out.push(decoder.decode(new Uint8Array(bytes)));
+      bytes = [];
+    }
+  };
+
+  // Для каждой открытой скобки помним, пропускаем ли мы её содержимое.
+  const skip: boolean[] = [];
+  const skipping = () => skip.includes(true);
+
+  // Сколько запасных знаков идёт после каждого символа \u — задаётся
+  // командой \uc и действует до конца раздела.
+  const uc: number[] = [1];
+
+  let i = 0;
+
+  while (i < source.length) {
+    const ch = source[i];
+
+    if (ch === "{") {
+      const ahead = source.slice(i + 1, i + 30);
+      const ignorable = /^\\\*/.test(ahead);
+      const word = /^\\\*?\\?([a-z]+)/i.exec(ahead)?.[1]?.toLowerCase() ?? "";
+      skip.push(ignorable || RTF_SKIP.has(word));
+      uc.push(uc[uc.length - 1]);
+      i += 1;
+      continue;
+    }
+
+    if (ch === "}") {
+      flush();
+      skip.pop();
+      if (uc.length > 1) uc.pop();
+      i += 1;
+      continue;
+    }
+
+    if (ch === "\\") {
+      const next = source[i + 1];
+
+      // Экранированные скобка, слеш и неразрывный пробел.
+      if (next === "\\" || next === "{" || next === "}") {
+        if (!skipping()) {
+          flush();
+          out.push(next);
+        }
+        i += 2;
+        continue;
+      }
+
+      // Байт в шестнадцатеричном виде: \'ef
+      const hex = /^\\'([0-9a-f]{2})/i.exec(source.slice(i, i + 4));
+      if (hex) {
+        if (!skipping()) bytes.push(parseInt(hex[1], 16));
+        i += 4;
+        continue;
+      }
+
+      // Символ по номеру: \u1055 — так Word пишет буквы вне Windows-1251.
+      const unicode = /^\\u(-?\d+) ?/.exec(source.slice(i, i + 14));
+      if (unicode) {
+        if (!skipping()) {
+          flush();
+          let code = Number(unicode[1]);
+          if (code < 0) code += 65536;
+          out.push(String.fromCharCode(code));
+        }
+        i += unicode[0].length;
+
+        // Следом идут запасные знаки для старых программ — пропускаем их.
+        let left = uc[uc.length - 1];
+        while (left > 0 && i < source.length) {
+          if (source.startsWith("\\'", i)) {
+            i += 4;
+          } else if (source[i] === "\\") {
+            const command = /^\\[a-z]+-?\d* ?/i.exec(source.slice(i));
+            i += command ? command[0].length : 2;
+          } else if (source[i] === "{" || source[i] === "}") {
+            break;
+          } else {
+            i += 1;
+          }
+          left -= 1;
+        }
+        continue;
+      }
+
+      // Обычная команда: \par, \tab, \fs22 …
+      const command = /^\\([a-z]+)(-?\d+)? ?/i.exec(source.slice(i));
+      if (command) {
+        const word = command[1].toLowerCase();
+
+        if (word === "uc") {
+          uc[uc.length - 1] = Number(command[2] ?? 1);
+        } else if (!skipping()) {
+          if (
+            word === "par" ||
+            word === "pard" ||
+            word === "line" ||
+            word === "sect"
+          ) {
+            flush();
+            out.push("\n");
+          } else if (word === "tab" || word === "cell") {
+            flush();
+            out.push(" ");
+          }
+        }
+
+        i += command[0].length;
+        continue;
+      }
+
+      i += 1;
+      continue;
+    }
+
+    // Переводы строк в самом файле — разметка, а не текст.
+    if (ch === "\r" || ch === "\n") {
+      i += 1;
+      continue;
+    }
+
+    if (!skipping()) {
+      flush();
+      out.push(ch);
+    }
+
+    i += 1;
+  }
+
+  flush();
+  return out.join("");
 }
 
 // ---------- общее ----------

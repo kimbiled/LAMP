@@ -1,18 +1,30 @@
 "use server";
 
+import { done, fail, type ActionResult } from "@/lib/action-result";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { fieldErrorsFrom, jobSchema } from "@/lib/validation";
-import type { JobStatus } from "@/generated/prisma/enums";
+import type { JobPriority, JobStatus } from "@/generated/prisma/enums";
 
 export type JobFormState = {
   formError?: string;
   fieldErrors?: Record<string, string>;
+  // Что человек ввёл: при ошибке возвращаем, чтобы форма не опустела.
+  values?: Record<string, string>;
 };
 
+function submittedValues(formData: FormData): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string" && !key.startsWith("$")) values[key] = value;
+  }
+  return values;
+}
+
 const STATUSES: JobStatus[] = ["OPEN", "PAUSED", "CLOSED"];
+const PRIORITIES: JobPriority[] = ["HIGH", "MEDIUM", "LOW"];
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -55,6 +67,9 @@ function readJobForm(formData: FormData) {
     salaryMax: numberOrNull(formData, "salaryMax"),
     currency: text(formData, "currency") || "KZT",
     status: text(formData, "status"),
+    // Если форма старой версии не пришлёт приоритет — считаем средним,
+    // а не роняем сохранение из-за поля, которого человек не видел.
+    priority: text(formData, "priority") || "MEDIUM",
     recruiterId: idOrNull(formData, "recruiterId"),
     hiringManagerId: idOrNull(formData, "hiringManagerId"),
   };
@@ -72,7 +87,7 @@ export async function createJob(
 
   const parsed = jobSchema.safeParse(readJobForm(formData));
   if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+    return { fieldErrors: fieldErrorsFrom(parsed.error), values: submittedValues(formData) };
   }
 
   const job = await db.job.create({
@@ -85,6 +100,7 @@ export async function createJob(
       salaryMax: parsed.data.salaryMax,
       currency: parsed.data.currency,
       status: parsed.data.status,
+      priority: parsed.data.priority,
       recruiterId: await validUserId(parsed.data.recruiterId, scope.companyId),
       hiringManagerId: await validUserId(
         parsed.data.hiringManagerId,
@@ -115,12 +131,12 @@ export async function updateJob(
   });
 
   if (!existing) {
-    return { formError: "Вакансия не найдена" };
+    return { formError: "Вакансия не найдена", values: submittedValues(formData) };
   }
 
   const parsed = jobSchema.safeParse(readJobForm(formData));
   if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+    return { fieldErrors: fieldErrorsFrom(parsed.error), values: submittedValues(formData) };
   }
 
   await db.job.update({
@@ -133,6 +149,7 @@ export async function updateJob(
       salaryMax: parsed.data.salaryMax,
       currency: parsed.data.currency,
       status: parsed.data.status,
+      priority: parsed.data.priority,
       recruiterId: await validUserId(parsed.data.recruiterId, scope.companyId),
       hiringManagerId: await validUserId(
         parsed.data.hiringManagerId,
@@ -144,17 +161,17 @@ export async function updateJob(
   redirect(`/jobs/${existing.id}`);
 }
 
-export async function changeJobStatus(formData: FormData): Promise<void> {
+export async function changeJobStatus(formData: FormData): Promise<ActionResult> {
   const scope = await getScope();
   if (!scope.can("jobs.manage")) {
-    return;
+    return fail("Недостаточно прав");
   }
 
   const jobId = text(formData, "jobId");
   const status = text(formData, "status");
 
   if (!STATUSES.includes(status as JobStatus)) {
-    return;
+    return fail("Неизвестный статус");
   }
 
   const job = await db.job.findFirst({
@@ -163,7 +180,7 @@ export async function changeJobStatus(formData: FormData): Promise<void> {
   });
 
   if (!job) {
-    return;
+    return fail("Вакансия не найдена");
   }
 
   await db.job.update({
@@ -173,4 +190,41 @@ export async function changeJobStatus(formData: FormData): Promise<void> {
 
   revalidatePath("/jobs");
   revalidatePath(`/jobs/${job.id}`);
+  return done("Статус вакансии изменён");
+}
+
+// Приоритет меняется чаще статуса: вчера вакансия ждала, сегодня горит.
+// Поэтому его можно переключить прямо на странице вакансии,
+// не открывая форму редактирования.
+export async function changeJobPriority(formData: FormData): Promise<ActionResult> {
+  const scope = await getScope();
+  if (!scope.can("jobs.manage")) {
+    return fail("Недостаточно прав");
+  }
+
+  const jobId = text(formData, "jobId");
+  const priority = text(formData, "priority");
+
+  if (!PRIORITIES.includes(priority as JobPriority)) {
+    return fail("Неизвестный приоритет");
+  }
+
+  const job = await db.job.findFirst({
+    where: { id: jobId, companyId: scope.companyId },
+    select: { id: true },
+  });
+
+  if (!job) {
+    return fail("Вакансия не найдена");
+  }
+
+  await db.job.update({
+    where: { id: job.id },
+    data: { priority: priority as JobPriority },
+  });
+
+  revalidatePath("/jobs");
+  revalidatePath(`/jobs/${job.id}`);
+  revalidatePath("/dashboard");
+  return done("Приоритет изменён");
 }

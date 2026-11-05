@@ -90,6 +90,9 @@ export const jobSchema = z
     status: z.enum(["OPEN", "PAUSED", "CLOSED"], {
       message: "Выберите статус",
     }),
+    priority: z.enum(["HIGH", "MEDIUM", "LOW"], {
+      message: "Выберите приоритет",
+    }),
     recruiterId: z.string().nullable(),
     hiringManagerId: z.string().nullable(),
   })
@@ -114,11 +117,10 @@ export const candidateSchema = z.object({
   phone: z.string().max(40, "Слишком длинный номер"),
   email: z.union([z.literal(""), z.email("Введите корректный адрес почты")]),
   city: z.string().max(100, "Слишком длинное название города"),
-  birthDate: z
-    .union([
-      z.literal(""),
-      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Проверьте дату рождения"),
-    ]),
+  birthDate: z.union([
+    z.literal(""),
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Проверьте дату рождения"),
+  ]),
   currentPosition: z.string().max(150, "Слишком длинное название должности"),
   experienceYears: z
     .number()
@@ -170,7 +172,7 @@ export const feedbackSchema = z.object({
 });
 
 // При правке меняются только тон и текст. Этап и встреча остаются
-// прежними: фидбэк — запись о конкретном моменте, и переносить его
+// прежними: отзыв — запись о конкретном моменте, и переносить его
 // на другой этап задним числом нельзя.
 export const feedbackEditSchema = feedbackSchema.pick({
   result: true,

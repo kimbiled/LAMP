@@ -1,13 +1,17 @@
+import { daysAgo } from "@/lib/time";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { FileJson, Plus, Search } from "lucide-react";
+import { ChevronDown, FileJson, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
-import { can, jobVisibilityFilter } from "@/lib/permissions";
+import { candidateVisibilityFilter, jobVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
 import { formatDate } from "@/lib/format";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
+import { Pagination, PAGE_SIZE, parsePage } from "@/components/pagination";
+import { badgeClass, buttonClass } from "@/components/ui/styles";
+import type { Prisma } from "@/generated/prisma/client";
 
 export const metadata: Metadata = { title: "Кандидаты — LAMP" };
 
@@ -27,7 +31,7 @@ const EXPERIENCE = [
 ];
 
 const selectClass =
-  "rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
+  "w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent";
 
 // Кусочек резюме вокруг найденного слова — чтобы было видно,
 // почему человек попал в выдачу.
@@ -56,6 +60,7 @@ export default async function CandidatesPage({
     period?: string;
     experience?: string;
     tag?: string;
+    page?: string;
   }>;
 }) {
   const scope = await getScope();
@@ -65,21 +70,78 @@ export default async function CandidatesPage({
   // Условия по вакансии собираем в один объект: иначе ограничение
   // для нанимающего менеджера затёрлось бы фильтром по рекрутеру.
   const jobConditions: Record<string, string> = {};
-  if (!can(scope.session.user.role, "candidates.viewAll")) {
-    jobConditions.hiringManagerId = scope.session.user.id;
-  }
   if (filters.recruiter) {
     jobConditions.recruiterId = filters.recruiter;
   }
 
   const days =
     PERIODS.find((item) => item.value === (filters.period ?? ""))?.days ?? 0;
-  const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
+  const since = daysAgo(days);
 
   const minExperience = Number(filters.experience);
 
+  // Раньше список молча обрезался на 200 и писал «Найдено: 200».
+  // Теперь — честное общее число и страницы по 50.
+  const page = parsePage(filters.page);
+  const candidateWhere: Prisma.CandidateWhereInput = {
+    companyId: scope.companyId,
+    // Менеджер видит своих кандидатов и тех, кого собеседует.
+    ...candidateVisibilityFilter(scope.session.user),
+    ...(Object.keys(jobConditions).length > 0
+      ? { job: jobConditions }
+      : {}),
+    ...(filters.job ? { jobId: filters.job } : {}),
+    ...(filters.stage ? { stageId: filters.stage } : {}),
+    ...(filters.city ? { city: filters.city } : {}),
+    ...(filters.tag ? { tags: { some: { id: filters.tag } } } : {}),
+    ...(since ? { createdAt: { gte: since } } : {}),
+    ...(Number.isFinite(minExperience) && minExperience > 0
+      ? { experienceYears: { gte: minExperience } }
+      : {}),
+    ...(query
+      ? {
+          OR: [
+            {
+              fullName: { contains: query, mode: "insensitive" as const },
+            },
+            { phone: { contains: query } },
+            { email: { contains: query, mode: "insensitive" as const } },
+            {
+              currentPosition: {
+                contains: query,
+                mode: "insensitive" as const,
+              },
+            },
+            // Поиск по компаниям из опыта работы кандидата.
+            {
+              experience: {
+                some: {
+                  companyName: {
+                    contains: query,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+            // И по тексту самого резюме: слово из описания проекта
+            // найдётся, даже если его нет ни в одном поле карточки.
+            {
+              resumes: {
+                some: {
+                  parsedText: {
+                    contains: query,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
   // Все запросы уходят одновременно.
-  const [jobs, stages, recruiters, cityRows, tags, candidates] =
+  const [jobs, stages, recruiters, cityRows, tags, candidates, total] =
     await Promise.all([
       db.job.findMany({
         where: {
@@ -114,60 +176,7 @@ export default async function CandidatesPage({
         orderBy: { name: "asc" },
       }),
       db.candidate.findMany({
-        where: {
-          companyId: scope.companyId,
-          ...(Object.keys(jobConditions).length > 0
-            ? { job: jobConditions }
-            : {}),
-          ...(filters.job ? { jobId: filters.job } : {}),
-          ...(filters.stage ? { stageId: filters.stage } : {}),
-          ...(filters.city ? { city: filters.city } : {}),
-          ...(filters.tag ? { tags: { some: { id: filters.tag } } } : {}),
-          ...(since ? { createdAt: { gte: since } } : {}),
-          ...(Number.isFinite(minExperience) && minExperience > 0
-            ? { experienceYears: { gte: minExperience } }
-            : {}),
-          ...(query
-            ? {
-                OR: [
-                  {
-                    fullName: { contains: query, mode: "insensitive" as const },
-                  },
-                  { phone: { contains: query } },
-                  { email: { contains: query, mode: "insensitive" as const } },
-                  {
-                    currentPosition: {
-                      contains: query,
-                      mode: "insensitive" as const,
-                    },
-                  },
-                  // Поиск по компаниям из опыта работы кандидата.
-                  {
-                    experience: {
-                      some: {
-                        companyName: {
-                          contains: query,
-                          mode: "insensitive" as const,
-                        },
-                      },
-                    },
-                  },
-                  // И по тексту самого резюме: слово из описания проекта
-                  // найдётся, даже если его нет ни в одном поле карточки.
-                  {
-                    resumes: {
-                      some: {
-                        parsedText: {
-                          contains: query,
-                          mode: "insensitive" as const,
-                        },
-                      },
-                    },
-                  },
-                ],
-              }
-            : {}),
-        },
+        where: candidateWhere,
         include: {
           job: { select: { title: true } },
           stage: { select: { name: true, key: true } },
@@ -192,8 +201,10 @@ export default async function CandidatesPage({
           },
         },
         orderBy: { createdAt: "desc" },
-        take: 200,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
       }),
+      db.candidate.count({ where: candidateWhere }),
     ]);
 
   const cities = cityRows
@@ -220,13 +231,13 @@ export default async function CandidatesPage({
   );
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-ink-strong">Кандидаты</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            {candidates.length > 0
-              ? `Найдено: ${candidates.length}`
+            {total > 0
+              ? `${hasFilters ? "Найдено" : "Всего"}: ${total}`
               : "Пока никого нет"}
           </p>
         </div>
@@ -235,7 +246,7 @@ export default async function CandidatesPage({
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Link
               href="/candidates/import"
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-muted bg-surface px-4 py-2.5 text-sm font-medium text-ink transition hover:border-ink-soft sm:flex-none"
+              className={buttonClass({ variant: "secondary", className: "flex-1 sm:flex-none" })}
             >
               <FileJson className="h-4 w-4" strokeWidth={1.8} />
               Импорт с hh
@@ -243,7 +254,7 @@ export default async function CandidatesPage({
 
             <Link
               href="/candidates/new"
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-ink transition hover:bg-accent-hover sm:flex-none"
+              className={buttonClass({ variant: "primary", className: "flex-1 sm:flex-none" })}
             >
               <Plus className="h-4 w-4" strokeWidth={2} />
               Добавить кандидата
@@ -253,8 +264,11 @@ export default async function CandidatesPage({
       </div>
 
       <form className="mt-5 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
-          <div className="relative">
+        {/* Поиск — главное поле. На средних экранах он занимает всю
+            строку, а списки встают под ним: раньше на ноутбуке списки
+            забирали место, и от поля оставалось «Имя, телефо». */}
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <div className="relative sm:col-span-full xl:col-span-1">
             <Search
               className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-soft"
               strokeWidth={1.8}
@@ -265,7 +279,7 @@ export default async function CandidatesPage({
               defaultValue={query}
               placeholder="Имя, телефон, почта, должность, компания, текст резюме"
               aria-label="Поиск кандидатов"
-              className="w-full rounded-lg border border-muted bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent"
             />
           </div>
 
@@ -299,15 +313,18 @@ export default async function CandidatesPage({
 
           <button
             type="submit"
-            className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            className={buttonClass({ variant: "primary", className: "h-auto py-2.5" })}
           >
+            <Search className="h-4 w-4" strokeWidth={2} aria-hidden />
             Найти
           </button>
         </div>
 
         <details open={extraFiltersUsed} className="group">
-          <summary className="cursor-pointer text-sm text-ink-soft transition hover:text-ink">
+          <summary className="-ml-2 inline-flex min-h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-ink-soft transition hover:bg-muted hover:text-ink [&::-webkit-details-marker]:hidden">
+            <SlidersHorizontal className="h-4 w-4" strokeWidth={1.8} aria-hidden />
             Ещё фильтры
+            <ChevronDown className="h-4 w-4 transition group-open:rotate-180" strokeWidth={1.8} aria-hidden />
           </summary>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -392,7 +409,7 @@ export default async function CandidatesPage({
       </form>
 
       {candidates.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+        <div className="mt-5 rounded-xl border border-dashed border-line bg-surface p-10 text-center">
           <p className="text-sm text-ink-soft">
             {hasFilters
               ? "По этому запросу никого не нашлось."
@@ -402,7 +419,7 @@ export default async function CandidatesPage({
           </p>
         </div>
       ) : (
-        <div className="mt-5 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+        <div className="mt-5 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {candidates.map((candidate) => (
             <Link
               key={candidate.id}
@@ -450,7 +467,7 @@ export default async function CandidatesPage({
                     {candidate.tags.map((tag) => (
                       <span
                         key={tag.id}
-                        className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft"
+                        className={badgeClass("neutral")}
                       >
                         {tag.name}
                       </span>
@@ -462,6 +479,13 @@ export default async function CandidatesPage({
           ))}
         </div>
       )}
+
+      <Pagination
+        page={page}
+        total={total}
+        basePath="/candidates"
+        params={filters}
+      />
     </div>
   );
 }

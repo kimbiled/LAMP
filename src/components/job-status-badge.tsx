@@ -4,7 +4,7 @@ import { JOB_STATUS_LABELS } from "@/lib/labels";
 // Цветная метка статуса вакансии.
 
 const STYLES: Record<JobStatus, string> = {
-  OPEN: "bg-accent/25 text-ink",
+  OPEN: "bg-khaki-soft text-khaki-ink",
   PAUSED: "bg-muted text-ink-soft",
   CLOSED: "bg-ink-strong/10 text-ink-soft",
 };

@@ -13,7 +13,7 @@ export function ResumeText({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="mt-4 rounded-xl border border-muted bg-surface">
+    <section className="mt-4 rounded-xl border border-line bg-surface">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -41,12 +41,12 @@ export function ResumeText({ text }: { text: string }) {
       </button>
 
       {open && (
-        <div className="border-t border-muted px-5 py-4">
+        <div className="border-t border-line px-5 py-4">
           <p className="mb-3 text-xs text-ink-soft">
             Если система что-то пропустила, найдите это здесь и скопируйте в
             нужное поле — перепечатывать из файла не нужно.
           </p>
-          <pre className="max-h-96 overflow-auto rounded-lg border border-muted bg-canvas p-3 font-mono text-xs whitespace-pre-wrap text-ink-soft select-text">
+          <pre className="max-h-96 overflow-auto rounded-lg border border-line bg-canvas p-3 font-mono text-xs whitespace-pre-wrap text-ink-soft select-text">
             {text}
           </pre>
         </div>

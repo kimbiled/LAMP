@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Flame, Snowflake, UserPlus } from "lucide-react";
 import Link from "next/link";
 import type { CandidateFormState } from "@/app/actions/candidates";
 import { TextField } from "@/components/ui/text-field";
 import { SelectField, TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { CURRENCIES } from "@/lib/labels";
+import { SOURCE_CHANNELS } from "@/lib/source-channel";
 import {
   EducationEditor,
   ExperienceEditor,
@@ -16,34 +16,6 @@ import {
 } from "./experience-editor";
 
 const initialState: CandidateFormState = {};
-
-// Каналы привлечения кнопками. Иконка помогает узнавать их с одного
-// взгляда: снежинка — холод, огонь — тепло, человек с плюсом — привели.
-const CHANNELS: {
-  value: string;
-  label: string;
-  icon: typeof Flame;
-  active: string;
-}[] = [
-  {
-    value: "COLD",
-    label: "Холодный поиск",
-    icon: Snowflake,
-    active: "border-sky-400 bg-sky-50 text-sky-900",
-  },
-  {
-    value: "WARM",
-    label: "Тёплый контакт",
-    icon: Flame,
-    active: "border-amber-400 bg-amber-50 text-amber-900",
-  },
-  {
-    value: "REFERRAL",
-    label: "Реферал",
-    icon: UserPlus,
-    active: "border-green-400 bg-green-50 text-green-900",
-  },
-];
 
 export type CandidateFormValues = {
   fullName: string;
@@ -74,6 +46,7 @@ export function CandidateForm({
   education,
   submitLabel,
   cancelHref,
+  fromParse,
 }: {
   action: (
     state: CandidateFormState,
@@ -86,6 +59,9 @@ export function CandidateForm({
   education: EducationRow[];
   submitLabel: string;
   cancelHref: string;
+  // Форма открыта сразу после загрузки резюме. Влияет только на историю
+  // браузера: сохранение заменит этот шаг карточкой кандидата.
+  fromParse?: boolean;
 }) {
   const [state, formAction] = useActionState(action, initialState);
 
@@ -98,8 +74,10 @@ export function CandidateForm({
 
   return (
     <form action={formAction} className="space-y-6">
+      {fromParse && <input type="hidden" name="fromParse" value="1" />}
+
       {state.formError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
           {state.formError}
         </div>
       )}
@@ -107,7 +85,7 @@ export function CandidateForm({
       {/* Найден человек с такими же контактами. Форма не потеряна:
           всё введённое на месте, решение за рекрутером. */}
       {state.duplicates && state.duplicates.length > 0 && (
-        <div className="rounded-lg border border-accent/50 bg-accent/10 p-4">
+        <div className="rounded-lg border border-line bg-glow p-4">
           <p className="text-sm font-medium text-ink">
             {state.duplicates.length === 1
               ? "Такой человек уже есть в базе"
@@ -122,7 +100,7 @@ export function CandidateForm({
             {state.duplicates.map((item) => (
               <li
                 key={item.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-muted bg-surface px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink">{item.fullName}</p>
@@ -134,7 +112,7 @@ export function CandidateForm({
                 </div>
                 <Link
                   href={`/candidates/${item.id}`}
-                  className="rounded-lg border border-muted px-3 py-1.5 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                  className="rounded-lg border border-line-strong px-3 py-1.5 text-xs text-ink transition hover:bg-canvas"
                 >
                   Открыть карточку
                 </Link>
@@ -150,7 +128,7 @@ export function CandidateForm({
               name="ignoreDuplicates"
               value="true"
               defaultChecked
-              className="h-4 w-4 rounded border-muted accent-accent"
+              className="h-4 w-4 rounded border-line accent-accent"
             />
             Это другой человек — создать всё равно
           </label>
@@ -158,7 +136,7 @@ export function CandidateForm({
       )}
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-ink">Основное</h2>
+        <h2 className="text-base font-semibold text-ink-strong">Основное</h2>
 
         <TextField
           label="ФИО"
@@ -179,7 +157,7 @@ export function CandidateForm({
           <input type="hidden" name="sourceChannel" value={channel} />
 
           <div className="mt-1.5 flex flex-wrap gap-2">
-            {CHANNELS.map((item) => {
+            {SOURCE_CHANNELS.map((item) => {
               const Icon = item.icon;
               const chosen = channel === item.value;
 
@@ -193,7 +171,7 @@ export function CandidateForm({
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition ${
                     chosen
                       ? item.active
-                      : "border-muted text-ink-soft hover:border-ink-soft hover:text-ink"
+                      : "border-line text-ink-soft hover:border-ink-soft hover:text-ink"
                   }`}
                 >
                   <Icon className="h-4 w-4" strokeWidth={1.8} />
@@ -234,7 +212,7 @@ export function CandidateForm({
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-ink">Контакты</h2>
+        <h2 className="text-base font-semibold text-ink-strong">Контакты</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
@@ -286,7 +264,7 @@ export function CandidateForm({
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-ink">Профиль</h2>
+        <h2 className="text-base font-semibold text-ink-strong">Профиль</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField
@@ -374,10 +352,10 @@ export function CandidateForm({
 
           На телефоне панель поднята над нижним меню: оно прибито к низу
           экрана и иначе перекрыло бы кнопку. */}
-      <div className="sticky bottom-14 z-20 flex gap-3 rounded-xl border border-muted bg-surface/95 p-3 shadow-lg backdrop-blur md:bottom-0">
+      <div className="sticky bottom-14 z-20 flex gap-3 rounded-xl border border-line bg-surface/95 p-3 shadow-lg backdrop-blur md:bottom-0">
         <Link
           href={cancelHref}
-          className="flex-1 rounded-lg border border-muted px-4 py-2.5 text-center text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink sm:flex-none sm:px-8"
+          className="flex-1 rounded-lg border border-line-strong px-4 py-2.5 text-center text-sm text-ink transition hover:bg-canvas sm:flex-none sm:px-8"
         >
           Отмена
         </Link>

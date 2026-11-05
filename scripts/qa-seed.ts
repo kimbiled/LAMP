@@ -13,7 +13,11 @@ import { DEFAULT_STAGES } from "../src/lib/stages";
 // Удалить: npm run qa:clean
 
 export const QA_COMPANY_NAME = "QA Тест Компания";
-const QA_PASSWORD = "qa-password-123";
+// Пароль не храним в коде: код лежит в открытом репозитории.
+// Можно задать свой через QA_PASSWORD в .env, иначе каждый запуск
+// придумывает новый и печатает его в конце.
+const QA_PASSWORD =
+  process.env.QA_PASSWORD || `qa-${randomBytes(9).toString("base64url")}`;
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),

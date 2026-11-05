@@ -1,8 +1,8 @@
 // Дополнительные типы полей форм: многострочное поле и выпадающий список.
 // Оформлены так же, как TextField, чтобы формы выглядели одинаково.
 
-const baseClass =
-  "mt-1.5 w-full rounded-lg border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30";
+import { ERROR_TEXT_CLASS, HINT_CLASS, LABEL_CLASS, inputClass } from "./styles";
+
 
 export function TextareaField({
   label,
@@ -25,7 +25,7 @@ export function TextareaField({
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
+      <label htmlFor={id} className={LABEL_CLASS}>
         {label}
       </label>
       <textarea
@@ -34,10 +34,12 @@ export function TextareaField({
         rows={rows}
         defaultValue={defaultValue}
         placeholder={placeholder}
-        className={`${baseClass} ${error ? "border-red-400" : "border-muted"}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={inputClass(error, "mt-1.5")}
       />
-      {hint && !error && <p className="mt-1.5 text-xs text-ink-soft">{hint}</p>}
-      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className={HINT_CLASS}>{hint}</p>}
+      {error && <p id={`${id}-error`} role="alert" className={ERROR_TEXT_CLASS}>{error}</p>}
     </div>
   );
 }
@@ -61,14 +63,16 @@ export function SelectField({
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
+      <label htmlFor={id} className={LABEL_CLASS}>
         {label}
       </label>
       <select
         id={id}
         name={name}
         defaultValue={defaultValue}
-        className={`${baseClass} ${error ? "border-red-400" : "border-muted"}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={inputClass(error, "mt-1.5")}
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -76,8 +80,8 @@ export function SelectField({
           </option>
         ))}
       </select>
-      {hint && !error && <p className="mt-1.5 text-xs text-ink-soft">{hint}</p>}
-      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className={HINT_CLASS}>{hint}</p>}
+      {error && <p id={`${id}-error`} role="alert" className={ERROR_TEXT_CLASS}>{error}</p>}
     </div>
   );
 }

@@ -44,7 +44,7 @@ export default async function SystemPage() {
   );
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <h1 className="text-xl font-semibold text-ink-strong">Система</h1>
       <p className="mt-1 text-sm text-ink-soft">
         Все компании LAMP. Этот раздел видите только вы и другие владельцы
@@ -60,7 +60,7 @@ export default async function SystemPage() {
         ].map((metric) => (
           <div
             key={metric.label}
-            className="rounded-xl border border-muted bg-surface p-4"
+            className="rounded-xl border border-line bg-surface p-4 shadow-sm"
           >
             <p className="text-2xl font-semibold text-ink-strong">
               {metric.value}
@@ -73,18 +73,18 @@ export default async function SystemPage() {
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Link
           href="/system/candidates"
-          className="rounded-xl border border-muted bg-surface p-4 transition hover:border-ink-soft"
+          className="rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-ink-soft"
         >
           <p className="text-sm font-medium text-ink">Все кандидаты</p>
           <p className="mt-1 text-xs text-ink-soft">
-            Единая база по всем компаниям: карточки, резюме, интервью,
-            фидбэки и история.
+            Единая база по всем компаниям: карточки, резюме, интервью, отзывы и
+            история.
           </p>
         </Link>
 
         <Link
           href="/system/jobs"
-          className="rounded-xl border border-muted bg-surface p-4 transition hover:border-ink-soft"
+          className="rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-ink-soft"
         >
           <p className="text-sm font-medium text-ink">Все вакансии</p>
           <p className="mt-1 text-xs text-ink-soft">
@@ -93,9 +93,9 @@ export default async function SystemPage() {
         </Link>
       </div>
 
-      <h2 className="mt-6 text-sm font-medium text-ink">Компании</h2>
+      <h2 className="mt-6 text-base font-semibold text-ink-strong">Компании</h2>
 
-      <div className="mt-3 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+      <div className="mt-3 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
         {companies.map((company) => {
           const isOwn = company.id === session.user.companyId;
 
@@ -115,7 +115,7 @@ export default async function SystemPage() {
                     {company.name}
                   </p>
                   {isOwn && (
-                    <span className="rounded-md bg-accent/25 px-1.5 py-0.5 text-[11px] text-ink">
+                    <span className="rounded-md bg-khaki-soft px-1.5 py-0.5 text-xs text-ink">
                       ваша компания
                     </span>
                   )}
@@ -136,8 +136,10 @@ export default async function SystemPage() {
         })}
       </div>
 
-      <section className="mt-5 rounded-xl border border-muted bg-surface p-5">
-        <h2 className="text-sm font-medium text-ink">Владельцы системы</h2>
+      <section className="mt-5 rounded-xl border border-line bg-surface p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-ink-strong">
+          Владельцы системы
+        </h2>
         <p className="mt-1 text-xs text-ink-soft">
           Полный доступ ко всем компаниям. Назначаются на странице компании
           кнопкой «Сделать владельцем».
@@ -147,12 +149,12 @@ export default async function SystemPage() {
           {owners.map((owner) => (
             <li
               key={owner.id}
-              className="rounded-lg border border-muted bg-canvas px-3 py-2"
+              className="rounded-lg border border-line bg-canvas px-3 py-2"
             >
               <p className="text-sm text-ink">
                 {owner.fullName}
                 {owner.id === session.user.id && (
-                  <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft">
+                  <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-xs text-ink-soft">
                     это вы
                   </span>
                 )}

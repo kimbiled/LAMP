@@ -3,6 +3,7 @@ import type {
   HistoryType,
   InterviewStatus,
   InterviewType,
+  JobPriority,
   JobStatus,
   Role,
   SourceChannel,
@@ -20,6 +21,15 @@ export const JOB_STATUS_LABELS: Record<JobStatus, string> = {
   OPEN: "Открыта",
   PAUSED: "Приостановлена",
   CLOSED: "Закрыта",
+};
+
+// «Фоновый» вместо «низкого»: низкий приоритет читается как «эта вакансия
+// никому не нужна», а речь о другом — ей занимаются без срока,
+// когда освобождается время.
+export const JOB_PRIORITY_LABELS: Record<JobPriority, string> = {
+  HIGH: "Высокий",
+  MEDIUM: "Средний",
+  LOW: "Фоновый",
 };
 
 export const CURRENCIES = [
@@ -43,7 +53,7 @@ export const HISTORY_LABELS: Record<HistoryType, string> = {
   RESUME_UPLOADED: "Загружено резюме",
   INTERVIEW_SCHEDULED: "Назначено интервью",
   INTERVIEW_COMPLETED: "Интервью проведено",
-  FEEDBACK_ADDED: "Добавлен фидбэк",
+  FEEDBACK_ADDED: "Добавлен отзыв",
   SHARE_LINK_CREATED: "Создана ссылка «Поделиться»",
 };
 
@@ -67,8 +77,10 @@ export const SOURCE_CHANNEL_LABELS: Record<SourceChannel, string> = {
   REFERRAL: "Реферал",
 };
 
+// Те же слова, что на кнопках выбора оценки: человек нажал
+// «Не подходит» — и на карточке должен увидеть «Не подходит».
 export const FEEDBACK_RESULT_LABELS: Record<FeedbackResult, string> = {
-  POSITIVE: "Положительный",
-  NEGATIVE: "Отрицательный",
-  EXTRA_STAGE: "Нужен дополнительный этап",
+  POSITIVE: "Берём дальше",
+  NEGATIVE: "Не подходит",
+  EXTRA_STAGE: "Нужен ещё этап",
 };

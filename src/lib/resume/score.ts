@@ -19,7 +19,22 @@ const MONTHS = [
   "декабр",
 ];
 
-const NOW_WORDS = /наст(оящее)?\s*время|по\s*наст|сейчас|present|current/i;
+const MONTHS_EN = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+];
+
+const NOW_WORDS =/наст(оящее)?\s*время|по\s*наст|сейчас|present|current/i;
 
 type Point = { year: number; month: number };
 
@@ -27,9 +42,18 @@ type Point = { year: number; month: number };
 function readPoint(value: string): Point | null {
   const cleaned = value.trim().toLowerCase();
 
-  const withMonth = cleaned.match(/([а-яё]+)\s+(\d{4})/);
+  const withMonth = cleaned.match(/([а-яёa-z]+)\.?\s+(\d{4})/);
   if (withMonth) {
-    const index = MONTHS.findIndex((name) => withMonth[1].startsWith(name));
+    const word = withMonth[1];
+    // Полное название («марта») или сокращение («мар», «сен»):
+    // новая выгрузка hh и дизайнерские резюме пишут сокращённо.
+    let index = MONTHS.findIndex(
+      (name) =>
+        word.startsWith(name) || (word.length >= 3 && name.startsWith(word)),
+    );
+    if (index < 0) {
+      index = MONTHS_EN.findIndex((name) => word.startsWith(name));
+    }
     if (index >= 0) {
       return { year: Number(withMonth[2]), month: index };
     }

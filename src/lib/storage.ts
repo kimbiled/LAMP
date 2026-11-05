@@ -147,6 +147,8 @@ function s3() {
     // Загружаем библиотеку только в этом режиме, чтобы при локальной
     // работе она не занимала память.
     const { S3Client } =
+      // Намеренно require, а не import: библиотека грузится только в режиме s3.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
 
     s3Client = new S3Client({

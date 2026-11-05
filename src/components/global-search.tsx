@@ -15,7 +15,7 @@ export function GlobalSearch() {
         name="q"
         placeholder="Поиск кандидатов"
         aria-label="Поиск кандидатов"
-        className="w-full rounded-lg border border-muted bg-canvas py-2 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:bg-surface focus:ring-2 focus:ring-accent/30"
+        className="w-full rounded-lg border border-line-strong bg-canvas py-2 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:bg-surface focus:ring-2 focus:ring-accent"
       />
     </form>
   );

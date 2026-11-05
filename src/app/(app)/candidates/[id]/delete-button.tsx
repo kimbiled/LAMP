@@ -1,10 +1,13 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { useRef, useTransition } from "react";
+import { Loader2, Trash2 } from "lucide-react";
 import { deleteCandidate } from "@/app/actions/candidates";
+import { useConfirm } from "@/components/ui/dialog";
+import { buttonClass } from "@/components/ui/styles";
 
-// Удаление кандидата. Перед отправкой спрашиваем подтверждение —
-// вернуть удалённого кандидата будет нельзя.
+// Удаление кандидата. Перед отправкой спрашиваем подтверждение
+// в окне LAMP — вернуть удалённого кандидата будет нельзя.
 
 export function DeleteCandidateButton({
   candidateId,
@@ -13,25 +16,38 @@ export function DeleteCandidateButton({
   candidateId: string;
   candidateName: string;
 }) {
+  const confirm = useConfirm();
+  const form = useRef<HTMLFormElement>(null);
+  const [pending, startTransition] = useTransition();
+
+  async function ask() {
+    const confirmed = await confirm({
+      title: `Удалить кандидата «${candidateName}»?`,
+      message:
+        "Вместе с ним удалятся история, интервью и отзывы. Это действие нельзя отменить.",
+      confirmLabel: "Удалить навсегда",
+      danger: true,
+    });
+    if (!confirmed || !form.current) return;
+    const data = new FormData(form.current);
+    startTransition(() => deleteCandidate(data));
+  }
+
   return (
-    <form
-      action={deleteCandidate}
-      onSubmit={(event) => {
-        const confirmed = window.confirm(
-          `Удалить кандидата «${candidateName}»? Вместе с ним удалятся история, интервью и фидбэки. Это действие нельзя отменить.`,
-        );
-        if (!confirmed) {
-          event.preventDefault();
-        }
-      }}
-    >
+    <form ref={form} onSubmit={(event) => event.preventDefault()}>
       <input type="hidden" name="candidateId" value={candidateId} />
       <button
-        type="submit"
-        className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-red-300 hover:text-red-600"
+        type="button"
+        onClick={ask}
+        disabled={pending}
+        className={buttonClass({ variant: "danger-outline" })}
       >
-        <Trash2 className="h-4 w-4" strokeWidth={1.8} />
-        Удалить
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        ) : (
+          <Trash2 className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+        )}
+        Удалить кандидата
       </button>
     </form>
   );

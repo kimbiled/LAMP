@@ -15,14 +15,14 @@ const initialState: SettingsFormState = {};
 function Message({ state }: { state: SettingsFormState }) {
   if (state.formError) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+      <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
         {state.formError}
       </div>
     );
   }
   if (state.success) {
     return (
-      <div className="rounded-lg border border-muted bg-muted px-3 py-2.5 text-sm text-ink">
+      <div className="rounded-lg border border-line bg-muted px-3 py-2.5 text-sm text-ink">
         {state.success}
       </div>
     );
@@ -134,7 +134,7 @@ export function ProfileForm({
         label="Должность"
         name="position"
         placeholder="Руководитель отдела маркетинга"
-        hint="Видна коллегам рядом с вашими фидбэками по кандидатам"
+        hint="Видна коллегам рядом с вашими отзывами по кандидатам"
         defaultValue={position}
         error={state.fieldErrors?.position}
       />

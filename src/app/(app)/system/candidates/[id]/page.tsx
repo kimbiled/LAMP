@@ -23,11 +23,12 @@ import {
 } from "@/lib/labels";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
 import { rejectionLabel, rejectionSide } from "@/lib/rejection";
+import { ExperienceList } from "@/components/experience-list";
 
 export const metadata: Metadata = { title: "Кандидат — LAMP" };
 
 // Карточка кандидата глазами владельца системы: всё, что есть в базе,
-// включая компанию, вакансию, резюме, интервью, фидбэки и историю.
+// включая компанию, вакансию, резюме, интервью, отзывы и историю.
 //
 // Только чтение. Менять данные компании отсюда нельзя — иначе в истории
 // появились бы правки от человека, которого в этой компании нет.
@@ -104,7 +105,7 @@ export default async function SystemCandidatePage({
   const side = rejectionSide(candidate.stage.key);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <BackButton
         fallbackHref="/system/candidates"
         fallbackLabel="К базе кандидатов"
@@ -168,7 +169,7 @@ export default async function SystemCandidatePage({
       </section>
 
       {side && (candidate.rejectionReason || candidate.rejectionComment) && (
-        <div className="mt-3 rounded-xl border border-muted bg-surface px-4 py-3">
+        <div className="mt-3 rounded-xl border border-line bg-surface px-4 py-3">
           <p className="text-xs text-ink-soft">Причина отказа</p>
           <p className="mt-0.5 text-sm text-ink">
             {rejectionLabel(candidate.rejectionReason) ?? "не указана"}
@@ -184,37 +185,24 @@ export default async function SystemCandidatePage({
       <div className="mt-4 grid gap-4 md:grid-cols-[1.2fr_1fr]">
         <div className="space-y-4">
           {candidate.experience.length > 0 && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
-              <ul className="mt-3 space-y-4">
-                {candidate.experience.map((item) => (
-                  <li key={item.id} className="border-l-2 border-muted pl-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <p className="text-sm font-medium text-ink">
-                        {item.position ?? "Должность не указана"}
-                      </p>
-                      {item.period && (
-                        <p className="text-xs text-ink-soft">{item.period}</p>
-                      )}
-                    </div>
-                    <p className="text-sm text-ink-soft">{item.companyName}</p>
-                    {item.description && (
-                      <p className="mt-1 whitespace-pre-wrap text-xs text-ink-soft">
-                        {item.description}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Опыт работы
+              </h2>
+              <div className="mt-4">
+                <ExperienceList items={candidate.experience} />
+              </div>
             </section>
           )}
 
           {candidate.education.length > 0 && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Образование</h2>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Образование
+              </h2>
               <ul className="mt-3 space-y-3">
                 {candidate.education.map((item) => (
-                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                  <li key={item.id} className="border-l-2 border-line pl-3">
                     <p className="text-sm text-ink">{item.institution}</p>
                     {item.specialty && (
                       <p className="text-xs text-ink-soft">{item.specialty}</p>
@@ -228,8 +216,10 @@ export default async function SystemCandidatePage({
             </section>
           )}
 
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">Информация</h2>
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
+              Информация
+            </h2>
             <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
               <Field label="Email" value={candidate.email} />
               <Field label="Telegram" value={candidate.telegram} />
@@ -260,9 +250,9 @@ export default async function SystemCandidatePage({
               <div className="mt-3">
                 <p className="text-xs text-ink-soft">Навыки</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {candidate.skills.map((skill) => (
+                  {candidate.skills.map((skill, index) => (
                     <span
-                      key={skill}
+                      key={`${skill}-${index}`}
                       className="rounded-md bg-muted px-2 py-0.5 text-xs text-ink"
                     >
                       {skill}
@@ -279,8 +269,8 @@ export default async function SystemCandidatePage({
             )}
           </section>
 
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
               Резюме · {candidate.resumes.length}
             </h2>
 
@@ -291,7 +281,7 @@ export default async function SystemCandidatePage({
                 {candidate.resumes.map((resume) => (
                   <li
                     key={resume.id}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-muted bg-canvas p-3"
+                    className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-canvas p-3"
                   >
                     <FileText
                       className="h-4 w-4 shrink-0 text-ink-soft"
@@ -309,7 +299,7 @@ export default async function SystemCandidatePage({
                     </div>
                     <a
                       href={`/api/resumes/${resume.id}?download`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
                     >
                       <Download className="h-3.5 w-3.5" strokeWidth={2} />
                       Скачать
@@ -320,19 +310,19 @@ export default async function SystemCandidatePage({
             )}
           </section>
 
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">
-              Фидбэки · {candidate.feedbacks.length}
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
+              Отзывы · {candidate.feedbacks.length}
             </h2>
 
             {candidate.feedbacks.length === 0 ? (
-              <p className="mt-2 text-sm text-ink-soft">Фидбэков нет.</p>
+              <p className="mt-2 text-sm text-ink-soft">Отзывов нет.</p>
             ) : (
               <ul className="mt-3 space-y-3">
                 {candidate.feedbacks.map((feedback) => (
                   <li
                     key={feedback.id}
-                    className="rounded-lg border border-muted bg-canvas p-3"
+                    className="rounded-lg border border-line bg-canvas p-3"
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm text-ink">
@@ -348,7 +338,7 @@ export default async function SystemCandidatePage({
                       {feedback.comment}
                     </p>
                     <p className="mt-1 text-xs text-ink-soft">
-                      {/* authorName заполняется, когда фидбэк оставили
+                      {/* authorName заполняется, когда отзыв оставили
                           по ссылке «Поделиться», без входа в систему. */}
                       {feedback.author?.fullName ??
                         feedback.authorName ??
@@ -367,8 +357,10 @@ export default async function SystemCandidatePage({
 
         <div className="space-y-4">
           {candidate.job && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Вакансия</h2>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Вакансия
+              </h2>
               <p className="mt-2 text-sm text-ink">{candidate.job.title}</p>
               <p className="mt-1 text-xs text-ink-soft">
                 Рекрутер: {candidate.job.recruiter?.fullName ?? "не назначен"}
@@ -380,8 +372,8 @@ export default async function SystemCandidatePage({
             </section>
           )}
 
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
               Интервью · {candidate.interviews.length}
             </h2>
 
@@ -392,7 +384,7 @@ export default async function SystemCandidatePage({
                 {candidate.interviews.map((interview) => (
                   <li
                     key={interview.id}
-                    className="rounded-lg border border-muted bg-canvas p-3"
+                    className="rounded-lg border border-line bg-canvas p-3"
                   >
                     <p className="text-sm text-ink">
                       {INTERVIEW_TYPE_LABELS[interview.type]}
@@ -411,8 +403,8 @@ export default async function SystemCandidatePage({
             )}
           </section>
 
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">История</h2>
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">История</h2>
 
             <ol className="mt-3 space-y-3">
               {candidate.history.map((item) => (

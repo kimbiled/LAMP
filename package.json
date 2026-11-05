@@ -16,7 +16,10 @@
     "qa:clean": "tsx scripts/qa-clean.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "resume:reparse": "tsx scripts/reparse-all.ts"
+    "resume:reparse": "tsx scripts/reparse-all.ts",
+    "font:download": "tsx scripts/download-font.ts",
+    "db:ping": "tsx scripts/ping-db.ts",
+    "duplicates:check": "tsx scripts/check-duplicates.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1136.0",

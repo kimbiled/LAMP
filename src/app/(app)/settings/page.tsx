@@ -33,7 +33,7 @@ export default async function SettingsPage() {
     : [];
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-ink-strong">Настройки</h1>
         <p className="mt-1 text-sm text-ink-soft">
@@ -41,8 +41,10 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <section className="rounded-xl border border-muted bg-surface p-6">
-        <h2 className="mb-4 text-sm font-medium text-ink">Ваш профиль</h2>
+      <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold text-ink-strong">
+          Ваш профиль
+        </h2>
         <ProfileForm
           fullName={scope.session.user.fullName}
           position={profile?.position ?? ""}
@@ -50,8 +52,10 @@ export default async function SettingsPage() {
       </section>
 
       {canManageCompany && (
-        <section className="rounded-xl border border-muted bg-surface p-6">
-          <h2 className="mb-4 text-sm font-medium text-ink">Компания</h2>
+        <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
+          <h2 className="mb-4 text-base font-semibold text-ink-strong">
+            Компания
+          </h2>
           <CompanyForm
             name={scope.session.company.name}
             meetingLink={company?.meetingLink ?? ""}
@@ -59,17 +63,21 @@ export default async function SettingsPage() {
         </section>
       )}
 
-      <section className="rounded-xl border border-muted bg-surface p-6">
-        <h2 className="mb-4 text-sm font-medium text-ink">Смена пароля</h2>
+      <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold text-ink-strong">
+          Смена пароля
+        </h2>
         <PasswordForm />
       </section>
 
       {canManageCompany && (
-        <section className="rounded-xl border border-muted bg-surface p-6">
-          <h2 className="text-sm font-medium text-ink">Этапы подбора</h2>
+        <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-ink-strong">
+            Этапы подбора
+          </h2>
           <p className="mt-1 text-xs text-ink-soft">
-            По этим этапам движутся кандидаты на Kanban-доске. Создание
-            собственных этапов появится позже.
+            По этим этапам кандидаты движутся на доске каждой вакансии.
+            Создание собственных этапов появится позже.
           </p>
 
           <ol className="mt-4 space-y-2">

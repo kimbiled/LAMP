@@ -39,14 +39,16 @@ export default async function NewCandidatePage({
   ]);
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <h1 className="text-xl font-semibold text-ink-strong">Новый кандидат</h1>
       <p className="mt-1 text-sm text-ink-soft">
         Загрузите резюме — или заполните карточку вручную
       </p>
 
-      <section className="mt-6 rounded-xl border border-muted bg-surface p-6">
-        <h2 className="text-sm font-medium text-ink">Загрузка резюме</h2>
+      <section className="mt-6 rounded-xl border border-line bg-surface p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-ink-strong">
+          Загрузка резюме
+        </h2>
         <p className="mt-1 mb-4 text-xs text-ink-soft">
           Система прочитает файл и сама заполнит карточку. После этого вы
           проверите распознанные данные и при необходимости исправите их.
@@ -57,7 +59,6 @@ export default async function NewCandidatePage({
           submitLabel="Загрузить и распознать"
           pendingLabel="Читаем резюме…"
           jobId={job}
-          compact
         />
       </section>
 
@@ -67,7 +68,7 @@ export default async function NewCandidatePage({
         <span className="h-px flex-1 bg-muted" />
       </div>
 
-      <div className="rounded-xl border border-muted bg-surface p-6">
+      <div className="rounded-xl border border-line bg-surface p-6 shadow-sm">
         <CandidateForm
           action={createCandidate}
           jobs={jobs}

@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Search } from "lucide-react";
 import { requireSession } from "@/lib/session";
 import { logout } from "@/app/actions/auth";
 import { AppNav } from "@/components/app-nav";
@@ -6,6 +7,8 @@ import { NavMemory } from "@/components/nav-memory";
 import { ROLE_LABELS } from "@/lib/labels";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
+import { ToastProvider } from "@/components/ui/toast";
+import { ConfirmProvider } from "@/components/ui/dialog";
 
 // Оболочка всех внутренних страниц.
 // requireSession() проверяет вход НА СЕРВЕРЕ: без сессии страница
@@ -19,10 +22,12 @@ export default async function AppLayout({
   const session = await requireSession();
 
   return (
+    <ToastProvider>
+    <ConfirmProvider>
     <div className="min-h-screen md:flex">
       <NavMemory />
 
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-sidebar p-4 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 md:flex">
         <div className="mb-6 flex items-center gap-3 px-1">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-base font-semibold text-ink">
             L
@@ -57,8 +62,8 @@ export default async function AppLayout({
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-muted bg-surface px-4 py-3 md:px-8">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-3 md:flex-none">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-ink md:hidden">
               L
@@ -77,7 +82,17 @@ export default async function AppLayout({
             <GlobalSearch />
           </div>
 
-          <div className="ml-auto md:ml-0">
+          {/* На телефоне поле поиска не помещается в шапку —
+              ведём на список кандидатов, где поиск сверху. */}
+          <Link
+            href="/candidates"
+            aria-label="Поиск кандидатов"
+            className="ml-auto rounded-lg p-2.5 text-ink-soft transition hover:bg-muted hover:text-ink md:hidden"
+          >
+            <Search className="h-5 w-5" strokeWidth={1.8} />
+          </Link>
+
+          <div className="md:ml-0">
             <NotificationBell count={session.unreadNotifications} />
           </div>
 
@@ -85,18 +100,22 @@ export default async function AppLayout({
             <button
               type="submit"
               aria-label="Выйти"
-              className="rounded-lg p-2 text-ink-soft transition hover:bg-muted hover:text-ink"
+              className="rounded-lg p-2.5 text-ink-soft transition hover:bg-muted hover:text-ink"
             >
               <LogOut className="h-5 w-5" strokeWidth={1.8} />
             </button>
           </form>
         </header>
 
-        <main className="flex-1 px-4 pt-6 pb-24 md:px-8 md:pb-10">
-          {children}
+        {/* Одна ширина и один левый край для всех страниц. Раньше каждая
+            страница задавала свою ширину (от 448 до 1152 пикселей) и сама
+            вставала по центру — заголовок при переходе прыгал с места
+            на место. Узкие формы теперь прижаты к тому же левому краю. */}
+        <main id="main" className="flex-1 px-4 pt-6 pb-28 md:px-8 md:pb-10">
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
 
-        <div className="fixed inset-x-0 bottom-0 z-10 bg-sidebar md:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-sidebar-border bg-sidebar md:hidden">
           <AppNav
             variant="bottom"
             role={session.user.role}
@@ -105,5 +124,7 @@ export default async function AppLayout({
         </div>
       </div>
     </div>
+    </ConfirmProvider>
+    </ToastProvider>
   );
 }

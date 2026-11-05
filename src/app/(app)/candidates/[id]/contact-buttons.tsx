@@ -79,7 +79,7 @@ export function ContactButtons({
             <span
               key={button.label}
               title={button.missing}
-              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-muted px-3 py-2.5 text-sm text-ink-soft opacity-50"
+              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm text-ink-soft opacity-50"
             >
               <Icon className="h-4 w-4" strokeWidth={1.8} />
               {button.label}
@@ -94,7 +94,7 @@ export function ContactButtons({
             title={button.hint}
             target={button.external ? "_blank" : undefined}
             rel={button.external ? "noopener noreferrer" : undefined}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-muted px-3 py-2.5 text-sm text-ink transition hover:border-ink-soft hover:bg-canvas"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm text-ink transition hover:border-ink-soft hover:bg-canvas"
           >
             <Icon className="h-4 w-4" strokeWidth={1.8} />
             {button.label}

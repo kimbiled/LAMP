@@ -4,8 +4,12 @@ import { db } from "@/lib/db";
 import { findValidShareLink } from "@/lib/share";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
-import { formatBytes, formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { FEEDBACK_RESULT_LABELS, HISTORY_LABELS } from "@/lib/labels";
+import { ExperienceList } from "@/components/experience-list";
+import {
+  formatBytes,
+  formatDate,
+  formatMoney,
+} from "@/lib/format";
 import { GuestFeedbackForm } from "./guest-feedback-form";
 
 // Публичная страница кандидата по ссылке «Поделиться».
@@ -16,12 +20,6 @@ export const metadata: Metadata = {
   title: "Кандидат — LAMP",
   // Страницу не должны находить поисковики.
   robots: { index: false, follow: false },
-};
-
-const RESULT_STYLES: Record<string, string> = {
-  POSITIVE: "bg-green-100 text-green-800",
-  NEGATIVE: "bg-red-50 text-red-700",
-  EXTRA_STAGE: "bg-accent/25 text-ink",
 };
 
 function Invalid({ reason }: { reason: string }) {
@@ -64,20 +62,9 @@ export default async function SharePage({
         orderBy: { uploadedAt: "desc" },
         take: 1,
       },
-      feedbacks: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          stage: { select: { name: true } },
-          author: { select: { fullName: true } },
-        },
-      },
-      history: {
-        orderBy: { createdAt: "desc" },
-        include: {
-          fromStage: { select: { name: true } },
-          toStage: { select: { name: true } },
-        },
-      },
+      // Отзывы коллег и внутреннюю историю (с именами сотрудников)
+      // гостю не показываем и даже не загружаем: ссылка уходит
+      // за пределы команды, а это внутренняя кухня компании.
       company: { select: { name: true } },
     },
   });
@@ -143,8 +130,10 @@ export default async function SharePage({
       </div>
 
       <div className="mt-6 space-y-4">
-        <section className="rounded-xl border border-muted bg-surface p-5">
-          <h2 className="text-sm font-medium text-ink">Информация</h2>
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-ink-strong">
+            Информация
+          </h2>
 
           <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
             {facts.map((fact) => (
@@ -159,9 +148,9 @@ export default async function SharePage({
             <div className="mt-4">
               <p className="text-xs text-ink-soft">Навыки</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {candidate.skills.map((skill) => (
+                {candidate.skills.map((skill, index) => (
                   <span
-                    key={skill}
+                    key={`${skill}-${index}`}
                     className="rounded-md bg-muted px-2 py-0.5 text-xs text-ink"
                   >
                     {skill}
@@ -175,9 +164,9 @@ export default async function SharePage({
             <div className="mt-3">
               <p className="text-xs text-ink-soft">Языки</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {candidate.languages.map((language) => (
+                {candidate.languages.map((language, index) => (
                   <span
-                    key={language}
+                    key={`${language}-${index}`}
                     className="rounded-md bg-muted px-2 py-0.5 text-xs text-ink"
                   >
                     {language}
@@ -187,44 +176,31 @@ export default async function SharePage({
             </div>
           )}
 
-          <p className="mt-4 border-t border-muted pt-3 text-xs text-ink-soft">
+          <p className="mt-4 border-t border-line pt-3 text-xs text-ink-soft">
             Контакты кандидата по ссылке не показываются. Если нужно связаться —
             напишите рекрутеру.
           </p>
         </section>
 
         {candidate.experience.length > 0 && (
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
-            <ul className="mt-3 space-y-4">
-              {candidate.experience.map((item) => (
-                <li key={item.id} className="border-l-2 border-accent/50 pl-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                    <p className="text-sm font-medium text-ink">
-                      {item.position ?? "Должность не указана"}
-                    </p>
-                    {item.period && (
-                      <p className="text-xs text-ink-soft">{item.period}</p>
-                    )}
-                  </div>
-                  <p className="text-sm text-ink-soft">{item.companyName}</p>
-                  {item.description && (
-                    <p className="mt-1.5 text-sm whitespace-pre-line text-ink">
-                      {item.description}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
+              Опыт работы
+            </h2>
+            <div className="mt-4">
+              <ExperienceList items={candidate.experience} />
+            </div>
           </section>
         )}
 
         {candidate.education.length > 0 && (
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">Образование</h2>
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
+              Образование
+            </h2>
             <ul className="mt-3 space-y-3">
               {candidate.education.map((item) => (
-                <li key={item.id} className="border-l-2 border-muted pl-3">
+                <li key={item.id} className="border-l-2 border-line pl-3">
                   <p className="text-sm font-medium text-ink">
                     {item.institution}
                   </p>
@@ -240,11 +216,11 @@ export default async function SharePage({
           </section>
         )}
 
-        <section className="rounded-xl border border-muted bg-surface p-5">
-          <h2 className="text-sm font-medium text-ink">Резюме</h2>
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-ink-strong">Резюме</h2>
 
           {resume ? (
-            <div className="mt-3 rounded-lg border border-muted bg-canvas p-3">
+            <div className="mt-3 rounded-lg border border-line bg-canvas p-3">
               <div className="flex items-start gap-3">
                 <FileText
                   className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft"
@@ -264,14 +240,14 @@ export default async function SharePage({
                   href={`/api/share/${token}/resume/${resume.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
+                  className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
                 >
                   <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
                   Открыть
                 </a>
                 <a
                   href={`/api/share/${token}/resume/${resume.id}?download`}
-                  className="inline-flex items-center gap-2 rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
+                  className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
                 >
                   <Download className="h-4 w-4" strokeWidth={1.8} />
                   Скачать
@@ -283,74 +259,14 @@ export default async function SharePage({
           )}
         </section>
 
-        <section className="rounded-xl border border-muted bg-surface p-5">
-          <h2 className="text-sm font-medium text-ink">Оставить фидбэк</h2>
+        <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+          <h2 className="text-base font-semibold text-ink-strong">
+            Оставить отзыв
+          </h2>
           <p className="mt-1 mb-4 text-xs text-ink-soft">
             Ваше мнение появится в карточке кандидата у рекрутера.
           </p>
           <GuestFeedbackForm token={token} />
-        </section>
-
-        {candidate.feedbacks.length > 0 && (
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">Фидбэки</h2>
-            <ul className="mt-3 space-y-3">
-              {candidate.feedbacks.map((feedback) => (
-                <li
-                  key={feedback.id}
-                  className="rounded-lg border border-muted bg-canvas p-3"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-medium text-ink">
-                      {feedback.author?.fullName ??
-                        feedback.authorName ??
-                        "Гость"}
-                    </p>
-                    <span
-                      className={`rounded-md px-2 py-0.5 text-xs ${RESULT_STYLES[feedback.result]}`}
-                    >
-                      {FEEDBACK_RESULT_LABELS[feedback.result]}
-                    </span>
-                  </div>
-                  <p className="text-xs text-ink-soft">
-                    {formatDateTime(feedback.createdAt)}
-                    {feedback.stage ? ` · ${feedback.stage.name}` : ""}
-                  </p>
-                  {feedback.comment && (
-                    <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
-                      {feedback.comment}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="rounded-xl border border-muted bg-surface p-5">
-          <h2 className="text-sm font-medium text-ink">История</h2>
-          <ol className="mt-3 space-y-3">
-            {candidate.history.map((item) => (
-              <li key={item.id} className="flex gap-3">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                <div className="min-w-0">
-                  <p className="text-sm text-ink">
-                    {HISTORY_LABELS[item.type]}
-                    {item.type === "STAGE_CHANGED" && item.toStage && (
-                      <span className="text-ink-soft">
-                        {": "}
-                        {item.fromStage?.name ?? "—"} → {item.toStage.name}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-ink-soft">
-                    {formatDateTime(item.createdAt)}
-                    {item.actorName ? ` · ${item.actorName}` : ""}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
         </section>
       </div>
 

@@ -51,7 +51,7 @@ export default async function SystemCompanyPage({
   const isOwnCompany = company.id === session.user.companyId;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <BackButton fallbackHref="/system" fallbackLabel="К списку компаний" />
 
       <div className="mt-4">
@@ -60,7 +60,7 @@ export default async function SystemCompanyPage({
             {company.name}
           </h1>
           {isOwnCompany && (
-            <span className="rounded-md bg-accent/25 px-2 py-0.5 text-xs text-ink">
+            <span className="rounded-md bg-khaki-soft px-2 py-0.5 text-xs text-ink">
               ваша компания
             </span>
           )}
@@ -75,26 +75,26 @@ export default async function SystemCompanyPage({
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           href={`/system/candidates?company=${company.id}`}
-          className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
         >
           Кандидаты компании
         </Link>
         <Link
           href={`/system/jobs?company=${company.id}`}
-          className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
         >
           Вакансии компании
         </Link>
       </div>
 
-      <section className="mt-5 overflow-hidden rounded-xl border border-muted bg-surface">
-        <div className="border-b border-muted px-4 py-3">
-          <h2 className="text-sm font-medium text-ink">
+      <section className="mt-5 overflow-hidden rounded-xl border border-line bg-surface">
+        <div className="border-b border-line px-4 py-3">
+          <h2 className="text-base font-semibold text-ink-strong">
             Пользователи · {company.users.length}
           </h2>
         </div>
 
-        <div className="divide-y divide-muted">
+        <div className="divide-y divide-line">
           {company.users.map((user) => (
             <UserRow
               key={user.id}
@@ -128,7 +128,7 @@ export default async function SystemCompanyPage({
       )}
 
       {isOwnCompany && (
-        <p className="mt-5 rounded-xl border border-muted bg-surface p-4 text-xs text-ink-soft">
+        <p className="mt-5 rounded-xl border border-line bg-surface p-4 shadow-sm text-xs text-ink-soft">
           Свою собственную компанию удалить отсюда нельзя — вы бы закрыли себе
           вход в систему.
         </p>

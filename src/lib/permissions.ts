@@ -72,10 +72,24 @@ export function jobVisibilityFilter(user: { id: string; role: Role }) {
   return { hiringManagerId: user.id };
 }
 
-// То же самое для кандидатов: они видны через свою вакансию.
+// Кандидаты для нанимающего менеджера: те, что в его вакансиях,
+// и те, у кого он назначен интервьюером. Без второго условия
+// интервьюер получал «Нужен отзыв», а карточка открывалась как «не найдено».
+//
+// Условие обёрнуто в AND: фильтр подмешивают в запросы через «...»,
+// и голый OR перетёр бы OR строки поиска.
 export function candidateVisibilityFilter(user: { id: string; role: Role }) {
   if (can(user.role, "candidates.viewAll")) {
     return {};
   }
-  return { job: { hiringManagerId: user.id } };
+  return {
+    AND: [
+      {
+        OR: [
+          { job: { hiringManagerId: user.id } },
+          { interviews: { some: { interviewerId: user.id } } },
+        ],
+      },
+    ],
+  };
 }

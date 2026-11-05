@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
 import { JobStatusBadge } from "@/components/job-status-badge";
+import { JobPriorityBadge } from "@/components/job-priority-badge";
 import {
   CANDIDATE_FORMS,
   formatDate,
@@ -59,7 +60,10 @@ export default async function JobsPage({
         hiringManager: { select: { fullName: true } },
         _count: { select: { candidates: true } },
       },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+      // Сначала открытые, внутри них — сначала срочные, а при равном
+      // приоритете сверху свежие. Порядок статусов и приоритетов задан
+      // порядком значений в схеме базы, а не этим файлом.
+      orderBy: [{ status: "asc" }, { priority: "asc" }, { createdAt: "desc" }],
     }),
     db.job.groupBy({
       by: ["status"],
@@ -107,7 +111,7 @@ export default async function JobsPage({
   return (
     // Шире остальных страниц: плитке нужно место на три колонки,
     // иначе карточки становятся узкими и названия переносятся.
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink-strong">Вакансии</h1>
 
@@ -141,7 +145,7 @@ export default async function JobsPage({
             >
               {filter.label}
               <span
-                className={isActive ? "text-canvas/70" : "text-ink-soft/70"}
+                className={isActive ? "text-canvas/70" : "text-ink-soft"}
               >
                 {count}
               </span>
@@ -151,7 +155,7 @@ export default async function JobsPage({
       </div>
 
       {jobs.length === 0 ? (
-        <div className="mt-3 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+        <div className="mt-3 rounded-xl border border-dashed border-line bg-surface p-10 text-center">
           <p className="text-sm text-ink-soft">
             {canManage
               ? "Создайте первую вакансию — после этого можно будет добавлять кандидатов."
@@ -162,7 +166,7 @@ export default async function JobsPage({
         // Плиткой, а не списком: строка во всю ширину оставляла справа
         // пустоту, а десяток вакансий превращался в длинную простыню.
         // Карточки в ряду одной высоты, число кандидатов прижато к низу.
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => {
             const counters = progressByJob.get(job.id);
 
@@ -179,12 +183,13 @@ export default async function JobsPage({
               <Link
                 key={job.id}
                 href={`/jobs/${job.id}`}
-                className="flex h-full flex-col rounded-xl border border-muted bg-surface p-4 transition hover:border-ink-soft hover:bg-canvas"
+                className="flex h-full flex-col rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-ink-soft hover:bg-canvas"
               >
                 <div className="flex flex-wrap items-start gap-2">
                   <p className="min-w-0 flex-1 text-base leading-snug font-semibold text-ink-strong">
                     {job.title}
                   </p>
+                  <JobPriorityBadge priority={job.priority} />
                   <JobStatusBadge status={job.status} />
                 </div>
 
@@ -204,7 +209,7 @@ export default async function JobsPage({
                 {/* mt-auto прижимает итог к низу карточки: у всех вакансий
                     в ряду он оказывается на одной линии. */}
                 <div className="mt-auto pt-3">
-                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-muted pt-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 border-t border-line pt-3 text-sm">
                     <span className="font-medium text-ink">
                       {job._count.candidates}{" "}
                       {plural(job._count.candidates, CANDIDATE_FORMS)}

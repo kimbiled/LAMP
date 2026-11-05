@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { formatDateTime } from "@/lib/format";
+import { buttonClass } from "@/components/ui/styles";
 import {
   markAllNotificationsRead,
   markNotificationRead,
+  openNotification,
 } from "@/app/actions/notifications";
 
 export const metadata: Metadata = { title: "Уведомления — LAMP" };
@@ -22,7 +23,7 @@ export default async function NotificationsPage() {
   const unread = notifications.filter((item) => !item.isRead).length;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-ink-strong">Уведомления</h1>
@@ -35,7 +36,7 @@ export default async function NotificationsPage() {
           <form action={markAllNotificationsRead}>
             <button
               type="submit"
-              className="rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+              className="rounded-lg border border-line-strong px-3 py-2 text-sm text-ink transition hover:bg-canvas"
             >
               Отметить все прочитанными
             </button>
@@ -44,10 +45,10 @@ export default async function NotificationsPage() {
       </div>
 
       {notifications.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+        <div className="mt-5 rounded-xl border border-dashed border-line bg-surface p-10 text-center">
           <p className="text-sm text-ink-soft">
             Здесь появятся сообщения о назначенных интервью, новых кандидатах,
-            сменах этапа и фидбэках.
+            сменах этапа и отзывах.
           </p>
         </div>
       ) : (
@@ -57,8 +58,8 @@ export default async function NotificationsPage() {
               key={item.id}
               className={`rounded-xl border p-4 ${
                 item.isRead
-                  ? "border-muted bg-surface"
-                  : "border-accent/40 bg-accent/10"
+                  ? "border-line bg-surface"
+                  : "border-line bg-glow"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -81,7 +82,7 @@ export default async function NotificationsPage() {
                     />
                     <button
                       type="submit"
-                      className="rounded-lg border border-muted bg-surface px-2.5 py-1 text-xs text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                      className={buttonClass({ variant: "ghost", size: "sm" })}
                     >
                       Прочитано
                     </button>
@@ -90,12 +91,15 @@ export default async function NotificationsPage() {
               </div>
 
               {item.entityType === "Candidate" && item.entityId && (
-                <Link
-                  href={`/candidates/${item.entityId}`}
-                  className="mt-2 inline-block text-xs text-ink underline transition hover:text-ink-strong"
-                >
-                  Открыть кандидата
-                </Link>
+                <form action={openNotification} className="mt-3">
+                  <input type="hidden" name="notificationId" value={item.id} />
+                  <button
+                    type="submit"
+                    className={buttonClass({ variant: "secondary", size: "sm" })}
+                  >
+                    Открыть кандидата
+                  </button>
+                </form>
               )}
             </li>
           ))}

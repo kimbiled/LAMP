@@ -9,6 +9,8 @@ import {
 } from "@/app/actions/share";
 import { SelectField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { ConfirmForm } from "@/components/ui/confirm-form";
+import { buttonClass } from "@/components/ui/styles";
 
 // Ссылки «Поделиться»: создание, показ, копирование, отзыв.
 //
@@ -44,9 +46,7 @@ function useBaseUrl(fromServer: string | null) {
 
 function isLocalAddress(base: string) {
   const host = (base.split("//")[1] ?? "").split(":")[0].toLowerCase();
-  return (
-    host === "localhost" || host === "127.0.0.1" || base.includes("[::1]")
-  );
+  return host === "localhost" || host === "127.0.0.1" || base.includes("[::1]");
 }
 
 function ShareLinkAddress({ url }: { url: string }) {
@@ -60,7 +60,7 @@ function ShareLinkAddress({ url }: { url: string }) {
         value={url}
         aria-label="Адрес ссылки"
         onFocus={(event) => event.currentTarget.select()}
-        className="min-w-0 flex-1 rounded-lg border border-muted bg-surface px-3 py-1.5 font-mono text-xs text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+        className="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-1.5 font-mono text-xs text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
       />
 
       <button
@@ -74,7 +74,7 @@ function ShareLinkAddress({ url }: { url: string }) {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
         }}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
       >
         {copied ? (
           <Check className="h-3.5 w-3.5" strokeWidth={2} />
@@ -88,7 +88,7 @@ function ShareLinkAddress({ url }: { url: string }) {
         href={url}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
       >
         <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
         Открыть
@@ -122,13 +122,13 @@ export function ShareBlock({
   }
 
   return (
-    <section className="rounded-xl border border-muted bg-surface p-5">
+    <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink">Поделиться</h2>
+        <h2 className="text-base font-semibold text-ink-strong">Поделиться</h2>
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
         >
           <Share2 className="h-4 w-4" strokeWidth={1.8} />
           {open ? "Свернуть" : "Создать ссылку"}
@@ -137,11 +137,11 @@ export function ShareBlock({
 
       <p className="mt-2 text-xs text-ink-soft">
         По ссылке можно открыть карточку кандидата без входа в систему и
-        оставить фидбэк. Остальные данные компании при этом недоступны.
+        оставить отзыв. Остальные данные компании при этом недоступны.
       </p>
 
       {local && links.length > 0 && (
-        <p className="mt-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-ink">
+        <p className="mt-2 rounded-lg border border-line bg-glow px-3 py-2 text-xs text-ink">
           Адрес начинается с <span className="font-mono">localhost</span> — это
           имя работает только на том компьютере, где запущена система. Коллеге
           или на телефоне такая ссылка не откроется. Когда опубликуем систему в
@@ -152,10 +152,10 @@ export function ShareBlock({
       {open && (
         <form
           action={formAction}
-          className="mt-4 space-y-3 rounded-lg border border-muted bg-canvas p-4"
+          className="mt-4 space-y-3 rounded-lg border border-line bg-canvas p-4"
         >
           {state.formError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
               {state.formError}
             </div>
           )}
@@ -186,7 +186,7 @@ export function ShareBlock({
           {links.map((link) => (
             <li
               key={link.id}
-              className="rounded-lg border border-muted bg-canvas p-3"
+              className="rounded-lg border border-line bg-canvas p-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -203,15 +203,23 @@ export function ShareBlock({
                 </div>
 
                 {!link.isExpired && (
-                  <form action={revokeShareLink}>
+                  <ConfirmForm
+                    action={revokeShareLink}
+                    confirm={{
+                      title: "Отозвать ссылку?",
+                      message: "Кто откроет её после этого, увидит, что ссылка больше не действует.",
+                      confirmLabel: "Отозвать",
+                      danger: true,
+                    }}
+                  >
                     <input type="hidden" name="linkId" value={link.id} />
                     <button
                       type="submit"
-                      className="rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink-soft transition hover:border-red-300 hover:text-red-600"
+                      className={buttonClass({ variant: "danger-outline", size: "sm" })}
                     >
                       Отозвать
                     </button>
-                  </form>
+                  </ConfirmForm>
                 )}
               </div>
 
@@ -221,7 +229,7 @@ export function ShareBlock({
 
               <p className="mt-2 text-xs text-ink-soft">
                 Создал {link.createdByName} · {link.createdText} · просмотров:{" "}
-                {link.viewCount} · фидбэков: {link.feedbackCount}
+                {link.viewCount} · отзывов: {link.feedbackCount}
               </p>
             </li>
           ))}

@@ -12,7 +12,7 @@ import { TONE_STYLES, stageTone } from "@/lib/stages";
 export const metadata: Metadata = { title: "Все кандидаты — LAMP" };
 
 const selectClass =
-  "rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
+  "rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent";
 
 // Кусочек резюме вокруг найденного слова.
 function snippet(text: string | null, query: string): string | null {
@@ -96,7 +96,9 @@ export default async function SystemCandidatesPage({
         job: { select: { title: true } },
         stage: { select: { name: true, key: true } },
         tags: { select: { id: true, name: true }, orderBy: { name: "asc" } },
-        _count: { select: { feedbacks: true, interviews: true, resumes: true } },
+        _count: {
+          select: { feedbacks: true, interviews: true, resumes: true },
+        },
         resumes: {
           where: query
             ? { parsedText: { contains: query, mode: "insensitive" as const } }
@@ -117,7 +119,7 @@ export default async function SystemCandidatesPage({
     .filter((city): city is string => Boolean(city));
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <BackButton fallbackHref="/system" fallbackLabel="К разделу «Система»" />
 
       <h1 className="mt-4 text-xl font-semibold text-ink-strong">
@@ -140,7 +142,7 @@ export default async function SystemCandidatesPage({
             defaultValue={query}
             placeholder="Имя, телефон, почта, должность, компания, текст резюме"
             aria-label="Поиск по всей базе"
-            className="w-full rounded-lg border border-muted bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent"
           />
         </div>
 
@@ -174,7 +176,7 @@ export default async function SystemCandidatesPage({
 
         <button
           type="submit"
-          className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="rounded-lg border border-line-strong px-4 py-2.5 text-sm text-ink transition hover:bg-canvas"
         >
           Найти
         </button>
@@ -190,13 +192,15 @@ export default async function SystemCandidatesPage({
       )}
 
       {candidates.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+        <div className="mt-5 rounded-xl border border-dashed border-line bg-surface p-10 text-center">
           <p className="text-sm text-ink-soft">
-            {hasFilters ? "По этому запросу никого нет." : "Кандидатов пока нет."}
+            {hasFilters
+              ? "По этому запросу никого нет."
+              : "Кандидатов пока нет."}
           </p>
         </div>
       ) : (
-        <div className="mt-5 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+        <div className="mt-5 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
           {candidates.map((candidate) => (
             <Link
               key={candidate.id}
@@ -214,7 +218,7 @@ export default async function SystemCandidatesPage({
                   <p className="truncate text-sm font-medium text-ink">
                     {candidate.fullName}
                   </p>
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft">
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-ink-soft">
                     {candidate.company.name}
                   </span>
                   <StageBadge
@@ -231,7 +235,7 @@ export default async function SystemCandidatesPage({
                   {candidate.job?.title ?? "Без вакансии"} · добавлен{" "}
                   {formatDate(candidate.createdAt)} · резюме:{" "}
                   {candidate._count.resumes} · интервью:{" "}
-                  {candidate._count.interviews} · фидбэков:{" "}
+                  {candidate._count.interviews} · отзывов:{" "}
                   {candidate._count.feedbacks}
                 </p>
 
@@ -246,7 +250,7 @@ export default async function SystemCandidatesPage({
                     {candidate.tags.map((tag) => (
                       <span
                         key={tag.id}
-                        className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft"
+                        className="rounded bg-muted px-1.5 py-0.5 text-xs text-ink-soft"
                       >
                         {tag.name}
                       </span>
@@ -260,8 +264,8 @@ export default async function SystemCandidatesPage({
       )}
 
       <p className="mt-4 text-xs text-ink-soft">
-        Карточки открываются только на чтение: править данные компании можно
-        из самой компании, чтобы у изменений всегда был понятный автор.
+        Карточки открываются только на чтение: править данные компании можно из
+        самой компании, чтобы у изменений всегда был понятный автор.
       </p>
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { login, type AuthFormState } from "@/app/actions/auth";
 import { TextField } from "@/components/ui/text-field";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { ALERT_CLASSES } from "@/components/ui/styles";
 
 const initialState: AuthFormState = {};
 
@@ -23,7 +24,7 @@ export function LoginForm() {
       </div>
 
       {state.formError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+        <div role="alert" className={ALERT_CLASSES.danger}>
           {state.formError}
         </div>
       )}
@@ -34,7 +35,7 @@ export function LoginForm() {
         type="email"
         required
         autoComplete="email"
-        placeholder="ivan@company.ru"
+        placeholder="ivan@company.kz"
         defaultValue={state.values?.email}
         error={state.fieldErrors?.email}
       />
@@ -47,6 +48,13 @@ export function LoginForm() {
         autoComplete="current-password"
         error={state.fieldErrors?.password}
       />
+
+      {/* Сброса пароля по почте пока нет — подсказываем, к кому идти,
+          чтобы человек не застрял на этой странице. */}
+      <p className="text-sm text-ink-soft">
+        Забыли пароль? Обратитесь к администратору вашей компании в LAMP —
+        он задаст новый.
+      </p>
 
       <div className="pt-1">
         <SubmitButton pendingLabel="Входим…">Войти</SubmitButton>

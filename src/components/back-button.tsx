@@ -58,7 +58,7 @@ export function BackButton({
           router.back();
         }
       }}
-      className="inline-flex items-center gap-1.5 text-sm text-ink-soft transition hover:text-ink"
+      className="-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm text-ink-soft transition hover:bg-muted hover:text-ink"
     >
       <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
       Назад

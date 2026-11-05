@@ -50,30 +50,39 @@ export function stageTone(key: StageKey | null): StageTone {
   return "active";
 }
 
-// Оформление метки этапа и фона карточки для каждого случая.
+// Оформление этапа: метка, фон карточки и рамка.
+//
+// Фон у всех случаев одинаковый — почти белый. Это не упущение:
+// раньше тон заливал карточку целиком, и у кандидата на обычном этапе
+// шапка со всеми контактами становилась сплошь жёлтой. Этап — это одно
+// слово о человеке, а не повод перекрасить пол-экрана.
+//
+// Поэтому цвет этапа живёт в маленькой метке, а рамка остаётся
+// нейтральной: жёлтым и хаки обводятся только выбранные элементы
+// и действия, иначе подсветка перестаёт что-либо значить.
 export const TONE_STYLES: Record<
   StageTone,
   { badge: string; card: string; border: string }
 > = {
   success: {
-    badge: "bg-green-100 text-green-800",
-    card: "bg-green-50/60",
-    border: "border-green-200",
+    badge: "bg-success-soft text-success-ink",
+    card: "bg-surface",
+    border: "border-khaki-line",
   },
   danger: {
-    badge: "bg-red-100 text-red-800",
-    card: "bg-red-50/60",
-    border: "border-red-200",
+    badge: "bg-danger-soft text-danger-ink",
+    card: "bg-surface",
+    border: "border-danger-line",
   },
   muted: {
     badge: "bg-muted text-ink-soft",
-    card: "bg-canvas",
-    border: "border-muted",
+    card: "bg-surface",
+    border: "border-line",
   },
   active: {
-    badge: "bg-accent/25 text-ink",
-    card: "bg-accent/5",
-    border: "border-accent/30",
+    badge: "bg-warning-soft text-ink",
+    card: "bg-surface",
+    border: "border-line",
   },
 };
 
@@ -92,4 +101,28 @@ export function nextFunnelKey(key: StageKey | null): StageKey | null {
   }
 
   return FUNNEL_KEYS[index + 1];
+}
+
+// Группы этапов для выбора: движение вперёд, пауза, конец подбора.
+export type StageGroup = "progress" | "pause" | "closed";
+
+export const STAGE_GROUPS: { id: StageGroup; label: string }[] = [
+  { id: "progress", label: "В работе" },
+  { id: "pause", label: "Пауза" },
+  { id: "closed", label: "Отказ" },
+];
+
+export function stageGroup(key: StageKey | null): StageGroup {
+  if (
+    key === "CANDIDATE_THINKING" ||
+    key === "WE_THINKING" ||
+    key === "NO_RESPONSE"
+  ) {
+    return "pause";
+  }
+  if (key === "CANDIDATE_DECLINED" || key === "WE_DECLINED" || key === "REJECTED") {
+    return "closed";
+  }
+  // Свои этапы компании (без key) и все ступени воронки, включая «Принят».
+  return "progress";
 }

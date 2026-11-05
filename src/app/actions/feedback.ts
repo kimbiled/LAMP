@@ -18,6 +18,8 @@ export type FeedbackFormState = {
   formError?: string;
   fieldErrors?: Record<string, string>;
   success?: string;
+  // Что человек ввёл: при ошибке возвращаем, чтобы текст не пропал из формы.
+  values?: { comment?: string; result?: string };
 };
 
 function text(formData: FormData, name: string): string {
@@ -30,11 +32,15 @@ export async function createFeedback(
   _prevState: FeedbackFormState,
   formData: FormData,
 ): Promise<FeedbackFormState> {
+  const submitted = {
+    comment: text(formData, "comment"),
+    result: text(formData, "result"),
+  };
   const scope = await getScope();
 
-  // Фидбэк может оставить любая роль, в том числе нанимающий менеджер.
+  // Отзыв может оставить любая роль, в том числе нанимающий менеджер.
   if (!scope.can("feedback.create")) {
-    return { formError: "Недостаточно прав" };
+    return { formError: "Недостаточно прав", values: submitted };
   }
 
   const candidate = await db.candidate.findFirst({
@@ -47,7 +53,7 @@ export async function createFeedback(
   });
 
   if (!candidate) {
-    return { formError: "Кандидат не найден" };
+    return { formError: "Кандидат не найден", values: submitted };
   }
 
   const parsed = feedbackSchema.safeParse({
@@ -58,7 +64,7 @@ export async function createFeedback(
   });
 
   if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+    return { fieldErrors: fieldErrorsFrom(parsed.error), values: submitted };
   }
 
   // Этап и интервью обязаны принадлежать этой же компании и кандидату.
@@ -111,7 +117,7 @@ export async function createFeedback(
     userIds: await jobWatchers(candidate.jobId),
     actorId: scope.session.user.id,
     type: "FEEDBACK_ADDED",
-    title: `Фидбэк: ${candidate.fullName}`,
+    title: `Отзыв: ${candidate.fullName}`,
     body: `${scope.session.user.fullName} — ${FEEDBACK_RESULT_LABELS[parsed.data.result].toLowerCase()}`,
     entityType: "Candidate",
     entityId: candidate.id,
@@ -119,12 +125,12 @@ export async function createFeedback(
 
   revalidatePath(`/candidates/${candidate.id}`);
 
-  return { success: "Фидбэк добавлен" };
+  return { success: "Отзыв добавлен" };
 }
 
 // Правка и удаление чужого мнения — только администратору.
 //
-// Написать фидбэк может любой, включая нанимающего менеджера: для него
+// Написать отзыв может любой, включая нанимающего менеджера: для него
 // это основная работа. А вот менять или стирать написанное коллегой —
 // право администратора. Иначе неудобное мнение можно тихо переписать,
 // и история найма перестанет быть историей.
@@ -135,10 +141,10 @@ async function feedbackForManage(feedbackId: string) {
   const scope = await getScope();
 
   if (!scope.can("feedback.manage")) {
-    return { error: "Менять и удалять фидбэк может только администратор" };
+    return { error: "Менять и удалять отзыв может только администратор" };
   }
 
-  // Фидбэк обязан принадлежать той же компании: подставленный
+  // Отзыв обязан принадлежать той же компании: подставленный
   // в форму чужой идентификатор ничего не даст.
   const feedback = await db.feedback.findFirst({
     where: { id: feedbackId, companyId: scope.companyId },
@@ -152,7 +158,7 @@ async function feedbackForManage(feedbackId: string) {
     },
   });
 
-  if (!feedback) return { error: "Фидбэк не найден" };
+  if (!feedback) return { error: "Отзыв не найден" };
 
   return { scope, feedback };
 }
@@ -161,8 +167,12 @@ export async function updateFeedback(
   _prevState: FeedbackFormState,
   formData: FormData,
 ): Promise<FeedbackFormState> {
+  const submitted = {
+    comment: text(formData, "comment"),
+    result: text(formData, "result"),
+  };
   const found = await feedbackForManage(text(formData, "feedbackId"));
-  if ("error" in found) return { formError: found.error };
+  if ("error" in found) return { formError: found.error, values: submitted };
 
   const { scope, feedback } = found;
 
@@ -172,7 +182,7 @@ export async function updateFeedback(
   });
 
   if (!parsed.success) {
-    return { fieldErrors: fieldErrorsFrom(parsed.error) };
+    return { fieldErrors: fieldErrorsFrom(parsed.error), values: submitted };
   }
 
   await db.feedback.update({
@@ -195,7 +205,7 @@ export async function updateFeedback(
 
   revalidatePath(`/candidates/${feedback.candidateId}`);
 
-  return { success: "Фидбэк изменён" };
+  return { success: "Отзыв изменён" };
 }
 
 export async function deleteFeedback(
@@ -226,5 +236,5 @@ export async function deleteFeedback(
 
   revalidatePath(`/candidates/${feedback.candidateId}`);
 
-  return { success: "Фидбэк удалён" };
+  return { success: "Отзыв удалён" };
 }

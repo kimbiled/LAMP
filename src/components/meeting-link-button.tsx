@@ -58,7 +58,7 @@ export function MeetingLinkButton({
       <button
         type="button"
         onClick={insert}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-muted bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink transition hover:border-ink-soft"
       >
         <Video className="h-3.5 w-3.5" strokeWidth={1.8} />
         Вставить ссылку на встречу

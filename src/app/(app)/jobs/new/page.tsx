@@ -16,13 +16,13 @@ export default async function NewJobPage() {
   });
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <h1 className="text-xl font-semibold text-ink-strong">Новая вакансия</h1>
       <p className="mt-1 text-sm text-ink-soft">
         Заполните основное — остальное можно дописать позже
       </p>
 
-      <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
+      <div className="mt-6 rounded-xl border border-line bg-surface p-6 shadow-sm">
         <JobForm
           action={createJob}
           users={users}
@@ -36,6 +36,7 @@ export default async function NewJobPage() {
             salaryMax: "",
             currency: "KZT",
             status: "OPEN",
+            priority: "MEDIUM",
             recruiterId: scope.session.user.id,
             hiringManagerId: "",
           }}

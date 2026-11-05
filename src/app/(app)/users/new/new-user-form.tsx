@@ -14,7 +14,7 @@ export function NewUserForm() {
   return (
     <form action={formAction} className="space-y-4">
       {state.formError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
           {state.formError}
         </div>
       )}
@@ -49,14 +49,16 @@ export function NewUserForm() {
           id="field-role"
           name="role"
           defaultValue={state.values?.role ?? "RECRUITER"}
-          className="mt-1.5 w-full rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+          className="mt-1.5 w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-accent"
         >
           <option value="RECRUITER">Рекрутер</option>
           <option value="HIRING_MANAGER">Нанимающий менеджер</option>
           <option value="ADMIN">Администратор</option>
         </select>
         {state.fieldErrors?.role && (
-          <p className="mt-1.5 text-xs text-red-600">{state.fieldErrors.role}</p>
+          <p className="mt-1.5 text-xs text-danger">
+            {state.fieldErrors.role}
+          </p>
         )}
       </div>
 
@@ -72,7 +74,7 @@ export function NewUserForm() {
       <div className="flex gap-3 pt-1">
         <Link
           href="/users"
-          className="flex-1 rounded-lg border border-muted px-4 py-2.5 text-center text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="flex-1 rounded-lg border border-line-strong px-4 py-2.5 text-center text-sm text-ink transition hover:bg-canvas"
         >
           Отмена
         </Link>

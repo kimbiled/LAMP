@@ -1,10 +1,16 @@
 "use client";
 
-import { useTransition } from "react";
 import { changeJobStatus } from "@/app/actions/jobs";
+import { InstantSelect } from "@/components/ui/instant-select";
 import type { JobStatus } from "@/generated/prisma/enums";
 
 // Быстрая смена статуса вакансии прямо на её странице.
+
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Открыта" },
+  { value: "PAUSED", label: "Приостановлена" },
+  { value: "CLOSED", label: "Закрыта" },
+];
 
 export function JobStatusSelect({
   jobId,
@@ -13,24 +19,13 @@ export function JobStatusSelect({
   jobId: string;
   status: JobStatus;
 }) {
-  const [pending, startTransition] = useTransition();
-
   return (
-    <select
-      defaultValue={status}
-      disabled={pending}
-      aria-label="Статус вакансии"
-      onChange={(event) => {
-        const formData = new FormData();
-        formData.set("jobId", jobId);
-        formData.set("status", event.target.value);
-        startTransition(() => changeJobStatus(formData));
-      }}
-      className="rounded-lg border border-muted bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
-    >
-      <option value="OPEN">Открыта</option>
-      <option value="PAUSED">Приостановлена</option>
-      <option value="CLOSED">Закрыта</option>
-    </select>
+    <InstantSelect
+      value={status}
+      options={STATUS_OPTIONS}
+      action={changeJobStatus}
+      buildForm={(next) => ({ jobId, status: next })}
+      label="Статус вакансии"
+    />
   );
 }

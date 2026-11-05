@@ -31,8 +31,8 @@ const LIST_FILTERS = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
-  SCHEDULED: "bg-accent/25 text-ink",
-  COMPLETED: "bg-green-100 text-green-800",
+  SCHEDULED: "bg-glow text-ink",
+  COMPLETED: "bg-khaki-soft text-khaki-ink",
   CANCELED: "bg-muted text-ink-soft",
 };
 
@@ -57,7 +57,7 @@ export default async function InterviewsPage({
   const isCalendar = !view || view === "week";
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div>
       <h1 className="text-xl font-semibold text-ink-strong">Интервью</h1>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -203,20 +203,20 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
           <Link
             href={`/interviews?week=${shiftDate(monday, -7)}`}
             aria-label="Предыдущая неделя"
-            className="rounded-lg border border-muted p-1.5 text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            className="rounded-lg border border-line-strong p-1.5 text-ink transition hover:bg-canvas"
           >
             <ChevronLeft className="h-4 w-4" strokeWidth={1.8} />
           </Link>
           <Link
             href="/interviews"
-            className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            className="rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
           >
             Сегодня
           </Link>
           <Link
             href={`/interviews?week=${shiftDate(monday, 7)}`}
             aria-label="Следующая неделя"
-            className="rounded-lg border border-muted p-1.5 text-ink-soft transition hover:border-ink-soft hover:text-ink"
+            className="rounded-lg border border-line-strong p-1.5 text-ink transition hover:bg-canvas"
           >
             <ChevronRight className="h-4 w-4" strokeWidth={1.8} />
           </Link>
@@ -283,7 +283,7 @@ async function ListView({ view, scope }: { view?: string; scope: Scope }) {
 
   if (interviews.length === 0) {
     return (
-      <div className="mt-5 rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
+      <div className="mt-5 rounded-xl border border-dashed border-line bg-surface p-10 text-center">
         <p className="text-sm text-ink-soft">
           Записей нет. Интервью назначаются в календаре или в карточке
           кандидата.
@@ -299,13 +299,13 @@ async function ListView({ view, scope }: { view?: string; scope: Scope }) {
       {[...days.entries()].map(([day, items]) => (
         <section
           key={day}
-          className="overflow-hidden rounded-xl border border-muted bg-surface"
+          className="overflow-hidden rounded-xl border border-line bg-surface"
         >
-          <div className="border-b border-muted px-4 py-2.5">
+          <div className="border-b border-line px-4 py-2.5">
             <p className="text-sm font-medium text-ink">{day}</p>
           </div>
 
-          <ul className="divide-y divide-muted">
+          <ul className="divide-y divide-line">
             {items.map((interview) => (
               <li key={interview.id}>
                 <Link

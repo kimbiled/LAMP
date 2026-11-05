@@ -1,4 +1,4 @@
-import { dateToLocalParts, localToDate } from "@/lib/time";
+import { dateToLocalParts, localToDate, todayLocal } from "@/lib/time";
 
 // Расчёты для календаря интервью.
 //
@@ -113,4 +113,17 @@ export function weekTitle(monday: string): string {
   };
 
   return `${format(monday, false)} — ${format(sunday, true)}`;
+}
+
+// Границы сегодняшнего дня в поясе компании и текущий момент —
+// для главной страницы «Сегодня».
+export function todayBounds(): { from: Date; to: Date; now: Date; weekAgo: Date } {
+  const today = todayLocal();
+  const from = localToDate(today, "00:00");
+  const to = localToDate(shiftDate(today, 1), "00:00");
+  if (!from || !to) {
+    throw new Error(`Не удалось посчитать границы дня для ${today}`);
+  }
+  const now = new Date();
+  return { from, to, now, weekAgo: new Date(now.getTime() - 7 * 86_400_000) };
 }

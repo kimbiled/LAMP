@@ -29,13 +29,15 @@ export function AddUserForm({
   );
 
   return (
-    <section className="mt-5 rounded-xl border border-muted bg-surface p-5">
+    <section className="mt-5 rounded-xl border border-line bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink">Добавить пользователя</h2>
+        <h2 className="text-base font-semibold text-ink-strong">
+          Добавить пользователя
+        </h2>
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="inline-flex items-center gap-2 rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
         >
           <UserPlus className="h-4 w-4" strokeWidth={1.8} />
           {open ? "Свернуть" : "Открыть форму"}
@@ -48,7 +50,7 @@ export function AddUserForm({
       </p>
 
       {state.okMessage && (
-        <p className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p className="mt-3 rounded-lg border border-khaki-line bg-khaki-soft px-3 py-2 text-sm text-khaki-ink">
           {state.okMessage}
         </p>
       )}
@@ -56,10 +58,10 @@ export function AddUserForm({
       {open && (
         <form
           action={formAction}
-          className="mt-4 space-y-4 rounded-lg border border-muted bg-canvas p-4"
+          className="mt-4 space-y-4 rounded-lg border border-line bg-canvas p-4"
         >
           {state.formError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
               {state.formError}
             </div>
           )}
@@ -94,14 +96,14 @@ export function AddUserForm({
               id="field-role"
               name="role"
               defaultValue={state.values?.role ?? "RECRUITER"}
-              className="mt-1.5 w-full rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+              className="mt-1.5 w-full rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-accent"
             >
               <option value="RECRUITER">Рекрутер</option>
               <option value="HIRING_MANAGER">Нанимающий менеджер</option>
               <option value="ADMIN">Администратор</option>
             </select>
             {state.fieldErrors?.role && (
-              <p className="mt-1.5 text-xs text-red-600">
+              <p className="mt-1.5 text-xs text-danger">
                 {state.fieldErrors.role}
               </p>
             )}

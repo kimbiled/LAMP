@@ -190,7 +190,7 @@ export function ImportForm({
   if (entries.length === 0) {
     return (
       <div className="mt-4">
-        <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-muted bg-surface p-10 text-center transition hover:border-ink-soft">
+        <label className="flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-line bg-surface p-10 text-center transition hover:border-ink-soft">
           <FileJson className="h-8 w-8 text-ink-soft" strokeWidth={1.5} />
           <span className="text-sm font-medium text-ink">
             Выберите файл, выгруженный расширением
@@ -208,7 +208,7 @@ export function ImportForm({
         </label>
 
         {fileError && (
-          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
             {fileError}
           </p>
         )}
@@ -218,7 +218,7 @@ export function ImportForm({
 
   return (
     <div className="mt-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-muted bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
         <div>
           <p className="text-sm font-medium text-ink">
             В файле {entries.length}, выбрано {chosen.size}
@@ -240,7 +240,7 @@ export function ImportForm({
             value={jobId}
             onChange={(event) => setJobId(event.target.value)}
             disabled={running}
-            className="rounded-lg border border-muted bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent"
           >
             <option value="">Без вакансии</option>
             {jobs.map((job) => (
@@ -262,7 +262,7 @@ export function ImportForm({
         </div>
       </div>
 
-      <ul className="mt-3 divide-y divide-muted overflow-hidden rounded-xl border border-muted bg-surface">
+      <ul className="mt-3 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
         {entries.map((entry) => {
           const state = states[entry.url] ?? { kind: "waiting" };
           const name = entry.hints?.fullName || entry.fileName;
@@ -314,14 +314,12 @@ function RowStatus({ state }: { state: RowState }) {
   }
 
   if (state.kind === "running") {
-    return (
-      <Loader2 className="ml-auto h-4 w-4 animate-spin text-ink-soft" />
-    );
+    return <Loader2 className="ml-auto h-4 w-4 animate-spin text-ink-soft" />;
   }
 
   if (state.kind === "failed") {
     return (
-      <span className="inline-flex items-center gap-1 text-red-700">
+      <span className="inline-flex items-center gap-1 text-danger">
         <X className="h-3.5 w-3.5" strokeWidth={2} />
         {state.message}
       </span>
@@ -343,14 +341,14 @@ function RowStatus({ state }: { state: RowState }) {
     <div className="space-y-0.5">
       <Link
         href={`/candidates/${state.candidateId}`}
-        className="inline-flex items-center gap-1 font-medium text-green-700 hover:underline"
+        className="inline-flex items-center gap-1 font-medium text-khaki-ink hover:underline"
       >
         <Check className="h-3.5 w-3.5" strokeWidth={2} />
         заведён · {state.score}%
       </Link>
 
       {state.duplicates.length > 0 && (
-        <p className="inline-flex items-center gap-1 text-amber-700">
+        <p className="inline-flex items-center gap-1 text-accent-ink">
           <AlertTriangle className="h-3 w-3" strokeWidth={2} />
           похож на {state.duplicates[0].fullName}
         </p>

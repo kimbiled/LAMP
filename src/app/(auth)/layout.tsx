@@ -16,7 +16,7 @@ export default function AuthLayout({
         <span className="text-lg font-semibold text-ink-strong">LAMP</span>
       </Link>
 
-      <div className="w-full max-w-sm rounded-2xl border border-muted bg-surface p-7">
+      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-7">
         {children}
       </div>
 

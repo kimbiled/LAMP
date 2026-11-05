@@ -9,7 +9,6 @@ import {
   ThumbsDown,
   ThumbsUp,
   Wand2,
-  X,
 } from "lucide-react";
 import {
   decideAfterInterview,
@@ -24,6 +23,10 @@ import type { CalendarDay } from "@/lib/calendar";
 import { Linkify } from "@/components/linkify";
 import { MeetingLinkButton } from "@/components/meeting-link-button";
 import { CANDIDATE_FORMS, plural } from "@/lib/format";
+import { Modal as Dialog, useConfirm } from "@/components/ui/dialog";
+import { NETWORK_ERROR, useToast } from "@/components/ui/toast";
+import { ALERT_CLASSES, buttonClass, inputClass } from "@/components/ui/styles";
+import { WE_DECLINED_REASONS } from "@/lib/rejection";
 
 // Недельная сетка интервью.
 //
@@ -73,14 +76,14 @@ const SLOT_HEIGHT = 44;
 // зелёный — рекомендован дальше, красный — отказ. Пока решения нет,
 // цвет показывает состояние самой встречи.
 const STATUS_STYLES: Record<CalendarEvent["status"], string> = {
-  SCHEDULED: "bg-accent/30 border-accent/60 text-ink",
-  COMPLETED: "bg-canvas border-muted text-ink",
-  CANCELED: "bg-muted border-muted text-ink-soft line-through",
+  SCHEDULED: "bg-glow border-accent text-ink",
+  COMPLETED: "bg-canvas border-line text-ink",
+  CANCELED: "bg-muted border-line text-ink-soft line-through",
 };
 
 const DECISION_STYLES = {
-  NEXT: "bg-green-100 border-green-400 text-green-900",
-  REJECT: "bg-red-100 border-red-400 text-red-900",
+  NEXT: "bg-khaki-soft border-khaki text-khaki-ink",
+  REJECT: "bg-danger-soft border-danger text-danger-ink",
 } as const;
 
 // text-xs с leading-snug: 12 пикселей на 1,375.
@@ -193,7 +196,7 @@ function GroupList({
         Нажмите на человека, чтобы открыть его встречу.
       </p>
 
-      <ul className="divide-y divide-muted overflow-hidden rounded-lg border border-muted">
+      <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line">
         {events.map((event) => (
           <li key={event.id}>
             <button
@@ -245,7 +248,7 @@ const TYPES = [
 ];
 
 const fieldClass =
-  "mt-1.5 w-full rounded-lg border border-muted bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30";
+  "mt-1.5 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-accent";
 
 export function WeekCalendar({
   days,
@@ -293,15 +296,15 @@ export function WeekCalendar({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-muted bg-surface">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
         <div className="min-w-[720px]">
           {/* Шапка с днями недели */}
-          <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-muted">
+          <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-line">
             <div />
             {days.map((day) => (
               <div
                 key={day.date}
-                className={`border-l border-muted px-2 py-2 text-center ${
+                className={`border-l border-line px-2 py-2 text-center ${
                   day.isWeekend ? "bg-canvas" : ""
                 }`}
               >
@@ -344,7 +347,7 @@ export function WeekCalendar({
               return (
                 <div
                   key={day.date}
-                  className={`relative border-l border-muted ${
+                  className={`relative border-l border-line ${
                     day.isWeekend ? "bg-canvas" : ""
                   }`}
                 >
@@ -352,7 +355,7 @@ export function WeekCalendar({
                   {hours.map((item) => (
                     <div
                       key={item.hour}
-                      className="pointer-events-none absolute right-0 left-0 border-t border-muted/70"
+                      className="pointer-events-none absolute right-0 left-0 border-t border-line/70"
                       style={{ top: offsetOf(item.hour * 60) }}
                     />
                   ))}
@@ -364,6 +367,11 @@ export function WeekCalendar({
                         key={minutes}
                         type="button"
                         title={`Назначить на ${minuteText(minutes)}`}
+                        // Больше сотни пустых ячеек не должны стоять на пути
+                        // клавиши Tab: с клавиатуры встречу назначают кнопкой
+                        // «Назначить интервью» над календарём.
+                        tabIndex={-1}
+                        aria-hidden
                         onClick={() =>
                           setDialog({
                             kind: "create",
@@ -371,7 +379,7 @@ export function WeekCalendar({
                             time: minuteText(minutes),
                           })
                         }
-                        className="absolute right-0 left-0 transition hover:bg-accent/10"
+                        className="absolute right-0 left-0 transition hover:bg-warm"
                         style={{ top: offsetOf(minutes), height: SLOT_HEIGHT }}
                       />
                     ))}
@@ -379,10 +387,10 @@ export function WeekCalendar({
                   {/* Отметка текущего времени */}
                   {nowMarker && nowMarker.date === day.date && (
                     <div
-                      className="pointer-events-none absolute right-0 left-0 z-10 border-t-2 border-red-500"
+                      className="pointer-events-none absolute right-0 left-0 z-10 border-t-2 border-danger"
                       style={{ top: offsetOf(nowMarker.minutes) }}
                     >
-                      <span className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-red-500" />
+                      <span className="absolute -top-1 -left-1 h-2 w-2 rounded-full bg-danger" />
                     </div>
                   )}
 
@@ -454,7 +462,7 @@ export function WeekCalendar({
                           <span className="truncate">
                             {cluster.events[0].timeText}
                           </span>
-                          <span className="shrink-0 rounded bg-ink-strong px-1 text-[10px] leading-4 text-canvas">
+                          <span className="shrink-0 rounded bg-ink-strong px-1 text-xs leading-4 text-canvas">
                             {count}
                           </span>
                         </span>
@@ -573,6 +581,8 @@ function minuteText(minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
+// Окна календаря — общее окно LAMP: закрывается по Esc,
+// держит фокус внутри и понятно экранному диктору.
 function Modal({
   title,
   children,
@@ -583,29 +593,9 @@ function Modal({
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink-strong/40 p-4 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-muted bg-surface p-5"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-base font-medium text-ink">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Закрыть"
-            className="text-ink-soft transition hover:text-ink"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
-        </div>
-
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
+    <Dialog open onClose={onClose} title={title}>
+      {children}
+    </Dialog>
   );
 }
 
@@ -627,44 +617,78 @@ function EventDetails({
   const [pending, startTransition] = useTransition();
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Отказ — в два шага: сначала причина, потом подтверждение.
+  // Раньше кандидат уходил в отказ с одного нажатия.
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
 
-  // Решение по итогам встречи. Записывает мнение в фидбэки, закрывает
+  // Решение по итогам встречи. Записывает мнение в отзывы, закрывает
   // интервью и двигает кандидата — дальше по воронке или в отказ.
   function decide(decision: "NEXT" | "REJECT") {
     const formData = new FormData();
     formData.set("interviewId", event.id);
     formData.set("decision", decision);
     formData.set("comment", comment);
+    if (decision === "REJECT" && reason) {
+      formData.set("rejectionReason", reason);
+    }
 
     startTransition(async () => {
-      const result = await decideAfterInterview(formData);
+      try {
+        const result = await decideAfterInterview(formData);
 
-      if (result.formError) {
-        setError(result.formError);
-        return;
+        if (result.formError) {
+          setError(result.formError);
+          return;
+        }
+
+        toast.success(
+          decision === "NEXT"
+            ? "Решение записано: рекомендован дальше"
+            : "Решение записано: отказ",
+        );
+        onDone();
+        router.refresh();
+      } catch {
+        setError(NETWORK_ERROR);
       }
-
-      onDone();
-      router.refresh();
     });
   }
 
-  function changeStatus(status: string) {
+  async function changeStatus(status: string) {
+    if (status === "CANCELED") {
+      const confirmed = await confirm({
+        title: "Отменить встречу?",
+        message: `${event.candidateName} — ${event.timeText}. Встреча останется в истории как отменённая.`,
+        confirmLabel: "Отменить встречу",
+        cancelLabel: "Не отменять",
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+
     const formData = new FormData();
     formData.set("interviewId", event.id);
     formData.set("status", status);
 
     startTransition(async () => {
-      await setInterviewStatus(formData);
-      onDone();
-      router.refresh();
+      try {
+        await setInterviewStatus(formData);
+        toast.success(status === "CANCELED" ? "Встреча отменена" : "Встреча отмечена проведённой");
+        onDone();
+        router.refresh();
+      } catch {
+        toast.error(NETWORK_ERROR);
+      }
     });
   }
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="rounded-lg border border-muted bg-canvas p-3">
+      <div className="rounded-lg border border-line bg-canvas p-3">
         {/* В заголовке окна стоит имя, поэтому должность идёт первой
             строкой: без неё непонятно, на какую роль человек идёт. */}
         {event.candidatePosition && (
@@ -696,16 +720,16 @@ function EventDetails({
       )}
 
       {canDecide && !event.decision && (
-        <div className="rounded-lg border border-muted bg-canvas p-3">
+        <div className="rounded-lg border border-line bg-canvas p-3">
           <p className="text-sm font-medium text-ink">Итог встречи</p>
           <p className="mt-1 text-xs text-ink-soft">
             {canMoveStage
-              ? "Решение попадёт в фидбэки кандидата, встреча отметится проведённой, а кандидат перейдёт дальше по воронке или в отказ."
-              : "Решение попадёт в фидбэки кандидата, а встреча отметится проведённой. Этап меняет рекрутер."}
+              ? "Решение попадёт в отзывы кандидата, встреча отметится проведённой, а кандидат перейдёт дальше по воронке или в отказ."
+              : "Решение попадёт в отзывы кандидата, а встреча отметится проведённой. Этап меняет рекрутер."}
           </p>
 
           {error && (
-            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <p role="alert" className={`mt-2 ${ALERT_CLASSES.danger}`}>
               {error}
             </p>
           )}
@@ -716,35 +740,88 @@ function EventDetails({
             rows={2}
             placeholder="Пара слов — по желанию"
             aria-label="Комментарий к решению"
-            className="mt-2 w-full rounded-lg border border-muted bg-surface px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className={inputClass(false, "mt-2")}
           />
 
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => decide("NEXT")}
-              disabled={pending}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-60"
-            >
-              <ThumbsUp className="h-4 w-4" strokeWidth={2} />
-              Рекомендую дальше
-            </button>
-            <button
-              type="button"
-              onClick={() => decide("REJECT")}
-              disabled={pending}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
-            >
-              <ThumbsDown className="h-4 w-4" strokeWidth={2} />
-              Отказ
-            </button>
-          </div>
+          {rejecting ? (
+            <div className="mt-3">
+              <p className="text-sm font-medium text-ink">
+                Причина отказа
+              </p>
+              <p className="text-xs text-ink-soft">
+                Пригодится в аналитике. Можно не выбирать.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {WE_DECLINED_REASONS.map((item) => {
+                  const chosen = reason === item.code;
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      aria-pressed={chosen}
+                      onClick={() => setReason(chosen ? "" : item.code)}
+                      className={`inline-flex min-h-9 items-center rounded-lg border px-3 py-1.5 text-left text-sm transition ${
+                        chosen
+                          ? "border-danger bg-danger-soft font-medium text-danger-ink"
+                          : "border-line-strong bg-surface text-ink hover:bg-canvas"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejecting(false);
+                    setReason("");
+                  }}
+                  disabled={pending}
+                  className={buttonClass({ variant: "secondary" })}
+                >
+                  Назад
+                </button>
+                <button
+                  type="button"
+                  onClick={() => decide("REJECT")}
+                  disabled={pending}
+                  className={buttonClass({ variant: "danger" })}
+                >
+                  <ThumbsDown className="h-4 w-4" strokeWidth={2} aria-hidden />
+                  Подтвердить отказ
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => decide("NEXT")}
+                disabled={pending}
+                className={buttonClass({ variant: "positive", className: "flex-1" })}
+              >
+                <ThumbsUp className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Рекомендую дальше
+              </button>
+              <button
+                type="button"
+                onClick={() => setRejecting(true)}
+                disabled={pending}
+                className={buttonClass({ variant: "danger-outline" })}
+              >
+                <ThumbsDown className="h-4 w-4" strokeWidth={2} aria-hidden />
+                Отказ
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       <Link
         href={`/candidates/${event.candidateId}`}
-        className="block rounded-lg border border-muted px-3 py-2 text-center text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+        className={buttonClass({ variant: "secondary", full: true })}
       >
         Открыть карточку кандидата
       </Link>
@@ -755,7 +832,7 @@ function EventDetails({
             type="button"
             onClick={onEdit}
             disabled={pending}
-            className="flex-1 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover disabled:opacity-60"
+            className={buttonClass({ variant: "primary", className: "flex-1" })}
           >
             {/* Не «Перенести»: за этой кнопкой меняется всё — тип, время,
                 интервьюер и комментарий со ссылкой на встречу. По старому
@@ -768,7 +845,7 @@ function EventDetails({
               type="button"
               onClick={() => changeStatus("COMPLETED")}
               disabled={pending}
-              className="rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink disabled:opacity-60"
+              className={buttonClass({ variant: "secondary" })}
             >
               Проведено
             </button>
@@ -779,9 +856,9 @@ function EventDetails({
               type="button"
               onClick={() => changeStatus("CANCELED")}
               disabled={pending}
-              className="rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-red-300 hover:text-red-600 disabled:opacity-60"
+              className={buttonClass({ variant: "danger-outline" })}
             >
-              Отменить
+              Отменить встречу
             </button>
           )}
         </div>
@@ -864,7 +941,7 @@ function InterviewForm({
       )}
 
       {state.formError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
           {state.formError}
         </div>
       )}
@@ -892,7 +969,7 @@ function InterviewForm({
             ))}
           </select>
           {state.fieldErrors?.candidateId && (
-            <p className="mt-1.5 text-xs text-red-600">
+            <p className="mt-1.5 text-xs text-danger">
               {state.fieldErrors.candidateId}
             </p>
           )}
@@ -957,7 +1034,7 @@ function InterviewForm({
         </div>
       </div>
       {state.fieldErrors?.date && (
-        <p className="text-xs text-red-600">{state.fieldErrors.date}</p>
+        <p className="text-xs text-danger">{state.fieldErrors.date}</p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -1007,7 +1084,7 @@ function InterviewForm({
       </div>
 
       {/* Автоподбор: система смотрит, когда оба свободны */}
-      <div className="rounded-lg border border-muted bg-canvas p-3">
+      <div className="rounded-lg border border-line bg-canvas p-3">
         <button
           type="button"
           onClick={pickTime}
@@ -1044,8 +1121,8 @@ function InterviewForm({
                   }}
                   className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
                     chosen
-                      ? "border-accent bg-accent/25 text-ink"
-                      : "border-muted bg-surface text-ink-soft hover:border-ink-soft hover:text-ink"
+                      ? "border-khaki bg-khaki-soft text-khaki-ink"
+                      : "border-line bg-surface text-ink-soft hover:border-ink-soft hover:text-ink"
                   }`}
                 >
                   {slot.label}

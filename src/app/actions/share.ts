@@ -19,6 +19,8 @@ export type GuestFeedbackState = {
   formError?: string;
   fieldErrors?: Record<string, string>;
   success?: string;
+  // Что ввёл гость: при ошибке возвращаем, чтобы текст не пропал.
+  values?: { authorName?: string; result?: string; comment?: string };
 };
 
 const MAX_GUEST_FEEDBACKS_PER_LINK = 20;
@@ -160,7 +162,7 @@ export async function submitGuestFeedback(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
-    return { fieldErrors };
+    return { fieldErrors, values: { authorName, result, comment } };
   }
 
   // Простая защита от спама по одной ссылке.
@@ -206,7 +208,7 @@ export async function submitGuestFeedback(
     companyId: link.companyId,
     userIds: await jobWatchers(candidate?.jobId ?? null),
     type: "FEEDBACK_ADDED",
-    title: `Фидбэк по ссылке: ${candidate?.fullName ?? "кандидат"}`,
+    title: `Отзыв по ссылке: ${candidate?.fullName ?? "кандидат"}`,
     body: `${authorName} оставил отзыв`,
     entityType: "Candidate",
     entityId: link.candidateId,
@@ -215,5 +217,5 @@ export async function submitGuestFeedback(
   revalidatePath(`/share/${token}`);
   revalidatePath(`/candidates/${link.candidateId}`);
 
-  return { success: "Спасибо! Фидбэк сохранён" };
+  return { success: "Спасибо! Отзыв сохранён" };
 }

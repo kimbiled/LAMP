@@ -1,3 +1,4 @@
+import { daysAgo } from "@/lib/time";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { requireScope } from "@/lib/tenant";
@@ -35,7 +36,7 @@ export default async function AnalyticsPage({
   const { period, job, recruiter } = await searchParams;
 
   const days = PERIODS.find((item) => item.value === (period ?? ""))?.days ?? 0;
-  const since = days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
+  const since = daysAgo(days);
 
   // Отбираем кандидатов, попадающих под фильтры. Дальше считаем только по ним.
   const candidateWhere = {
@@ -176,7 +177,7 @@ export default async function AnalyticsPage({
   const reasonsTotal = reasons.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <h1 className="text-xl font-semibold text-ink-strong">Аналитика</h1>
       <p className="mt-1 text-sm text-ink-soft">
         {total > 0
@@ -189,7 +190,7 @@ export default async function AnalyticsPage({
           name="period"
           defaultValue={period ?? ""}
           aria-label="Период"
-          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
         >
           {PERIODS.map((item) => (
             <option key={item.label} value={item.value}>
@@ -202,7 +203,7 @@ export default async function AnalyticsPage({
           name="job"
           defaultValue={job ?? ""}
           aria-label="Вакансия"
-          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
         >
           <option value="">Все вакансии</option>
           {jobs.map((item) => (
@@ -216,7 +217,7 @@ export default async function AnalyticsPage({
           name="recruiter"
           defaultValue={recruiter ?? ""}
           aria-label="Рекрутер"
-          className="rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
         >
           <option value="">Все рекрутеры</option>
           {recruiters.map((item) => (
@@ -228,7 +229,7 @@ export default async function AnalyticsPage({
 
         <button
           type="submit"
-          className="rounded-lg border border-muted px-4 py-2.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+          className="rounded-lg border border-line-strong px-4 py-2.5 text-sm text-ink transition hover:bg-canvas"
         >
           Показать
         </button>
@@ -238,7 +239,7 @@ export default async function AnalyticsPage({
         {metrics.map((metric) => (
           <div
             key={metric.label}
-            className="rounded-xl border border-muted bg-surface p-4"
+            className="rounded-xl border border-line bg-surface p-4 shadow-sm"
           >
             <p className="text-2xl font-semibold text-ink-strong">
               {metric.value}
@@ -248,8 +249,10 @@ export default async function AnalyticsPage({
         ))}
       </div>
 
-      <section className="mt-5 rounded-xl border border-muted bg-surface p-5">
-        <h2 className="text-sm font-medium text-ink">Воронка подбора</h2>
+      <section className="mt-5 rounded-xl border border-line bg-surface p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-ink-strong">
+          Воронка подбора
+        </h2>
         <p className="mt-1 text-xs text-ink-soft">
           Считается по истории: кандидат учитывается на ступени, если доходил до
           неё хотя бы раз — даже если сейчас уже получил отказ.
@@ -295,8 +298,10 @@ export default async function AnalyticsPage({
         )}
       </section>
 
-      <section className="mt-5 rounded-xl border border-muted bg-surface p-5">
-        <h2 className="text-sm font-medium text-ink">Причины отказов</h2>
+      <section className="mt-5 rounded-xl border border-line bg-surface p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-ink-strong">
+          Причины отказов
+        </h2>
         <p className="mt-1 text-xs text-ink-soft">
           Заполняется при переводе на «Отказ от нас» и «Отказ от кандидата».
           Причину можно пропустить — такие отказы сюда не попадают.

@@ -25,6 +25,14 @@ enum JobStatus {
   CLOSED
 }
 
+// Порядок значений важен: по нему база сортирует вакансии,
+// поэтому сверху самое срочное.
+enum JobPriority {
+  HIGH // высокий: закрываем в первую очередь
+  MEDIUM // средний: обычная плановая работа
+  LOW // фоновый: ищем без срока, когда есть время
+}
+
 enum StageKey {
   NEW
   CONTACT
@@ -97,14 +105,14 @@ enum NotificationType {
 // ---------- Компания и люди ----------
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
+  id          String   @id @default(cuid())
+  name        String
   // Постоянная ссылка на видеовстречу компании: один раз создали
   // комнату в Google Meet или Jitsi и вставляем её в интервью кнопкой.
   // Так не нужно подключать календарь Google по API.
   meetingLink String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   users         User[]
   stages        Stage[]
@@ -194,20 +202,21 @@ model Stage {
 }
 
 model Job {
-  id              String    @id @default(cuid())
+  id              String      @id @default(cuid())
   companyId       String
   title           String
   description     String?
   requirements    String?
   salaryMin       Int?
   salaryMax       Int?
-  currency        String    @default("KZT")
-  status          JobStatus @default(OPEN)
+  currency        String      @default("KZT")
+  status          JobStatus   @default(OPEN)
+  priority        JobPriority @default(MEDIUM)
   recruiterId     String?
   hiringManagerId String?
   createdById     String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   recruiter     User?       @relation("JobRecruiter", fields: [recruiterId], references: [id], onDelete: SetNull)
@@ -223,7 +232,7 @@ model Job {
 // ---------- Кандидаты ----------
 
 model Candidate {
-  id                String   @id @default(cuid())
+  id                String         @id @default(cuid())
   companyId         String
   jobId             String?
   stageId           String
@@ -241,7 +250,7 @@ model Candidate {
   // experienceYears человек пишет сам, а это — из его же дат.
   experienceMonths  Int?
   salaryExpectation Int?
-  currency          String   @default("KZT")
+  currency          String         @default("KZT")
   telegram          String?
   // Ключ файла с фотографией в хранилище. Вынута из резюме при
   // загрузке; отдаётся только через /api/candidates/[id]/photo,
@@ -260,9 +269,9 @@ model Candidate {
   rejectionReason   String?
   rejectionComment  String?
   createdById       String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  stageChangedAt    DateTime @default(now())
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  stageChangedAt    DateTime       @default(now())
 
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   job       Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)

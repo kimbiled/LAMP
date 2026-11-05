@@ -8,7 +8,7 @@ export default async function NewUserPage() {
   await requireScope("users.manage");
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="max-w-md">
       <h1 className="text-xl font-semibold text-ink-strong">
         Новый пользователь
       </h1>
@@ -16,7 +16,7 @@ export default async function NewUserPage() {
         Сотрудник получит доступ к рабочему пространству вашей компании
       </p>
 
-      <div className="mt-6 rounded-xl border border-muted bg-surface p-6">
+      <div className="mt-6 rounded-xl border border-line bg-surface p-6 shadow-sm">
         <NewUserForm />
       </div>
 

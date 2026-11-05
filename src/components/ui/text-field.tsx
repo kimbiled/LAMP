@@ -1,3 +1,5 @@
+import { ERROR_TEXT_CLASS, HINT_CLASS, LABEL_CLASS, inputClass } from "./styles";
+
 type TextFieldProps = {
   label: string;
   name: string;
@@ -28,7 +30,7 @@ export function TextField({
 
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
+      <label htmlFor={id} className={LABEL_CLASS}>
         {label}
       </label>
       <input
@@ -41,13 +43,11 @@ export function TextField({
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`mt-1.5 w-full rounded-lg border bg-surface px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-accent focus:ring-2 focus:ring-accent/30 ${
-          error ? "border-red-400" : "border-muted"
-        }`}
+        className={inputClass(error, "mt-1.5")}
       />
-      {hint && !error && <p className="mt-1.5 text-xs text-ink-soft">{hint}</p>}
+      {hint && !error && <p className={HINT_CLASS}>{hint}</p>}
       {error && (
-        <p id={`${id}-error`} className="mt-1.5 text-xs text-red-600">
+        <p id={`${id}-error`} role="alert" className={ERROR_TEXT_CLASS}>
           {error}
         </p>
       )}

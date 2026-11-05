@@ -21,7 +21,7 @@ export default async function ImportPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <BackButton fallbackHref="/candidates" fallbackLabel="К кандидатам" />
 
       <h1 className="mt-3 text-xl font-semibold text-ink-strong">

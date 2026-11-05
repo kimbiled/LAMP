@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExternalLink, Pencil, RefreshCw } from "lucide-react";
+import { ChevronDown, ExternalLink, Pencil, RefreshCw } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
+import { ChannelBadge } from "@/components/channel-badge";
 import {
   formatBirth,
   formatDate,
@@ -19,7 +20,6 @@ import {
   INTERVIEW_STATUS_LABELS,
   INTERVIEW_TYPE_LABELS,
   ROLE_LABELS,
-  SOURCE_CHANNEL_LABELS,
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { minutesToTime, placeInDay } from "@/lib/calendar";
@@ -36,6 +36,8 @@ import { FeedbackBlock } from "./feedback-block";
 import { ShareBlock } from "./share-block";
 import { TagsBlock } from "./tags-block";
 import { DeleteCandidateButton } from "./delete-button";
+import { buttonClass } from "@/components/ui/styles";
+import { ExperienceList } from "@/components/experience-list";
 
 export const metadata: Metadata = { title: "Кандидат — LAMP" };
 
@@ -183,9 +185,9 @@ export default async function CandidatePage({
   const birthText = formatBirth(candidate.birthDate);
   const tone = TONE_STYLES[stageTone(candidate.stage.key)];
 
-  // Имя, дата рождения, телефон и должность вынесены в шапку карточки,
-  // поэтому здесь остаётся только то, что там не поместилось.
-  const facts = [
+  // Главное для решения «звать или нет» — стаж и зарплатные ожидания.
+  // Раньше они лежали внизу левой колонки, теперь — в шапке, рядом с именем.
+  const keyFacts = [
     {
       label: "Опыт",
       value:
@@ -200,13 +202,11 @@ export default async function CandidatePage({
           ? formatMoney(candidate.salaryExpectation, candidate.currency)
           : null,
     },
-    // Канал привлечения: сами нашли, откликнулся сам или привели свои.
-    {
-      label: "Канал",
-      value: candidate.sourceChannel
-        ? SOURCE_CHANNEL_LABELS[candidate.sourceChannel]
-        : null,
-    },
+    { label: "Email", value: candidate.email },
+  ].filter((fact) => fact.value);
+
+  // Остальное — в блоке «Информация».
+  const facts = [
     // Пришедшие с hh несут ссылку на исходное резюме: оттуда видно,
     // что человек поменял у себя после того, как мы его завели.
     { label: "Источник", value: candidate.source, href: candidate.sourceUrl },
@@ -214,7 +214,7 @@ export default async function CandidatePage({
   ].filter((fact) => fact.value);
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <BackButton
         fallbackHref="/candidates"
         fallbackLabel="К списку кандидатов"
@@ -242,6 +242,7 @@ export default async function CandidatePage({
                   name={candidate.stage.name}
                   stageKey={candidate.stage.key}
                 />
+                <ChannelBadge channel={candidate.sourceChannel} />
               </div>
 
               {birthText && (
@@ -279,24 +280,29 @@ export default async function CandidatePage({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {canEdit && (
-              <Link
-                href={`/candidates/${candidate.id}/edit`}
-                className="inline-flex items-center gap-2 rounded-lg border border-muted px-3 py-2 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
-              >
-                <Pencil className="h-4 w-4" strokeWidth={1.8} />
-                Изменить
-              </Link>
-            )}
-            {scope.can("candidates.delete") && (
-              <DeleteCandidateButton
-                candidateId={candidate.id}
-                candidateName={candidate.fullName}
-              />
-            )}
-          </div>
+          {canEdit && (
+            <Link
+              href={`/candidates/${candidate.id}/edit`}
+              className={buttonClass({ variant: "secondary" })}
+            >
+              <Pencil className="h-4 w-4" strokeWidth={1.8} />
+              Изменить
+            </Link>
+          )}
         </div>
+
+        {keyFacts.length > 0 && (
+          <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2 border-t border-line pt-4">
+            {keyFacts.map((fact) => (
+              <div key={fact.label} className="min-w-0">
+                <dt className="text-xs text-ink-soft">{fact.label}</dt>
+                <dd className="truncate text-base font-medium text-ink">
+                  {fact.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         <TagsBlock
           candidateId={candidate.id}
@@ -330,7 +336,7 @@ export default async function CandidatePage({
             когда открывают карточку отказанного кандидата. */}
         {rejectionSide(candidate.stage.key) &&
           (candidate.rejectionReason || candidate.rejectionComment) && (
-            <div className="mt-2 rounded-xl border border-muted bg-surface px-4 py-3">
+            <div className="mt-2 rounded-xl border border-line bg-surface px-4 py-3">
               <p className="text-xs text-ink-soft">Причина</p>
               <p className="mt-0.5 text-sm text-ink">
                 {rejectionLabel(candidate.rejectionReason) ?? "не указана"}
@@ -344,13 +350,16 @@ export default async function CandidatePage({
           )}
       </div>
 
-      {/* Три части: фидбэк, основное и история.
-          Справа вверху то, что происходит с кандидатом прямо сейчас:
-          встречи и мнения о них. Слева — то, что о нём известно:
-          опыт, образование, резюме. На телефоне колонок нет, и порядок
-          разметки становится обычным: интервью и фидбэк сразу под этапом. */}
-      <div className="mt-5 grid gap-4 md:grid-cols-[1.2fr_1fr] md:grid-rows-[auto_1fr]">
-        <div className="space-y-4 md:col-start-2 md:row-start-1">
+      {/* Две колонки от 1024 пикселей: слева то, что о человеке известно
+          (встречи, опыт, резюме), справа то, что о нём думают (отзывы,
+          ссылка для коллег, история). Уже — один столбец, и порядок
+          разметки становится обычным: интервью, отзывы, остальное.
+
+          grid-cols-1 на телефоне обязателен: без него столбец
+          растягивается по самому широкому элементу внутри, и страница
+          становится шире экрана. */}
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] lg:grid-rows-[auto_1fr] lg:items-start">
+        <div className="lg:col-start-1 lg:row-start-1">
           <InterviewsBlock
             candidateId={candidate.id}
             interviews={interviewViews}
@@ -360,21 +369,94 @@ export default async function CandidatePage({
             defaultInterviewerId={scope.session.user.id}
             meetingLink={company?.meetingLink ?? null}
           />
-
-          <FeedbackBlock
-            candidateId={candidate.id}
-            feedbacks={feedbackViews}
-            currentStageId={candidate.stage.id}
-            canCreate={scope.can("feedback.create")}
-            canManage={scope.can("feedback.manage")}
-          />
         </div>
 
-        <div className="space-y-4 md:col-start-1 md:row-start-1 md:row-span-2">
+        {/* Колонка идёт вместе со страницей, без своей прокрутки.
+            Раньше у неё была отдельная полоса прокрутки, и список
+            отзывов выглядел обрезанным посередине карточки. */}
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <div className="space-y-5">
+            <FeedbackBlock
+              candidateId={candidate.id}
+              feedbacks={feedbackViews}
+              currentStageId={candidate.stage.id}
+              canCreate={scope.can("feedback.create")}
+              canManage={scope.can("feedback.manage")}
+            />
+
+            {/* «Поделиться» — рядом с мнениями: ссылку отправляют
+                именно затем, чтобы собрать ещё одно мнение. */}
+            <ShareBlock
+              candidateId={candidate.id}
+              links={shareLinkViews}
+              canShare={scope.can("share.create")}
+              baseUrl={publicBaseUrl()}
+            />
+
+            {/* История свёрнута: это длинная лента, которая нужна редко —
+                разобраться, кто и когда двигал человека. Открытой она
+                отжимала вниз всё остальное.
+
+                Обычный details, а не своя кнопка с состоянием: страница
+                серверная, и так разворачивание работает даже до того,
+                как загрузится код страницы. */}
+            <details className="group rounded-xl border border-line bg-warm p-5 shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
+                <span className="text-base font-semibold text-ink-strong">
+                  История
+                  <span className="ml-1.5 text-ink-soft">
+                    {candidate.history.length}
+                  </span>
+                </span>
+
+                <span className="flex items-center gap-1 text-xs text-ink-soft">
+                  <span className="group-open:hidden">Показать</span>
+                  <span className="hidden group-open:inline">Свернуть</span>
+                  <ChevronDown
+                    className="h-4 w-4 transition group-open:rotate-180"
+                    strokeWidth={1.8}
+                  />
+                </span>
+              </summary>
+
+              <ol className="mt-3 space-y-3">
+                {candidate.history.map((item) => (
+                  <li key={item.id} className="flex gap-3">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                    <div className="min-w-0">
+                      <p className="text-sm text-ink">
+                        {HISTORY_LABELS[item.type]}
+                        {item.type === "STAGE_CHANGED" && item.toStage && (
+                          <span className="text-ink-soft">
+                            {": "}
+                            {item.fromStage?.name ?? "—"} → {item.toStage.name}
+                          </span>
+                        )}
+                      </p>
+                      {item.comment && (
+                        <p className="mt-0.5 text-sm text-ink-soft italic">
+                          «{item.comment}»
+                        </p>
+                      )}
+                      <p className="text-xs text-ink-soft">
+                        {formatDateTime(item.createdAt)}
+                        {item.actorName ? ` · ${item.actorName}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          </div>
+        </div>
+
+        <div className="space-y-5 lg:col-start-1 lg:row-start-2">
           {candidate.experience.length === 0 &&
             candidate.resumes.length > 0 && (
-              <section className="rounded-xl border border-dashed border-muted bg-surface p-5">
-                <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
+              <section className="rounded-xl border border-dashed border-line bg-surface p-5">
+                <h2 className="text-base font-semibold text-ink-strong">
+                  Опыт работы
+                </h2>
                 <p className="mt-1 text-sm text-ink-soft">
                   Не распознан. Резюме загружено — можно прочитать его ещё раз
                   или заполнить опыт вручную через «Изменить».
@@ -388,7 +470,7 @@ export default async function CandidatePage({
                     />
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent-hover"
+                      className={buttonClass({ variant: "primary" })}
                     >
                       <RefreshCw className="h-4 w-4" strokeWidth={2} />
                       Распознать из резюме
@@ -399,40 +481,24 @@ export default async function CandidatePage({
             )}
 
           {candidate.experience.length > 0 && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Опыт работы</h2>
-              <ul className="mt-3 space-y-4">
-                {candidate.experience.map((item) => (
-                  <li
-                    key={item.id}
-                    className="border-l-2 border-accent/50 pl-3"
-                  >
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <p className="text-sm font-medium text-ink">
-                        {item.position ?? "Должность не указана"}
-                      </p>
-                      {item.period && (
-                        <p className="text-xs text-ink-soft">{item.period}</p>
-                      )}
-                    </div>
-                    <p className="text-sm text-ink-soft">{item.companyName}</p>
-                    {item.description && (
-                      <p className="mt-1.5 text-sm whitespace-pre-line text-ink">
-                        {item.description}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Опыт работы
+              </h2>
+              <div className="mt-4">
+                <ExperienceList items={candidate.experience} />
+              </div>
             </section>
           )}
 
           {candidate.education.length > 0 && (
-            <section className="rounded-xl border border-muted bg-surface p-5">
-              <h2 className="text-sm font-medium text-ink">Образование</h2>
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-ink-strong">
+                Образование
+              </h2>
               <ul className="mt-3 space-y-3">
                 {candidate.education.map((item) => (
-                  <li key={item.id} className="border-l-2 border-muted pl-3">
+                  <li key={item.id} className="border-l-2 border-line pl-3">
                     <p className="text-sm font-medium text-ink">
                       {item.institution}
                     </p>
@@ -448,18 +514,12 @@ export default async function CandidatePage({
             </section>
           )}
 
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">Информация</h2>
+          <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-ink-strong">
+              Информация
+            </h2>
 
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
-              {candidate.email && (
-                <div className="min-w-0">
-                  <dt className="text-xs text-ink-soft">Email</dt>
-                  <dd className="truncate text-sm text-ink">
-                    {candidate.email}
-                  </dd>
-                </div>
-              )}
               {candidate.telegram && (
                 <div>
                   <dt className="text-xs text-ink-soft">Telegram</dt>
@@ -494,9 +554,9 @@ export default async function CandidatePage({
               <div className="mt-4">
                 <p className="text-xs text-ink-soft">Навыки</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {candidate.skills.map((skill) => (
+                  {candidate.skills.map((skill, index) => (
                     <span
-                      key={skill}
+                      key={`${skill}-${index}`}
                       className="rounded-md bg-muted px-2 py-0.5 text-xs text-ink"
                     >
                       {skill}
@@ -510,9 +570,9 @@ export default async function CandidatePage({
               <div className="mt-3">
                 <p className="text-xs text-ink-soft">Языки</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {candidate.languages.map((language) => (
+                  {candidate.languages.map((language, index) => (
                     <span
-                      key={language}
+                      key={`${language}-${index}`}
                       className="rounded-md bg-muted px-2 py-0.5 text-xs text-ink"
                     >
                       {language}
@@ -523,7 +583,7 @@ export default async function CandidatePage({
             )}
 
             {candidate.note && (
-              <div className="mt-4 border-t border-muted pt-3">
+              <div className="mt-4 border-t border-line pt-3">
                 <p className="text-xs text-ink-soft">Комментарий</p>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
                   {candidate.note}
@@ -538,48 +598,19 @@ export default async function CandidatePage({
             canUpload={canEdit}
           />
 
-          <ShareBlock
-            candidateId={candidate.id}
-            links={shareLinkViews}
-            canShare={scope.can("share.create")}
-            baseUrl={publicBaseUrl()}
-          />
-        </div>
-
-        <div className="md:col-start-2 md:row-start-2">
-          <section className="rounded-xl border border-muted bg-surface p-5">
-            <h2 className="text-sm font-medium text-ink">История</h2>
-
-            <ol className="mt-3 space-y-3">
-              {candidate.history.map((item) => (
-                <li key={item.id} className="flex gap-3">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                  <div className="min-w-0">
-                    <p className="text-sm text-ink">
-                      {HISTORY_LABELS[item.type]}
-                      {item.type === "STAGE_CHANGED" && item.toStage && (
-                        <span className="text-ink-soft">
-                          {": "}
-                          {item.fromStage?.name ?? "—"} → {item.toStage.name}
-                        </span>
-                      )}
-                    </p>
-                    {item.comment && (
-                      <p className="mt-0.5 text-sm text-ink-soft italic">
-                        «{item.comment}»
-                      </p>
-                    )}
-                    <p className="text-xs text-ink-soft">
-                      {formatDateTime(item.createdAt)}
-                      {item.actorName ? ` · ${item.actorName}` : ""}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
         </div>
       </div>
+
+      {/* Удаление — отдельно, в самом низу. Раньше кнопка стояла вплотную
+          к «Изменить» и выглядела так же: промахнуться было легко. */}
+      {scope.can("candidates.delete") && (
+        <div className="mt-10 flex justify-end border-t border-line pt-5">
+          <DeleteCandidateButton
+            candidateId={candidate.id}
+            candidateName={candidate.fullName}
+          />
+        </div>
+      )}
     </div>
   );
 }

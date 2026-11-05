@@ -58,8 +58,20 @@ describe("Видимость вакансий и кандидатов", () => {
 
   it("нанимающий менеджер ограничен своими вакансиями", () => {
     expect(jobVisibilityFilter(manager)).toEqual({ hiringManagerId: "u3" });
+  });
+
+  // Интервьюером назначают любого сотрудника, и ему приходит «Нужен отзыв».
+  // Раньше менеджер чужой вакансии по этой ссылке получал «не найдено».
+  it("менеджер видит кандидатов своих вакансий и тех, у кого он интервьюер", () => {
     expect(candidateVisibilityFilter(manager)).toEqual({
-      job: { hiringManagerId: "u3" },
+      AND: [
+        {
+          OR: [
+            { job: { hiringManagerId: "u3" } },
+            { interviews: { some: { interviewerId: "u3" } } },
+          ],
+        },
+      ],
     });
   });
 });

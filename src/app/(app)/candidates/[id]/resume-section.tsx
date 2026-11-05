@@ -38,11 +38,11 @@ export function ResumeSection({
   const action = attachResume.bind(null, candidateId);
 
   return (
-    <section className="rounded-xl border border-muted bg-surface p-5">
-      <h2 className="text-sm font-medium text-ink">Резюме</h2>
+    <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+      <h2 className="text-base font-semibold text-ink-strong">Резюме</h2>
 
       {current ? (
-        <div className="mt-3 rounded-lg border border-muted bg-canvas p-3">
+        <div className="mt-3 rounded-lg border border-line bg-canvas p-3">
           <div className="flex items-start gap-3">
             <FileText
               className="mt-0.5 h-5 w-5 shrink-0 text-ink-soft"
@@ -61,7 +61,7 @@ export function ResumeSection({
                   <span
                     className={
                       current.textSource.includes("OCR")
-                        ? "rounded bg-accent/25 px-1.5 py-0.5 text-ink"
+                        ? "rounded bg-glow px-1.5 py-0.5 text-ink"
                         : "rounded bg-muted px-1.5 py-0.5 text-ink-soft"
                     }
                   >
@@ -82,14 +82,14 @@ export function ResumeSection({
               href={`/api/resumes/${current.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
             >
               <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
               Открыть
             </a>
             <a
               href={`/api/resumes/${current.id}?download`}
-              className="inline-flex items-center gap-2 rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
+              className="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm text-ink transition hover:border-ink-soft"
             >
               <Download className="h-4 w-4" strokeWidth={1.8} />
               Скачать
@@ -101,7 +101,7 @@ export function ResumeSection({
                 <button
                   type="submit"
                   title="Перечитать файл и заполнить опыт работы и образование"
-                  className="inline-flex items-center gap-2 rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+                  className="inline-flex items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
                 >
                   <RefreshCw className="h-4 w-4" strokeWidth={1.8} />
                   Распознать заново
@@ -135,12 +135,11 @@ export function ResumeSection({
       )}
 
       {canUpload && (
-        <div className="mt-4 border-t border-muted pt-4">
+        <div className="mt-4 border-t border-line pt-4">
           <ResumeUploadForm
             action={action}
             submitLabel={current ? "Заменить" : "Загрузить"}
             pendingLabel="Загружаем…"
-            compact
           />
         </div>
       )}

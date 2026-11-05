@@ -47,7 +47,10 @@ export function UserRow({
     initialState,
   );
 
-  const send = (action: (data: FormData) => void, values: [string, string][]) => {
+  const send = (
+    action: (data: FormData) => void,
+    values: [string, string][],
+  ) => {
     const formData = new FormData();
     for (const [key, value] of values) formData.set(key, value);
     startTransition(() => action(formData));
@@ -62,18 +65,18 @@ export function UserRow({
               {user.fullName}
             </p>
             {isSelf && (
-              <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-ink-soft">
+              <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-ink-soft">
                 это вы
               </span>
             )}
             {user.isSuperAdmin && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-accent/25 px-1.5 py-0.5 text-[11px] text-ink">
+              <span className="inline-flex items-center gap-1 rounded-md bg-khaki-soft px-1.5 py-0.5 text-xs text-ink">
                 <ShieldCheck className="h-3 w-3" strokeWidth={2} />
                 владелец системы
               </span>
             )}
             {!user.isActive && (
-              <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] text-red-700">
+              <span className="rounded-md bg-danger-soft px-1.5 py-0.5 text-xs text-danger">
                 заблокирован
               </span>
             )}
@@ -100,7 +103,7 @@ export function UserRow({
                   ["role", event.target.value],
                 ])
               }
-              className="rounded-lg border border-muted bg-surface px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
+              className="rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-accent disabled:opacity-60"
             >
               <option value="ADMIN">Администратор</option>
               <option value="RECRUITER">Рекрутер</option>
@@ -119,7 +122,7 @@ export function UserRow({
                     ["isActive", user.isActive ? "false" : "true"],
                   ])
                 }
-                className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink disabled:opacity-60"
+                className="rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas disabled:opacity-60"
               >
                 {user.isActive ? "Заблокировать" : "Разблокировать"}
               </button>
@@ -133,7 +136,7 @@ export function UserRow({
                     ["isSuperAdmin", user.isSuperAdmin ? "false" : "true"],
                   ])
                 }
-                className="rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink disabled:opacity-60"
+                className="rounded-lg border border-line-strong px-3 py-1.5 text-sm text-ink transition hover:bg-canvas disabled:opacity-60"
               >
                 {user.isSuperAdmin ? "Убрать владельца" : "Сделать владельцем"}
               </button>
@@ -146,7 +149,7 @@ export function UserRow({
                 <button
                   type="button"
                   onClick={() => setConfirming((value) => !value)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-muted px-3 py-1.5 text-sm text-ink-soft transition hover:border-red-300 hover:text-red-600"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm text-ink-soft transition hover:border-danger-line hover:text-danger"
                 >
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.8} />
                   Удалить
@@ -158,7 +161,7 @@ export function UserRow({
       </div>
 
       {state.formError && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mt-3 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
           {state.formError}
         </p>
       )}
@@ -167,7 +170,7 @@ export function UserRow({
         <form
           action={deleteAction}
           onSubmit={() => setConfirming(false)}
-          className="mt-3 rounded-lg border border-red-200 bg-red-50/60 p-3"
+          className="mt-3 rounded-lg border border-danger-line bg-danger-soft/60 p-3"
         >
           <input type="hidden" name="userId" value={user.id} />
           <p className="text-sm text-ink">
@@ -178,14 +181,14 @@ export function UserRow({
           <div className="mt-2 flex gap-2">
             <button
               type="submit"
-              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700"
+              className="rounded-lg bg-danger px-3 py-1.5 text-sm font-medium text-white transition hover:bg-danger-hover"
             >
               Да, удалить
             </button>
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="rounded-lg border border-muted bg-surface px-3 py-1.5 text-sm text-ink-soft transition hover:border-ink-soft hover:text-ink"
+              className="rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm text-ink transition hover:bg-canvas"
             >
               Отмена
             </button>

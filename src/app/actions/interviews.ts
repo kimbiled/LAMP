@@ -12,6 +12,7 @@ import { jobWatchers, notify } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { suggestSlots, type Suggestion } from "@/lib/slots";
 import { nextFunnelKey } from "@/lib/stages";
+import { isKnownReason, rejectionLabel } from "@/lib/rejection";
 import type { InterviewStatus } from "@/generated/prisma/enums";
 
 export type InterviewFormState = {
@@ -170,7 +171,7 @@ export async function setInterviewStatus(formData: FormData): Promise<void> {
       userIds: [interview.interviewerId],
       actorId: scope.session.user.id,
       type: "FEEDBACK_REQUESTED",
-      title: `Нужен фидбэк: ${candidate?.fullName ?? "кандидат"}`,
+      title: `Нужен отзыв: ${candidate?.fullName ?? "кандидат"}`,
       body: `${INTERVIEW_TYPE_LABELS[interview.type]} проведено`,
       entityType: "Candidate",
       entityId: interview.candidateId,
@@ -335,7 +336,7 @@ export async function findFreeSlots(params: {
 
 // Решение по итогам интервью прямо из календаря.
 //
-// Одно нажатие делает три вещи: записывает мнение в фидбэки,
+// Одно нажатие делает три вещи: записывает мнение в отзывы,
 // закрывает интервью как проведённое и двигает кандидата —
 // на следующую ступень воронки или в «Отказ от нас».
 //
@@ -384,6 +385,11 @@ export async function decideAfterInterview(
   }
 
   const approved = decision === "NEXT";
+  // Причина отказа — та же, что спрашивает окно смены этапа. Без неё
+  // в аналитике отказов была дыра: из календаря отказы шли пустыми.
+  const reasonCode = text(formData, "rejectionReason");
+  const reason =
+    !approved && isKnownReason("WE", reasonCode) ? reasonCode : null;
   const comment =
     text(formData, "comment").slice(0, 2000) ||
     (approved
@@ -437,11 +443,8 @@ export async function decideAfterInterview(
           data: {
             stageId: stage.id,
             stageChangedAt: new Date(),
-            // Отдельную причину отказа здесь не спрашиваем: решение
-            // принято по итогам встречи и уже записано в фидбэке,
-            // а он виден в карточке рядом с этапом.
-            rejectionReason: null,
-            rejectionComment: null,
+            rejectionReason: reason,
+            rejectionComment: approved ? null : text(formData, "comment").slice(0, 1000) || null,
           },
         });
 
@@ -451,7 +454,9 @@ export async function decideAfterInterview(
           type: "STAGE_CHANGED",
           fromStageId: interview.candidate.stageId,
           toStageId: stage.id,
-          comment: "По итогам интервью",
+          comment: reason
+            ? `По итогам интервью · ${rejectionLabel(reason)}`
+            : "По итогам интервью",
           actorId: scope.session.user.id,
           actorName: scope.session.user.fullName,
         });

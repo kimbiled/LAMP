@@ -13,7 +13,7 @@ function DangerSubmit() {
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="w-full rounded-lg bg-danger px-4 py-2.5 text-sm font-medium text-white transition hover:bg-danger-hover disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Удаляем…" : "Удалить компанию навсегда"}
     </button>
@@ -43,16 +43,16 @@ export function DeleteCompanyForm({
   const [state, formAction] = useActionState(deleteCompany, initialState);
 
   return (
-    <section className="mt-5 rounded-xl border border-red-200 bg-red-50/40 p-5">
+    <section className="mt-5 rounded-xl border border-danger-line bg-danger-soft/40 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="inline-flex items-center gap-2 text-sm font-medium text-red-700">
+        <h2 className="inline-flex items-center gap-2 text-sm font-medium text-danger">
           <AlertTriangle className="h-4 w-4" strokeWidth={1.8} />
           Удалить компанию
         </h2>
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="rounded-lg border border-red-200 bg-surface px-3 py-1.5 text-sm text-red-700 transition hover:border-red-400"
+          className="rounded-lg border border-danger-line bg-surface px-3 py-1.5 text-sm text-danger transition hover:border-danger"
         >
           {open ? "Свернуть" : "Открыть"}
         </button>
@@ -69,7 +69,7 @@ export function DeleteCompanyForm({
           <input type="hidden" name="companyId" value={companyId} />
 
           {state.formError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            <div className="rounded-lg border border-danger-line bg-danger-soft px-3 py-2.5 text-sm text-danger">
               {state.formError}
             </div>
           )}
@@ -87,7 +87,7 @@ export function DeleteCompanyForm({
               required
               autoComplete="off"
               placeholder={companyName}
-              className="mt-1.5 w-full rounded-lg border border-muted bg-surface px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-red-400 focus:ring-2 focus:ring-red-200"
+              className="mt-1.5 w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-soft focus:border-danger focus:ring-2 focus:ring-danger-line"
             />
           </div>
 

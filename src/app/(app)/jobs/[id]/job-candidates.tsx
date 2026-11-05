@@ -4,7 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/avatar";
 import { CANDIDATE_FORMS, DAY_FORMS, plural } from "@/lib/format";
-import { TONE_STYLES, type StageTone } from "@/lib/stages";
+import { LayoutGrid, SquareKanban } from "lucide-react";
+import { TONE_STYLES, type StageGroup, type StageTone } from "@/lib/stages";
+import type { RejectionSide } from "@/lib/rejection";
+import { JobBoard } from "./job-board";
 
 // Кандидаты вакансии: вкладки по этапам и карточки под ними.
 //
@@ -31,6 +34,8 @@ export type JobStage = {
   id: string;
   name: string;
   tone: StageTone;
+  group: StageGroup;
+  rejectionSide: RejectionSide | null;
 };
 
 // С какого срока простой на этапе стоит заметить. Две недели —
@@ -40,11 +45,20 @@ const SLOW_DAYS = 14;
 export function JobCandidates({
   stages,
   candidates,
+  canMove,
+  action,
 }: {
   stages: JobStage[];
   candidates: JobCandidate[];
+  canMove: boolean;
+  // Кнопка «Добавить кандидата» — в одной строке с заголовком
+  // и переключателем вида, а не отдельной ступенькой над ними.
+  action?: React.ReactNode;
 }) {
   const [active, setActive] = useState<string>("");
+  // Рекрутеру по умолчанию доска: на ней кандидатов двигают.
+  // Тому, кто только смотрит, привычнее карточки.
+  const [view, setView] = useState<"board" | "cards">(canMove ? "board" : "cards");
 
   const counts = new Map<string, number>();
   for (const candidate of candidates) {
@@ -64,18 +78,72 @@ export function JobCandidates({
 
   const stageById = new Map(stages.map((stage) => [stage.id, stage]));
 
+  const header = (switcher?: React.ReactNode) => (
+    <div className="mb-3 flex flex-wrap items-center gap-3">
+      <h2 className="text-base font-semibold text-ink-strong">
+        Кандидаты
+        <span className="ml-1.5 font-normal text-ink-soft">{candidates.length}</span>
+      </h2>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        {switcher}
+        {action}
+      </div>
+    </div>
+  );
+
   if (candidates.length === 0) {
     return (
-      <section className="rounded-xl border border-dashed border-muted bg-surface p-10 text-center">
-        <p className="text-sm text-ink-soft">
-          На эту вакансию пока нет кандидатов.
-        </p>
+      <section>
+        {header()}
+        <div className="rounded-xl border border-dashed border-line-strong bg-surface p-10 text-center">
+          <p className="text-sm text-ink-soft">
+            На эту вакансию пока нет кандидатов.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  const viewSwitch = (
+    <div role="group" aria-label="Вид" className="inline-flex h-10 items-center rounded-lg border border-line-strong bg-surface p-0.5">
+      {(
+        [
+          { id: "board", label: "Доска", icon: SquareKanban },
+          { id: "cards", label: "Карточки", icon: LayoutGrid },
+        ] as const
+      ).map((item) => {
+        const Icon = item.icon;
+        const on = view === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => setView(item.id)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition ${
+              on ? "bg-ink-strong font-medium text-canvas" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            <Icon className="h-4 w-4" aria-hidden />
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (view === "board") {
+    return (
+      <section>
+        {header(viewSwitch)}
+        <JobBoard stages={stages} candidates={candidates} canMove={canMove} />
       </section>
     );
   }
 
   return (
     <section>
+      {header(viewSwitch)}
       <div className="flex flex-wrap items-center gap-1.5">
         <Tab
           label="Все"
@@ -135,13 +203,13 @@ export function JobCandidates({
                   он и так в её названии. */}
               <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-3">
                 {current === "" && stage && (
-                  <span className="rounded-md bg-surface/80 px-2 py-0.5 text-xs text-ink">
+                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-ink">
                     {stage.name}
                   </span>
                 )}
 
                 <span
-                  className={`text-xs ${slow ? "font-medium text-amber-700" : "text-ink-soft"}`}
+                  className={`text-xs ${slow ? "font-medium text-warning-ink" : "text-ink-soft"}`}
                 >
                   {candidate.daysOnStage === 0
                     ? "сегодня"
@@ -154,8 +222,8 @@ export function JobCandidates({
       </div>
 
       <p className="mt-3 text-xs text-ink-soft">
-        Показано {shown.length} {plural(shown.length, CANDIDATE_FORMS)}.
-        Жёлтым отмечены те, кто не двигался дольше двух недель.
+        Показано {shown.length} {plural(shown.length, CANDIDATE_FORMS)}. Жёлтым
+        отмечены те, кто не двигался дольше двух недель.
       </p>
     </section>
   );
@@ -180,14 +248,15 @@ function Tab({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition ${
+      aria-pressed={active}
+      className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition ${
         active
           ? "bg-ink-strong font-medium text-canvas"
           : `${colors ? colors.card : "text-ink-soft"} hover:bg-muted hover:text-ink`
       }`}
     >
       {label}
-      <span className={active ? "text-canvas/70" : "text-ink-soft/80"}>
+      <span className={active ? "text-canvas/70" : "text-ink-soft"}>
         {count}
       </span>
     </button>
