@@ -14,7 +14,12 @@ import { SKILLS } from "./skills";
 // «Frontend-разработчик», «ТОО Кселл», «Kubernetes».
 
 const LANGS = "rus+eng";
-const CACHE_DIR = path.join(process.cwd(), ".tessdata");
+// На Vercel папка проекта только для чтения — писать можно лишь в /tmp.
+// Там словари живут, пока жив сервер, и при холодном старте
+// скачиваются заново (несколько секунд).
+const CACHE_DIR = process.env.VERCEL
+  ? "/tmp/.tessdata"
+  : path.join(process.cwd(), ".tessdata");
 
 // Больше пяти страниц в резюме почти не бывает, а каждая страница
 // скана — это несколько секунд работы. Ограничение бережёт сервер
