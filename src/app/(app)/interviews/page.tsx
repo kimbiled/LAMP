@@ -21,6 +21,7 @@ import {
   weekTitle,
 } from "@/lib/calendar";
 import { WeekCalendar, type CalendarEvent } from "./week-calendar";
+import { joinUrl } from "@/lib/meeting";
 
 export const metadata: Metadata = { title: "Интервью — LAMP" };
 
@@ -181,6 +182,8 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
       interviewerId: interview.interviewer?.id ?? null,
       interviewerName: interview.interviewer?.fullName ?? null,
       comment: interview.comment,
+      joinUrl: joinUrl(interview),
+      meetingUrl: interview.meetingUrl ?? "",
     };
   });
 

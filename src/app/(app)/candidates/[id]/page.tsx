@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronDown, ExternalLink, Pencil, RefreshCw } from "lucide-react";
+import {
+  ChevronDown,
+  ExternalLink,
+  FileDown,
+  Pencil,
+  RefreshCw,
+} from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
@@ -23,6 +29,7 @@ import {
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { minutesToTime, placeInDay } from "@/lib/calendar";
+import { joinUrl } from "@/lib/meeting";
 import { telLink } from "@/lib/contacts";
 import { publicBaseUrl } from "@/lib/app-url";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
@@ -145,6 +152,8 @@ export default async function CandidatePage({
         : null,
       interviewerName: interview.interviewer?.fullName ?? null,
       comment: interview.comment,
+      joinUrl: joinUrl(interview),
+      meetingUrl: interview.meetingUrl ?? "",
 
       type: interview.type,
       date: placed.date,
@@ -280,15 +289,50 @@ export default async function CandidatePage({
             </div>
           </div>
 
-          {canEdit && (
-            <Link
-              href={`/candidates/${candidate.id}/edit`}
-              className={buttonClass({ variant: "secondary" })}
-            >
-              <Pencil className="h-4 w-4" strokeWidth={1.8} />
-              Изменить
-            </Link>
-          )}
+          <div className="flex flex-wrap items-start gap-2">
+            {/* Выгрузка в PDF. Обычный details, как у «Истории»:
+                работает без кода в браузере. Вариант без контактов —
+                для заказчика, который не должен звонить кандидату сам. */}
+            <details className="group relative">
+              <summary
+                className={`${buttonClass({ variant: "secondary" })} cursor-pointer list-none`}
+              >
+                <FileDown className="h-4 w-4" strokeWidth={1.8} />
+                Скачать PDF
+                <ChevronDown
+                  className="h-4 w-4 transition group-open:rotate-180"
+                  strokeWidth={1.8}
+                />
+              </summary>
+              <div className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg">
+                <a
+                  href={`/api/candidates/${candidate.id}/pdf`}
+                  className="block px-3 py-2 text-sm text-ink transition hover:bg-canvas"
+                >
+                  С контактами
+                </a>
+                <a
+                  href={`/api/candidates/${candidate.id}/pdf?contacts=0`}
+                  className="block px-3 py-2 text-sm text-ink transition hover:bg-canvas"
+                >
+                  Без контактов
+                  <span className="block text-xs text-ink-soft">
+                    без телефона, почты и Telegram
+                  </span>
+                </a>
+              </div>
+            </details>
+
+            {canEdit && (
+              <Link
+                href={`/candidates/${candidate.id}/edit`}
+                className={buttonClass({ variant: "secondary" })}
+              >
+                <Pencil className="h-4 w-4" strokeWidth={1.8} />
+                Изменить
+              </Link>
+            )}
+          </div>
         </div>
 
         {keyFacts.length > 0 && (

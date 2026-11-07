@@ -11,8 +11,9 @@ import { INTERVIEW_TYPE_LABELS } from "@/lib/labels";
 import { jobWatchers, notify } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { suggestSlots, type Suggestion } from "@/lib/slots";
-import { nextFunnelKey } from "@/lib/stages";
+import { nextProgressStage } from "@/lib/stages";
 import { isKnownReason, rejectionLabel } from "@/lib/rejection";
+import { normalizeMeetingUrl } from "@/lib/meeting";
 import type { InterviewStatus } from "@/generated/prisma/enums";
 
 export type InterviewFormState = {
@@ -25,6 +26,20 @@ function text(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value.trim() : "";
 }
+
+// Ссылка на встречу из формы. undefined — поля в форме нет (открыта
+// старая версия страницы): тогда уже сохранённую ссылку не трогаем.
+function readMeetingUrl(
+  formData: FormData,
+): { ok: true; value: string | null | undefined } | { ok: false } {
+  if (!formData.has("meetingUrl")) return { ok: true, value: undefined };
+  const value = normalizeMeetingUrl(text(formData, "meetingUrl"));
+  return value === "invalid" ? { ok: false } : { ok: true, value };
+}
+
+const MEETING_URL_ERROR = {
+  meetingUrl: "Вставьте ссылку целиком, например https://meet.google.com/abc-defg-hij",
+};
 
 export async function createInterview(
   candidateId: string,
@@ -65,6 +80,11 @@ export async function createInterview(
     return { fieldErrors: fieldErrorsFrom(parsed.error) };
   }
 
+  const meetingUrl = readMeetingUrl(formData);
+  if (!meetingUrl.ok) {
+    return { fieldErrors: MEETING_URL_ERROR };
+  }
+
   const scheduledAt = localToDate(parsed.data.date, parsed.data.time);
   if (!scheduledAt) {
     return { fieldErrors: { date: "Неверная дата или время" } };
@@ -94,6 +114,7 @@ export async function createInterview(
       durationMinutes: parsed.data.durationMinutes,
       interviewerId,
       comment: parsed.data.comment || null,
+      meetingUrl: meetingUrl.value ?? null,
       createdById: scope.session.user.id,
     },
   });
@@ -254,6 +275,11 @@ export async function rescheduleInterview(
     return { fieldErrors: fieldErrorsFrom(parsed.error) };
   }
 
+  const meetingUrl = readMeetingUrl(formData);
+  if (!meetingUrl.ok) {
+    return { fieldErrors: MEETING_URL_ERROR };
+  }
+
   const scheduledAt = localToDate(parsed.data.date, parsed.data.time);
   if (!scheduledAt) {
     return { fieldErrors: { date: "Неверная дата или время" } };
@@ -282,6 +308,7 @@ export async function rescheduleInterview(
       durationMinutes: parsed.data.durationMinutes,
       interviewerId,
       comment: parsed.data.comment || null,
+      ...(meetingUrl.value !== undefined ? { meetingUrl: meetingUrl.value } : {}),
     },
   });
 
@@ -427,42 +454,43 @@ export async function decideAfterInterview(
   let movedTo: string | null = null;
 
   if (scope.can("candidates.move")) {
-    const targetKey = approved
-      ? nextFunnelKey(interview.candidate.stage.key)
-      : ("WE_DECLINED" as const);
+    // Следующий этап ищем по порядку из настроек, а не по системному
+    // ключу: иначе этапы, добавленные компанией, пропускались бы.
+    const stages = await db.stage.findMany({
+      where: { companyId: scope.companyId },
+      orderBy: { position: "asc" },
+      select: { id: true, name: true, key: true },
+    });
 
-    if (targetKey) {
-      const stage = await db.stage.findFirst({
-        where: { companyId: scope.companyId, key: targetKey },
-        select: { id: true, name: true },
+    const stage = approved
+      ? nextProgressStage(stages, interview.candidate.stageId)
+      : (stages.find((item) => item.key === "WE_DECLINED") ?? null);
+
+    if (stage && stage.id !== interview.candidate.stageId) {
+      await db.candidate.update({
+        where: { id: interview.candidateId },
+        data: {
+          stageId: stage.id,
+          stageChangedAt: new Date(),
+          rejectionReason: reason,
+          rejectionComment: approved ? null : text(formData, "comment").slice(0, 1000) || null,
+        },
       });
 
-      if (stage && stage.id !== interview.candidate.stageId) {
-        await db.candidate.update({
-          where: { id: interview.candidateId },
-          data: {
-            stageId: stage.id,
-            stageChangedAt: new Date(),
-            rejectionReason: reason,
-            rejectionComment: approved ? null : text(formData, "comment").slice(0, 1000) || null,
-          },
-        });
+      await addHistory({
+        companyId: scope.companyId,
+        candidateId: interview.candidateId,
+        type: "STAGE_CHANGED",
+        fromStageId: interview.candidate.stageId,
+        toStageId: stage.id,
+        comment: reason
+          ? `По итогам интервью · ${rejectionLabel(reason)}`
+          : "По итогам интервью",
+        actorId: scope.session.user.id,
+        actorName: scope.session.user.fullName,
+      });
 
-        await addHistory({
-          companyId: scope.companyId,
-          candidateId: interview.candidateId,
-          type: "STAGE_CHANGED",
-          fromStageId: interview.candidate.stageId,
-          toStageId: stage.id,
-          comment: reason
-            ? `По итогам интервью · ${rejectionLabel(reason)}`
-            : "По итогам интервью",
-          actorId: scope.session.user.id,
-          actorName: scope.session.user.fullName,
-        });
-
-        movedTo = stage.name;
-      }
+      movedTo = stage.name;
     }
   }
 

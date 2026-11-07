@@ -17,6 +17,7 @@ import {
 } from "@/lib/storage";
 import { processResume } from "@/lib/resume/pipeline";
 import { addHistory } from "@/lib/history";
+import { logAction } from "@/lib/audit";
 // Общий путь создания карточки: им же пользуется точка приёма
 // для расширения Chrome, чтобы поведение не разъезжалось.
 import { createCandidateFromResume as createCandidate } from "@/lib/candidate-from-resume";
@@ -174,7 +175,7 @@ export async function attachResume(
       companyId: scope.companyId,
       ...candidateVisibilityFilter(scope.session.user),
     },
-    select: { id: true },
+    select: { id: true, photoKey: true },
   });
 
   if (!candidate) {
@@ -217,6 +218,21 @@ export async function attachResume(
     },
   });
 
+  // Карточку могли завести руками, без файла, — тогда фото у неё нет,
+  // и его стоит взять из резюме. Уже стоящее фото не трогаем.
+  if (!candidate.photoKey && processed.photo) {
+    const photoKey = await saveFile({
+      companyId: scope.companyId,
+      data: processed.photo.data,
+      extension: processed.photo.extension,
+      mimeType: processed.photo.mimeType,
+    });
+    await db.candidate.update({
+      where: { id: candidate.id },
+      data: { photoKey },
+    });
+  }
+
   await addHistory({
     companyId: scope.companyId,
     candidateId: candidate.id,
@@ -248,6 +264,15 @@ export async function deleteResume(formData: FormData): Promise<void> {
 
   await db.resume.delete({ where: { id: resume.id } });
   await removeFile(resume.storageKey);
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "RESUME_DELETED",
+    entityType: "Resume",
+    entityId: resume.id,
+    meta: { candidateId: resume.candidateId, fileName: resume.fileName },
+  });
 
   // Если удалили текущее резюме, текущим становится предыдущее.
   const previous = await db.resume.findFirst({

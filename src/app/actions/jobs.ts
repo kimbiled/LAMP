@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
+import { logAction } from "@/lib/audit";
 import { fieldErrorsFrom, jobSchema } from "@/lib/validation";
 import type { JobPriority, JobStatus } from "@/generated/prisma/enums";
 
@@ -227,4 +228,43 @@ export async function changeJobPriority(formData: FormData): Promise<ActionResul
   revalidatePath(`/jobs/${job.id}`);
   revalidatePath("/dashboard");
   return done("Приоритет изменён");
+}
+
+// Удаление вакансии насовсем — только администратору.
+//
+// Кандидаты при этом остаются в базе: они нужны компании и для других
+// вакансий. У них просто пропадает привязка к удалённой (так настроено
+// в схеме: onDelete: SetNull). То же с интервью — история встреч цела.
+export async function deleteJob(formData: FormData): Promise<void> {
+  const scope = await getScope();
+  if (!scope.can("jobs.delete")) {
+    return;
+  }
+
+  const jobId = text(formData, "jobId");
+
+  const job = await db.job.findFirst({
+    where: { id: jobId, companyId: scope.companyId },
+    select: { id: true, title: true, _count: { select: { candidates: true } } },
+  });
+
+  if (!job) {
+    return;
+  }
+
+  await db.job.delete({ where: { id: job.id } });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "JOB_DELETED",
+    entityType: "Job",
+    entityId: job.id,
+    meta: { title: job.title, candidates: job._count.candidates },
+  });
+
+  revalidatePath("/jobs");
+  revalidatePath("/dashboard");
+  revalidatePath("/candidates");
+  redirect("/jobs");
 }

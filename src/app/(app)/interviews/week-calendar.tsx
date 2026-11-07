@@ -21,7 +21,7 @@ import {
 import type { Suggestion } from "@/lib/slots";
 import type { CalendarDay } from "@/lib/calendar";
 import { Linkify } from "@/components/linkify";
-import { MeetingLinkButton } from "@/components/meeting-link-button";
+import { JoinMeetingLink, MeetingUrlField } from "@/components/meeting-url-field";
 import { CANDIDATE_FORMS, plural } from "@/lib/format";
 import { Modal as Dialog, useConfirm } from "@/components/ui/dialog";
 import { NETWORK_ERROR, useToast } from "@/components/ui/toast";
@@ -54,6 +54,10 @@ export type CalendarEvent = {
   interviewerId: string | null;
   interviewerName: string | null;
   comment: string | null;
+  // Ссылка для «Подключиться» (из поля или старого комментария)
+  // и значение поля формы.
+  joinUrl: string | null;
+  meetingUrl: string;
 };
 
 type Person = { id: string; fullName: string };
@@ -501,6 +505,7 @@ export function WeekCalendar({
               durationMinutes: "60",
               interviewerId: "",
               comment: "",
+              meetingUrl: "",
             }}
             meetingLink={meetingLink}
             onDone={() => setDialog(null)}
@@ -523,6 +528,7 @@ export function WeekCalendar({
               durationMinutes: String(dialog.event.durationMinutes),
               interviewerId: dialog.event.interviewerId ?? "",
               comment: dialog.event.comment ?? "",
+              meetingUrl: dialog.event.meetingUrl,
             }}
             meetingLink={meetingLink}
             onDone={() => setDialog(null)}
@@ -707,6 +713,11 @@ function EventDetails({
             <Linkify text={event.comment} />
           </p>
         )}
+        {event.status === "SCHEDULED" && event.joinUrl && (
+          <div className="mt-2">
+            <JoinMeetingLink url={event.joinUrl} />
+          </div>
+        )}
       </div>
 
       {event.decision && (
@@ -889,6 +900,7 @@ function InterviewForm({
     durationMinutes: string;
     interviewerId: string;
     comment: string;
+    meetingUrl: string;
   };
   onDone: () => void;
 }) {
@@ -1145,14 +1157,17 @@ function InterviewForm({
           name="comment"
           rows={2}
           defaultValue={defaults.comment}
-          placeholder="Ссылка на встречу, адрес офиса"
+          placeholder="Адрес офиса, о чём спросить"
           className={fieldClass}
         />
-
-        <div className="mt-2">
-          <MeetingLinkButton link={meetingLink} target="comment" />
-        </div>
       </div>
+
+      <MeetingUrlField
+        id="cal-meetingUrl"
+        defaultValue={defaults.meetingUrl}
+        companyLink={meetingLink}
+        error={state.fieldErrors?.meetingUrl}
+      />
 
       <button
         type="submit"

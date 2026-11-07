@@ -1,9 +1,16 @@
-import { formatMonths, periodMonths } from "@/lib/resume/score";
+import {
+  descriptionLines,
+  experienceDuration,
+  isHeading,
+  isNumbered,
+  isTechStack,
+} from "@/lib/experience-format";
 
 // Опыт работы кандидата — как в резюме на hh: слева период
 // и сколько длилось, справа должность, компания и обязанности
 // списком. Один и тот же блок на карточке кандидата, в разделе
 // владельца системы и на странице по ссылке «Поделиться».
+// Те же правила оформления использует выгрузка в PDF.
 
 type Experience = {
   id: string;
@@ -13,28 +20,8 @@ type Experience = {
   description: string | null;
 };
 
-// hh считает месяцы включительно: «Март 2024 — Июль 2026» — это
-// 2 года 5 месяцев. Считаем так же, чтобы цифры совпадали с резюме.
-function duration(period: string | null): string | null {
-  const months = periodMonths(period);
-  return months > 0 ? formatMonths(months + 1) : null;
-}
-
-// Подзаголовок внутри описания: «Достижения:», «Обязанности:».
-const isHeading = (line: string) => line.endsWith(":") && line.length < 50;
-
-// Пункт с номером: «1 - Заменил бумажный учёт…».
-const isNumbered = (line: string) => /^\d{1,2}\s*[-–—.)]\s+\S/.test(line);
-
-// Перечень технологий: «React · TypeScript · Zustand».
-const isTechStack = (line: string) =>
-  (line.match(/\s·\s/g) ?? []).length >= 2;
-
 function Description({ text }: { text: string }) {
-  const lines = text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  const lines = descriptionLines(text);
 
   // Одна фраза — просто абзац, без точки-маркера.
   if (lines.length === 1) {
@@ -75,7 +62,7 @@ export function ExperienceList({ items }: { items: Experience[] }) {
   return (
     <ol className="divide-y divide-line">
       {items.map((item) => {
-        const length = duration(item.period);
+        const length = experienceDuration(item.period);
 
         return (
           <li

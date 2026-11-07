@@ -9,11 +9,13 @@ export type Permission =
   | "users.manage" // создавать пользователей, менять роли, блокировать
   | "stages.manage" // управлять этапами подбора
   | "jobs.manage" // создавать и редактировать вакансии
+  | "jobs.delete" // удалять вакансии насовсем
   | "jobs.viewAll" // видеть все вакансии компании, а не только свои
   | "candidates.create"
   | "candidates.edit"
   | "candidates.delete"
   | "candidates.viewAll" // видеть всех кандидатов компании
+  | "candidates.export" // выгружать список в Excel (личные данные!)
   | "candidates.move" // перемещать между этапами
   | "interviews.manage" // назначать интервью
   | "feedback.create"
@@ -29,11 +31,13 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "users.manage",
     "stages.manage",
     "jobs.manage",
+    "jobs.delete",
     "jobs.viewAll",
     "candidates.create",
     "candidates.edit",
     "candidates.delete",
     "candidates.viewAll",
+    "candidates.export",
     "candidates.move",
     "interviews.manage",
     "feedback.create",
@@ -47,6 +51,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "candidates.create",
     "candidates.edit",
     "candidates.viewAll",
+    "candidates.export",
     "candidates.move",
     "interviews.manage",
     "feedback.create",

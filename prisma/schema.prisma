@@ -359,6 +359,9 @@ model Interview {
   durationMinutes Int?
   interviewerId   String?
   comment         String?
+  // Ссылка на видеовстречу (Google Meet, Zoom и т. п.). Вставляется
+  // рекрутером, из неё на странице получается кнопка «Подключиться».
+  meetingUrl      String?
   status          InterviewStatus @default(SCHEDULED)
   createdById     String
   createdAt       DateTime        @default(now())

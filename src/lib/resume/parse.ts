@@ -184,7 +184,9 @@ const SECTIONS: { key: string; pattern: RegExp }[] = [
   {
     key: "certificates",
     pattern: new RegExp(
-      `^(сертификаты|курсы|повышение квалификации|certificates|courses)${END}`,
+      // «Тесты, экзамены» hh ставит сразу после образования: без этого
+      // IELTS и его год попадали в список учебных заведений.
+      `^(сертификаты|курсы|повышение квалификации|тесты, экзамены|электронные сертификаты|certificates|courses|tests, examinations|advanced training)${END}`,
       "i",
     ),
   },
@@ -1231,17 +1233,218 @@ function findExperience(lines: string[] | undefined): ParsedExperience[] {
 // ---------- образование ----------
 
 // Уровень образования — не вуз и не специальность.
+// «Неоконченное» и «специальное» стоят отдельно, потому что hh печатает
+// уровень узкой колонкой справа и переносит его на две строки:
+// «Неоконченное» + «высшее», «Среднее» + «специальное».
 const EDUCATION_LEVEL = new RegExp(
-  `^(высшее|среднее|среднее специальное|специальное|неоконченное высшее|бакалавр|магистр|кандидат наук|доктор наук|higher|secondary|bachelor|master)${END}\\.?$`,
+  `^(высшее|среднее|среднее образование|среднее специальное|среднее специальное образование|специальное|неоконченное высшее|неоконченное|бакалавр|магистр|кандидат наук|доктор наук|higher|secondary|secondary special|incomplete higher|unfinished higher|bachelor|master|phd)${END}\\.?$`,
   "i",
 );
+
+// Подзаголовок старой выгрузки hh: «Уровень» и под ним «Высшее».
+const LEVEL_HEADING = /^(уровень|level)$/i;
+
+// Год отдельной строкой — так начинается запись в новой выгрузке hh.
+const YEAR_ALONE = /^(19|20)\d{2}$/;
+
+// Год в конце строки со специальностью — так запись заканчивается
+// в старой выгрузке. Перед годом не должно быть тире: «2012 – 2016»
+// — это промежуток лет, его разбирает общий случай.
+const ENDS_WITH_YEAR = /^(.*[^\d\s–—-])\s+((?:19|20)\d{2})$/;
+
+// Год в строке ровно один: «Май 2021 - июль 2022» — это даты работы,
+// случайно попавшие в раздел из соседней колонки, а не выпуск.
+function endsWithYear(line: string): RegExpMatchArray | null {
+  const match = line.match(ENDS_WITH_YEAR);
+  if (!match) return null;
+  return (line.match(/(19|20)\d{2}/g) ?? []).length === 1 ? match : null;
+}
+
+// Название вуза в hh заканчивается городом: «…имени С. Торайгырова,
+// Павлодар». После него название уже не переносится.
+const ENDS_WITH_PLACE = /,\s*[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё]+(?:-[A-Za-zА-Яа-яЁё]+)*\.?$/;
+
+// Строка явно оборвана на полуслове и продолжается на следующей:
+// запятая, инициал («имени С.»), предлог или «имени» в конце.
+const CUT_OFF = new RegExp(
+  `(,|(^|[\\s.])[A-ZА-ЯЁ]\\.|\\s(имени|им\\.|в|во|и|по|на|с|для|при|специальности|of|and|in|for|at|the))$`,
+  "i",
+);
+
+// Продолжение перенесённой строки начинается с маленькой буквы.
+const STARTS_LOWER = /^[a-zа-яё]/;
+
+// Имя из двух слов после «имени» переносится целиком с городом:
+// «…имени Патриса» + «Лумумбы, Москва», «…имени Коркыт» + «Ата, Кызылорда».
+// Склеиваем, только если после запятой стоит известный город:
+// «Юриспруденция, Юриспруденция» под «…имени Абая» — уже специальность.
+const NAMED_AFTER_ONE_WORD = /\s(имени|им\.)\s+\S+$/i;
+const SHORT_WITH_PLACE = /^[A-ZА-ЯЁ][а-яёa-z-]+,\s*(.+)$/;
+
+// Города вузов за пределами Казахстана. Отдельно от CITIES: тот
+// список ищет город проживания, и Москва из опыта работы там лишняя.
+const STUDY_CITIES = [
+  "москва",
+  "санкт-петербург",
+  "новосибирск",
+  "екатеринбург",
+  "казань",
+  "томск",
+  "омск",
+  "уфа",
+  "владивосток",
+  "бишкек",
+  "ташкент",
+];
+
+function isNameTailWithPlace(line: string): boolean {
+  const place = line.match(SHORT_WITH_PLACE)?.[1];
+  if (!place) return false;
+  return (
+    isLocationLine(place) ||
+    STUDY_CITIES.includes(place.replace(/\.$/, "").toLowerCase())
+  );
+}
+
+// Склеивает строки одной записи, разорванные переносом, и делит её
+// на учебное заведение (первая часть) и специальность (остальное).
+function splitEducationEntry(
+  body: string[],
+  years: string | null,
+): ParsedEducation | null {
+  const blocks: string[] = [];
+
+  for (const line of body) {
+    const current = blocks[blocks.length - 1];
+    const placeClosed = blocks.length === 1 && ENDS_WITH_PLACE.test(current);
+
+    // Одно слово в строке — это не перенос, а короткое название,
+    // написанное с маленькой буквы («еаги»): к нему не клеим.
+    const lowerContinues = STARTS_LOWER.test(line) && /\s/.test(current ?? "");
+
+    const continues =
+      current !== undefined &&
+      !placeClosed &&
+      (CUT_OFF.test(current) ||
+        lowerContinues ||
+        (blocks.length === 1 &&
+          NAMED_AFTER_ONE_WORD.test(current) &&
+          isNameTailWithPlace(line)));
+
+    if (continues) {
+      blocks[blocks.length - 1] = `${current} ${line}`;
+    } else {
+      blocks.push(line);
+    }
+  }
+
+  if (blocks.length === 0) return null;
+
+  return {
+    institution: blocks[0].slice(0, 200),
+    specialty: blocks.length > 1 ? blocks.slice(1).join(" ").slice(0, 200) : null,
+    years,
+  };
+}
+
+// «Среднее» → «Среднее образование»: в карточке одно слово непонятно.
+function educationLevelLabel(level: string): string {
+  const text = level.replace(/\.$/, "").toLowerCase();
+  const label = text.charAt(0).toUpperCase() + text.slice(1);
+  return /^(среднее|высшее|среднее специальное|неоконченное высшее)$/.test(text)
+    ? `${label} образование`
+    : label;
+}
+
+const MAX_EDUCATION = 6;
 
 function findEducation(lines: string[] | undefined): ParsedEducation[] {
   if (!lines) return [];
 
+  // Колонтитулы, подзаголовок «Уровень» и сам уровень — не записи.
+  // Уровень запоминаем: если человек не указал ни одного вуза,
+  // в карточке останется хотя бы «Среднее образование».
+  let level: string | null = null;
+  const clean: string[] = [];
+  for (const line of lines) {
+    if (isPageNoise(line) || LEVEL_HEADING.test(line)) continue;
+    if (EDUCATION_LEVEL.test(line)) {
+      level ??= line;
+      continue;
+    }
+    clean.push(line);
+  }
+
+  const result = splitEducationByYears(clean);
+
+  if (result.length === 0 && level) {
+    return [
+      { institution: educationLevelLabel(level), specialty: null, years: null },
+    ];
+  }
+
+  return result;
+}
+
+function splitEducationByYears(lines: string[]): ParsedEducation[] {
+  const result: ParsedEducation[] = [];
+  const push = (entry: ParsedEducation | null) => {
+    if (entry && result.length < MAX_EDUCATION) result.push(entry);
+  };
+
+  // Новая выгрузка hh: «2022» → вуз (может быть в две строки) →
+  // специальность. Всё до следующего года — одна запись.
+  // Узнаём её по году в самом начале раздела: в старой выгрузке год
+  // тоже бывает отдельной строкой, но только когда специальность
+  // длинная и год перенёсся под неё.
+  if (lines.length > 0 && YEAR_ALONE.test(lines[0])) {
+    let years: string | null = null;
+    let body: string[] = [];
+    for (const line of lines) {
+      if (YEAR_ALONE.test(line)) {
+        if (years) push(splitEducationEntry(body, years));
+        years = line;
+        body = [];
+      } else if (years) {
+        body.push(line);
+      }
+    }
+    if (years) push(splitEducationEntry(body, years));
+    return result;
+  }
+
+  // Старая выгрузка hh: вуз → «специальность 2020». Год закрывает запись.
+  // Год отдельной строкой здесь — перенос под длинной специальностью;
+  // в дизайнерских резюме он стоит над вузом, и их разбирает общий случай.
+  const oldHh =
+    lines.some((line) => endsWithYear(line)) ||
+    (lines.length > 1 && YEAR_ALONE.test(lines[lines.length - 1]));
+
+  if (oldHh) {
+    let body: string[] = [];
+    for (const line of lines) {
+      const match = endsWithYear(line);
+      if (match) {
+        push(splitEducationEntry([...body, match[1]], match[2]));
+        body = [];
+      } else if (YEAR_ALONE.test(line)) {
+        push(splitEducationEntry(body, line));
+        body = [];
+      } else {
+        body.push(line);
+      }
+    }
+    return result;
+  }
+
+  return findEducationLoose(lines);
+}
+
+// Остальные резюме: год где-то в строке с вузом, специальность ниже.
+function findEducationLoose(lines: string[]): ParsedEducation[] {
   const result: ParsedEducation[] = [];
 
-  for (let index = 0; index < lines.length && result.length < 4; index++) {
+  for (let index = 0; index < lines.length && result.length < MAX_EDUCATION; index++) {
     const line = lines[index];
     const yearMatch = line.match(/\b(19|20)\d{2}\b/);
     if (!yearMatch) continue;

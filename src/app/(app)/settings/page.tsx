@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { ROLE_LABELS } from "@/lib/labels";
 import { CompanyForm, PasswordForm, ProfileForm } from "./settings-forms";
+import { StageEditor } from "./stage-editor";
 
 export const metadata: Metadata = { title: "Настройки — LAMP" };
 
@@ -10,6 +11,7 @@ export default async function SettingsPage() {
   // Сюда пускаем всех вошедших, но блоки внутри показываем по правам.
   const scope = await getScope();
   const canManageCompany = scope.can("company.manage");
+  const canManageStages = scope.can("stages.manage");
 
   // Должность в сессии не лежит: она нужна редко, а сессия читается
   // на каждой странице.
@@ -25,10 +27,16 @@ export default async function SettingsPage() {
     select: { position: true },
   });
 
-  const stages = canManageCompany
+  const stages = canManageStages
     ? await db.stage.findMany({
         where: { companyId: scope.companyId },
         orderBy: { position: "asc" },
+        select: {
+          id: true,
+          name: true,
+          key: true,
+          _count: { select: { candidates: true } },
+        },
       })
     : [];
 
@@ -70,29 +78,24 @@ export default async function SettingsPage() {
         <PasswordForm />
       </section>
 
-      {canManageCompany && (
+      {canManageStages && (
         <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
           <h2 className="text-base font-semibold text-ink-strong">
             Этапы подбора
           </h2>
           <p className="mt-1 text-xs text-ink-soft">
             По этим этапам кандидаты движутся на доске каждой вакансии.
-            Создание собственных этапов появится позже.
+            Название можно поправить прямо в строке, порядок — стрелками.
           </p>
 
-          <ol className="mt-4 space-y-2">
-            {stages.map((stage) => (
-              <li
-                key={stage.id}
-                className="flex items-center gap-3 rounded-lg bg-canvas px-3 py-2"
-              >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent text-xs font-medium text-ink">
-                  {stage.position}
-                </span>
-                <span className="text-sm text-ink">{stage.name}</span>
-              </li>
-            ))}
-          </ol>
+          <StageEditor
+            stages={stages.map((stage) => ({
+              id: stage.id,
+              name: stage.name,
+              key: stage.key,
+              candidateCount: stage._count.candidates,
+            }))}
+          />
         </section>
       )}
     </div>

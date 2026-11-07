@@ -1,34 +1,26 @@
-import { daysAgo } from "@/lib/time";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronDown, FileJson, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Download, FileJson, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
-import { candidateVisibilityFilter, jobVisibilityFilter } from "@/lib/permissions";
+import { jobVisibilityFilter } from "@/lib/permissions";
 import { Avatar } from "@/components/avatar";
 import { StageBadge } from "@/components/stage-badge";
 import { formatDate } from "@/lib/format";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
 import { Pagination, PAGE_SIZE, parsePage } from "@/components/pagination";
 import { badgeClass, buttonClass } from "@/components/ui/styles";
-import type { Prisma } from "@/generated/prisma/client";
+import {
+  EXPERIENCE,
+  NO_JOB,
+  PERIODS,
+  candidateWhereFrom,
+  filtersToQuery,
+  readCandidateFilters,
+} from "@/lib/candidate-filters";
+import { SOURCE_CHANNELS } from "@/lib/source-channel";
 
 export const metadata: Metadata = { title: "Кандидаты — LAMP" };
-
-const PERIODS = [
-  { value: "", label: "За всё время", days: 0 },
-  { value: "7", label: "За 7 дней", days: 7 },
-  { value: "30", label: "За 30 дней", days: 30 },
-  { value: "90", label: "За 90 дней", days: 90 },
-];
-
-const EXPERIENCE = [
-  { value: "", label: "Любой опыт" },
-  { value: "1", label: "От 1 года" },
-  { value: "3", label: "От 3 лет" },
-  { value: "5", label: "От 5 лет" },
-  { value: "7", label: "От 7 лет" },
-];
 
 const selectClass =
   "w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent";
@@ -60,85 +52,22 @@ export default async function CandidatesPage({
     period?: string;
     experience?: string;
     tag?: string;
+    channel?: string;
     page?: string;
   }>;
 }) {
   const scope = await getScope();
-  const filters = await searchParams;
+  const filters = readCandidateFilters(await searchParams);
   const query = (filters.q ?? "").trim();
-
-  // Условия по вакансии собираем в один объект: иначе ограничение
-  // для нанимающего менеджера затёрлось бы фильтром по рекрутеру.
-  const jobConditions: Record<string, string> = {};
-  if (filters.recruiter) {
-    jobConditions.recruiterId = filters.recruiter;
-  }
-
-  const days =
-    PERIODS.find((item) => item.value === (filters.period ?? ""))?.days ?? 0;
-  const since = daysAgo(days);
-
-  const minExperience = Number(filters.experience);
 
   // Раньше список молча обрезался на 200 и писал «Найдено: 200».
   // Теперь — честное общее число и страницы по 50.
-  const page = parsePage(filters.page);
-  const candidateWhere: Prisma.CandidateWhereInput = {
+  const page = parsePage((await searchParams).page);
+  const candidateWhere = candidateWhereFrom(filters, {
+    ...scope.session.user,
     companyId: scope.companyId,
-    // Менеджер видит своих кандидатов и тех, кого собеседует.
-    ...candidateVisibilityFilter(scope.session.user),
-    ...(Object.keys(jobConditions).length > 0
-      ? { job: jobConditions }
-      : {}),
-    ...(filters.job ? { jobId: filters.job } : {}),
-    ...(filters.stage ? { stageId: filters.stage } : {}),
-    ...(filters.city ? { city: filters.city } : {}),
-    ...(filters.tag ? { tags: { some: { id: filters.tag } } } : {}),
-    ...(since ? { createdAt: { gte: since } } : {}),
-    ...(Number.isFinite(minExperience) && minExperience > 0
-      ? { experienceYears: { gte: minExperience } }
-      : {}),
-    ...(query
-      ? {
-          OR: [
-            {
-              fullName: { contains: query, mode: "insensitive" as const },
-            },
-            { phone: { contains: query } },
-            { email: { contains: query, mode: "insensitive" as const } },
-            {
-              currentPosition: {
-                contains: query,
-                mode: "insensitive" as const,
-              },
-            },
-            // Поиск по компаниям из опыта работы кандидата.
-            {
-              experience: {
-                some: {
-                  companyName: {
-                    contains: query,
-                    mode: "insensitive" as const,
-                  },
-                },
-              },
-            },
-            // И по тексту самого резюме: слово из описания проекта
-            // найдётся, даже если его нет ни в одном поле карточки.
-            {
-              resumes: {
-                some: {
-                  parsedText: {
-                    contains: query,
-                    mode: "insensitive" as const,
-                  },
-                },
-              },
-            },
-          ],
-        }
-      : {}),
-  };
+  });
+  const canExport = scope.can("candidates.export");
 
   // Все запросы уходят одновременно.
   const [jobs, stages, recruiters, cityRows, tags, candidates, total] =
@@ -219,7 +148,8 @@ export default async function CandidatesPage({
     filters.city ||
     filters.period ||
     filters.experience ||
-    filters.tag,
+    filters.tag ||
+    filters.channel,
   );
 
   const extraFiltersUsed = Boolean(
@@ -227,7 +157,8 @@ export default async function CandidatesPage({
     filters.city ||
     filters.period ||
     filters.experience ||
-    filters.tag,
+    filters.tag ||
+    filters.channel,
   );
 
   return (
@@ -290,6 +221,7 @@ export default async function CandidatesPage({
             className={selectClass}
           >
             <option value="">Все вакансии</option>
+            <option value={NO_JOB}>Без вакансии</option>
             {jobs.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.title}
@@ -327,7 +259,7 @@ export default async function CandidatesPage({
             <ChevronDown className="h-4 w-4 transition group-open:rotate-180" strokeWidth={1.8} aria-hidden />
           </summary>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <select
               name="tag"
               defaultValue={filters.tag ?? ""}
@@ -395,17 +327,45 @@ export default async function CandidatesPage({
                 </option>
               ))}
             </select>
+
+            <select
+              name="channel"
+              defaultValue={filters.channel ?? ""}
+              aria-label="Канал привлечения"
+              className={selectClass}
+            >
+              <option value="">Все каналы</option>
+              {SOURCE_CHANNELS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
           </div>
         </details>
 
-        {hasFilters && (
-          <Link
-            href="/candidates"
-            className="inline-block text-xs text-ink-soft underline transition hover:text-ink"
-          >
-            Сбросить фильтры
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {hasFilters && (
+            <Link
+              href="/candidates"
+              className="inline-block text-xs text-ink-soft underline transition hover:text-ink"
+            >
+              Сбросить фильтры
+            </Link>
+          )}
+
+          {/* Выгружаются ровно те, кто сейчас в списке (по всем страницам).
+              Обычная ссылка, а не кнопка формы: файл скачивается сам. */}
+          {canExport && total > 0 && (
+            <a
+              href={`/api/candidates/export${filtersToQuery(filters)}`}
+              className={buttonClass({ variant: "secondary", size: "sm" })}
+            >
+              <Download className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+              Выгрузить в Excel ({total})
+            </a>
+          )}
+        </div>
       </form>
 
       {candidates.length === 0 ? (

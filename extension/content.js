@@ -123,10 +123,25 @@
   // Ссылка на PDF — та самая, что стоит под кнопкой «Скачать».
   // Ищем её в самой странице, а не собираем из кусочков: собранный
   // вручную адрес перестанет работать при первой же смене формата.
-  function findPdfHref(doc) {
+  function findPdfHref(doc, html) {
     const links = Array.from(doc.querySelectorAll("a[href]"))
       .map((a) => a.getAttribute("href"))
       .filter((href) => href && href.includes("resume_converter"));
+
+    // Пункты меню «Скачать» hh дорисовывает только после нажатия, и в
+    // разметке их может не быть. Зато адрес лежит в данных страницы —
+    // ищем его в самом тексте HTML.
+    if (html) {
+      const raw = html.match(/\/resume_converter\/[^"'\s<>]+/g) || [];
+      for (const found of raw) {
+        links.push(
+          found
+            .replace(/\\u002F/gi, "/")
+            .replace(/\\u0026/gi, "&")
+            .replace(/&amp;/g, "&"),
+        );
+      }
+    }
 
     if (links.length === 0) return null;
 
@@ -135,6 +150,20 @@
     );
 
     return new URL(pdf || links[0], location.origin).href;
+  }
+
+  // Последний запасной путь: адрес, по которому hh отдаёт PDF.
+  // Собирать его вручную хрупко, поэтому пробуем, только если ссылки
+  // не нашлось ни в разметке, ни в данных страницы.
+  function fallbackPdfHref(hash) {
+    return `${location.origin}/resume_converter/resume.pdf?hash=${hash}&type=pdf`;
+  }
+
+  // Настоящий PDF начинается с «%PDF». Если hh вместо файла вернул
+  // страницу входа или капчу, сохранять её как резюме нельзя.
+  function isPdf(buffer) {
+    const head = new Uint8Array(buffer.slice(0, 5));
+    return String.fromCharCode(...head) === "%PDF-";
   }
 
   function fileNameFrom(hints, hash) {
@@ -152,26 +181,52 @@
   // страницу приходится дочитывать запросом.
   async function collectResume(hash, doc) {
     const url = resumeUrl(hash);
+    let html = null;
 
     if (!doc) {
       const page = await fetch(url, { credentials: "include" });
       if (!page.ok) throw new Error(`страница резюме: ${page.status}`);
-      doc = new DOMParser().parseFromString(await page.text(), "text/html");
+      html = await page.text();
+      doc = new DOMParser().parseFromString(html, "text/html");
+    } else {
+      html = doc.documentElement ? doc.documentElement.innerHTML : null;
     }
 
     const hints = readHints(doc);
-    const pdfHref = findPdfHref(doc);
+    let pdfHref = findPdfHref(doc, html);
 
-    if (!pdfHref) {
-      throw new Error("на странице нет ссылки на скачивание PDF");
+    // На открытой странице меню «Скачать» могло быть ещё не нарисовано —
+    // перечитываем её с сервера: там адрес есть в данных страницы.
+    if (!pdfHref && !html?.includes("resume_converter")) {
+      const page = await fetch(url, { credentials: "include" });
+      if (page.ok) {
+        const fresh = await page.text();
+        pdfHref = findPdfHref(
+          new DOMParser().parseFromString(fresh, "text/html"),
+          fresh,
+        );
+      }
     }
 
-    const file = await fetch(pdfHref, { credentials: "include" });
-    if (!file.ok) throw new Error(`скачивание PDF: ${file.status}`);
+    const file = await fetch(pdfHref || fallbackPdfHref(hash), {
+      credentials: "include",
+    });
+    if (!file.ok) {
+      throw new Error(
+        pdfHref
+          ? `скачивание PDF: ${file.status}`
+          : "на странице нет ссылки на скачивание PDF",
+      );
+    }
 
     const buffer = await file.arrayBuffer();
     if (buffer.byteLength < 1000) {
       throw new Error("PDF пустой — возможно, контакты ещё не открыты");
+    }
+    if (!isPdf(buffer)) {
+      throw new Error(
+        "вместо PDF пришла страница — проверьте, что вы вошли в hh как работодатель",
+      );
     }
 
     return saveOne({

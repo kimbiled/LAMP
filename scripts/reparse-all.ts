@@ -38,8 +38,14 @@ async function writeStored(companyId: string, data: Buffer, ext: string) {
 //
 // Запуск:
 //   npx tsx scripts/reparse-all.ts
-//   npx tsx scripts/reparse-all.ts --force   заменить опыт и образование
-//                                            даже там, где они уже есть
+//   npx tsx scripts/reparse-all.ts --force      заменить опыт и образование
+//                                               даже там, где они уже есть
+//   npx tsx scripts/reparse-all.ts --education  заменить только образование,
+//                                               опыт работы не трогать
+//   ... --dry-run   ничего не записывать, только показать, что изменится
+//
+// Внимание: --education и --force затирают образование, поправленное
+// руками. Поэтому сначала запускайте с --dry-run и смотрите список.
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -47,6 +53,8 @@ const db = new PrismaClient({
 
 async function main() {
   const force = process.argv.includes("--force");
+  const educationOnly = process.argv.includes("--education");
+  const dryRun = process.argv.includes("--dry-run");
 
   const candidates = await db.candidate.findMany({
     where: { resumes: { some: {} } },
@@ -57,14 +65,48 @@ async function main() {
         take: 1,
       },
       _count: { select: { experience: true, education: true } },
+      education: { orderBy: { sortOrder: "asc" } },
     },
     orderBy: { createdAt: "asc" },
   });
 
   console.log(`кандидатов с резюме: ${candidates.length}`);
   if (force) console.log("режим --force: опыт и образование будут заменены\n");
+  if (educationOnly) console.log("режим --education: заменяется только образование\n");
+  if (dryRun) console.log("пробный запуск: в базу ничего не пишется\n");
+
+  // Перед заменой сохраняем старое образование в файл: если в нём были
+  // ручные правки, их можно будет вернуть.
+  if (!dryRun && (force || educationOnly)) {
+    const backupDir = path.join(ROOT, "backups");
+    await mkdir(backupDir, { recursive: true });
+    const backupFile = path.join(
+      backupDir,
+      `education-${new Date().toISOString().replace(/[:.]/g, "-")}.json`,
+    );
+    await writeFile(
+      backupFile,
+      JSON.stringify(
+        candidates.map((candidate) => ({
+          candidateId: candidate.id,
+          fullName: candidate.fullName,
+          education: candidate.education.map((item) => ({
+            institution: item.institution,
+            specialty: item.specialty,
+            years: item.years,
+            sortOrder: item.sortOrder,
+          })),
+        })),
+        null,
+        2,
+      ),
+    );
+    console.log(`резервная копия образования: ${backupFile}\n`);
+  }
 
   let improved = 0;
+  let photosFound = 0;
+  let educationChanged = 0;
 
   for (const candidate of candidates) {
     const resume = candidate.resumes[0];
@@ -81,6 +123,35 @@ async function main() {
 
     const parsed = processed.parsed;
 
+    const newPhoto = !candidate.photoKey && processed.photo !== null;
+    if (newPhoto) photosFound += 1;
+
+    const replaceLists = force || candidate._count.experience === 0;
+    const replaceEducation = replaceLists || educationOnly;
+
+    const describe = (items: { institution: string; specialty: string | null; years: string | null }[]) =>
+      items.length === 0
+        ? "—"
+        : items
+            .map((item) => [item.years, item.institution, item.specialty].filter(Boolean).join(" · "))
+            .join(" | ");
+    const oldEducation = describe(candidate.education);
+    const newEducation = describe(parsed.education);
+    const educationDiffers = replaceEducation && oldEducation !== newEducation;
+    if (educationDiffers) educationChanged += 1;
+
+    if (dryRun) {
+      const notes: string[] = [];
+      if (newPhoto) notes.push("+ фото");
+      if (educationDiffers) {
+        notes.push(`образование:\n      было:  ${oldEducation}\n      станет: ${newEducation}`);
+      }
+      if (notes.length > 0) {
+        console.log(`  ${candidate.fullName.slice(0, 40)}  ${notes.join("  ")}`);
+      }
+      continue;
+    }
+
     // Фото ставим только тем, у кого его ещё нет.
     const photoKey =
       candidate.photoKey ??
@@ -91,7 +162,6 @@ async function main() {
             processed.photo.extension,
           )
         : null);
-    const replaceLists = force || candidate._count.experience === 0;
 
     const gained: string[] = [];
     if (!candidate.phone && parsed.phone) gained.push("телефон");
@@ -109,10 +179,14 @@ async function main() {
       await db.candidateExperience.deleteMany({
         where: { candidateId: candidate.id },
       });
+    }
+    if (replaceEducation) {
       await db.candidateEducation.deleteMany({
         where: { candidateId: candidate.id },
       });
     }
+    if (educationDiffers) gained.push("образование");
+    if (newPhoto) gained.push("фото");
 
     await db.candidate.update({
       where: { id: candidate.id },
@@ -141,6 +215,10 @@ async function main() {
                   sortOrder: index,
                 })),
               },
+            }
+          : {}),
+        ...(replaceEducation
+          ? {
               education: {
                 create: parsed.education.map((item, index) => ({
                   institution: item.institution,
@@ -171,7 +249,11 @@ async function main() {
     );
   }
 
-  console.log(`\nГотово. Стало полнее у ${improved} из ${candidates.length}.`);
+  console.log(
+    `\n${dryRun ? "Пробный запуск" : "Готово"}. ` +
+      `Фото найдено у ${photosFound}, образование ${dryRun ? "изменится" : "изменилось"} у ${educationChanged}` +
+      (dryRun ? "." : `, стало полнее у ${improved} из ${candidates.length}.`),
+  );
 }
 
 main()

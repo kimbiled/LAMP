@@ -13,6 +13,8 @@ describe("Права ролей", () => {
     expect(can("ADMIN", "users.manage")).toBe(true);
     expect(can("ADMIN", "company.manage")).toBe(true);
     expect(can("ADMIN", "candidates.delete")).toBe(true);
+    expect(can("ADMIN", "jobs.delete")).toBe(true);
+    expect(can("ADMIN", "stages.manage")).toBe(true);
     expect(can("ADMIN", "analytics.view")).toBe(true);
   });
 
@@ -26,6 +28,8 @@ describe("Права ролей", () => {
     expect(can("RECRUITER", "users.manage")).toBe(false);
     expect(can("RECRUITER", "company.manage")).toBe(false);
     expect(can("RECRUITER", "candidates.delete")).toBe(false);
+    expect(can("RECRUITER", "jobs.delete")).toBe(false);
+    expect(can("RECRUITER", "stages.manage")).toBe(false);
   });
 
   it("нанимающий менеджер только оставляет фидбэк", () => {
@@ -36,6 +40,7 @@ describe("Права ролей", () => {
     expect(can("HIRING_MANAGER", "candidates.move")).toBe(false);
     expect(can("HIRING_MANAGER", "candidates.delete")).toBe(false);
     expect(can("HIRING_MANAGER", "candidates.viewAll")).toBe(false);
+    expect(can("HIRING_MANAGER", "candidates.export")).toBe(false);
     expect(can("HIRING_MANAGER", "jobs.manage")).toBe(false);
     expect(can("HIRING_MANAGER", "jobs.viewAll")).toBe(false);
     expect(can("HIRING_MANAGER", "interviews.manage")).toBe(false);

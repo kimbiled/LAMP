@@ -16,6 +16,7 @@ import { placeInDay } from "@/lib/calendar";
 import { JobStatusSelect } from "./status-select";
 import { JobPrioritySelect } from "./priority-select";
 import { JobCandidates } from "./job-candidates";
+import { DeleteJobButton } from "./delete-button";
 
 export const metadata: Metadata = { title: "Вакансия — LAMP" };
 
@@ -188,6 +189,18 @@ export default async function JobPage({
               </p>
             </section>
           )}
+        </div>
+      )}
+
+      {/* Удаление — в самом низу, отдельно от остальных кнопок,
+          как у кандидата: чтобы не промахнуться. */}
+      {scope.can("jobs.delete") && (
+        <div className="mt-10 flex justify-end border-t border-line pt-5">
+          <DeleteJobButton
+            jobId={job.id}
+            jobTitle={job.title}
+            candidateCount={job._count.candidates}
+          />
         </div>
       )}
     </div>

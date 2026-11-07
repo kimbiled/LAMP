@@ -2,7 +2,7 @@ import type { StageKey } from "@/generated/prisma/enums";
 
 // Этапы подбора, которые создаются автоматически для каждой новой компании.
 // key — системное обозначение, по нему строится аналитика и цвета.
-// Позже администратор сможет добавлять свои этапы: у них key будет пустым.
+// Администратор добавляет свои этапы в настройках: у них key пустой.
 
 export const DEFAULT_STAGES: { name: string; key: StageKey }[] = [
   { name: "Новое резюме", key: "NEW" },
@@ -86,21 +86,54 @@ export const TONE_STYLES: Record<
   },
 };
 
-// Следующая ступень воронки после текущей.
-//
-// Нужна кнопке «Рекомендую дальше» в календаре: после успешного
-// интервью кандидат должен двигаться сам, без похода в его карточку.
-// Для этапов вне воронки — «Подумает», «Не отвечает» и прочих —
-// следующей ступени нет: куда двигать, решает человек.
-export function nextFunnelKey(key: StageKey | null): StageKey | null {
-  if (!key) return null;
+// Ступень воронки: системная из FUNNEL_KEYS или своя этап компании
+// (у своих key пустой). Паузы, отказы и старые служебные этапы — нет.
+export function isProgressStep(key: StageKey | null): boolean {
+  return key === null || FUNNEL_KEYS.includes(key);
+}
 
-  const index = FUNNEL_KEYS.indexOf(key);
-  if (index === -1 || index === FUNNEL_KEYS.length - 1) {
-    return null;
+// Следующий этап после текущего — по порядку, который компания
+// выставила в настройках. Нужен кнопке «Рекомендую дальше» в календаре:
+// после успешного интервью кандидат двигается сам, без похода в карточку.
+// Так он не перепрыгивает через этапы, добавленные вручную.
+// Из паузы и отказа дальше не ведём: куда двигать, решает человек.
+export function nextProgressStage<T extends { id: string; key: StageKey | null }>(
+  stagesInOrder: T[],
+  currentId: string,
+): T | null {
+  const index = stagesInOrder.findIndex((stage) => stage.id === currentId);
+  if (index === -1 || !isProgressStep(stagesInOrder[index].key)) return null;
+
+  return (
+    stagesInOrder.slice(index + 1).find((stage) => isProgressStep(stage.key)) ??
+    null
+  );
+}
+
+// Куда встаёт новый этап: сразу после последней ступени воронки,
+// перед паузами и отказами. В конец списка его ставить неудобно —
+// он оказался бы после «Отказ от нас», и его пришлось бы тащить вверх.
+export function insertIndexForNewStage(stagesInOrder: { key: StageKey | null }[]): number {
+  for (let index = stagesInOrder.length - 1; index >= 0; index--) {
+    if (isProgressStep(stagesInOrder[index].key)) return index + 1;
   }
+  return stagesInOrder.length;
+}
 
-  return FUNNEL_KEYS[index + 1];
+// Перестановка соседей: «выше» или «ниже». Возвращает новый порядок
+// идентификаторов или null, если двигать некуда.
+export function moveInOrder(
+  ids: string[],
+  id: string,
+  direction: "up" | "down",
+): string[] | null {
+  const index = ids.indexOf(id);
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (index === -1 || target < 0 || target >= ids.length) return null;
+
+  const next = [...ids];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
 }
 
 // Группы этапов для выбора: движение вперёд, пауза, конец подбора.

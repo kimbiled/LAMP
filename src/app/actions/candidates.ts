@@ -461,6 +461,7 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
     select: {
       id: true,
       fullName: true,
+      photoKey: true,
       resumes: { select: { storageKey: true } },
     },
   });
@@ -484,6 +485,9 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
   // их нужно убрать с диска вручную.
   for (const resume of candidate.resumes) {
     await removeFile(resume.storageKey);
+  }
+  if (candidate.photoKey) {
+    await removeFile(candidate.photoKey);
   }
 
   redirect("/candidates");
