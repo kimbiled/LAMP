@@ -3,15 +3,16 @@
 import { changeUserRole } from "@/app/actions/users";
 import { InstantSelect } from "@/components/ui/instant-select";
 import type { Role } from "@/generated/prisma/enums";
+import { BriefcaseBusiness, ShieldCheck, UserSearch } from "lucide-react";
 
 // Роль сотрудника. Сохраняется сразу при выборе, но сначала спрашивает
 // подтверждение: роль решает, что человек видит и может менять,
 // и случайное нажатие стрелки на клавиатуре не должно её сменить.
 
 const ROLE_OPTIONS = [
-  { value: "ADMIN", label: "Администратор" },
-  { value: "RECRUITER", label: "Рекрутер" },
-  { value: "HIRING_MANAGER", label: "Нанимающий менеджер" },
+  { value: "ADMIN", label: "Администратор", icon: ShieldCheck },
+  { value: "RECRUITER", label: "Рекрутер", icon: UserSearch },
+  { value: "HIRING_MANAGER", label: "Нанимающий менеджер", icon: BriefcaseBusiness },
 ];
 
 export function RoleSelect({

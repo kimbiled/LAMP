@@ -8,6 +8,8 @@ import {
   markNotificationRead,
   openNotification,
 } from "@/app/actions/notifications";
+import Link from "next/link";
+import { MeetingAnswerButtons } from "../interviews/meeting-parts";
 
 export const metadata: Metadata = { title: "Уведомления — LAMP" };
 
@@ -21,6 +23,19 @@ export default async function NotificationsPage() {
   });
 
   const unread = notifications.filter((item) => !item.isRead).length;
+
+  // Мои ответы на приглашения: кнопки «Иду» / «Не смогу» прямо здесь.
+  const meetingIds = notifications
+    .filter((item) => item.type === "MEETING_INVITE" && item.entityId)
+    .map((item) => item.entityId as string);
+  const myAnswers = new Map(
+    (
+      await db.meetingAttendee.findMany({
+        where: { userId: scope.session.user.id, meetingId: { in: meetingIds } },
+        select: { meetingId: true, status: true },
+      })
+    ).map((item) => [item.meetingId, item.status]),
+  );
 
   return (
     <div className="max-w-2xl">
@@ -89,6 +104,22 @@ export default async function NotificationsPage() {
                   </form>
                 )}
               </div>
+
+              {item.type === "MEETING_INVITE" && item.entityId && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  {myAnswers.has(item.entityId) ? (
+                    <MeetingAnswerButtons
+                      meetingId={item.entityId}
+                      status={myAnswers.get(item.entityId)!}
+                    />
+                  ) : (
+                    <span className="text-sm text-ink-soft">Собрание отменено</span>
+                  )}
+                  <Link href="/interviews" className="text-sm text-ink-soft underline hover:text-ink">
+                    В календарь
+                  </Link>
+                </div>
+              )}
 
               {item.entityType === "Candidate" && item.entityId && (
                 <form action={openNotification} className="mt-3">

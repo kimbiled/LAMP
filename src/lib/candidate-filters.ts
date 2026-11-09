@@ -2,6 +2,7 @@ import { daysAgo } from "@/lib/time";
 import { candidateVisibilityFilter } from "@/lib/permissions";
 import type { Prisma } from "@/generated/prisma/client";
 import type { Role, SourceChannel } from "@/generated/prisma/enums";
+import { caseVariants, searchVariants } from "@/lib/search-variants";
 
 // Фильтры списка кандидатов. Живут отдельно от страницы, потому что
 // ими же пользуется выгрузка в Excel: что видно в списке, то и
@@ -104,37 +105,7 @@ export function candidateWhereFrom(
     ...(Number.isFinite(minExperience) && minExperience > 0
       ? { experienceYears: { gte: minExperience } }
       : {}),
-    ...(query
-      ? {
-          OR: [
-            { fullName: { contains: query, mode: "insensitive" as const } },
-            { phone: { contains: query } },
-            { email: { contains: query, mode: "insensitive" as const } },
-            {
-              currentPosition: { contains: query, mode: "insensitive" as const },
-            },
-            // Навык целиком: «Excel», «1С», «Figma».
-            { skills: { has: query } },
-            // Поиск по компаниям из опыта работы кандидата.
-            {
-              experience: {
-                some: {
-                  companyName: { contains: query, mode: "insensitive" as const },
-                },
-              },
-            },
-            // И по тексту самого резюме: слово из описания проекта
-            // найдётся, даже если его нет ни в одном поле карточки.
-            {
-              resumes: {
-                some: {
-                  parsedText: { contains: query, mode: "insensitive" as const },
-                },
-              },
-            },
-          ],
-        }
-      : {}),
+    ...(query ? { OR: searchConditions(query) } : {}),
   };
 }
 
@@ -146,4 +117,44 @@ export function filtersToQuery(filters: CandidateFilters): string {
   }
   const text = params.toString();
   return text ? `?${text}` : "";
+}
+
+// Условия поиска по строке. Ищем сам запрос и его варианты: в другой
+// раскладке и в транслите («nariman» найдёт «Нариман», «тфкшьфт» —
+// тоже). Поля: имя, телефон, почта, должность, навыки, компании
+// из опыта и текст резюме.
+function searchConditions(query: string): Prisma.CandidateWhereInput[] {
+  const variants = searchVariants(query);
+  const insensitive = "insensitive" as const;
+
+  return [
+    // Телефон — только как набрали: у цифр нет раскладки.
+    { phone: { contains: query } },
+    // Навык целиком, в любом регистре: «excel» найдёт «Excel».
+    { skills: { hasSome: variants.flatMap(caseVariants) } },
+    ...variants.flatMap((variant): Prisma.CandidateWhereInput[] => [
+      { fullName: { contains: variant, mode: insensitive } },
+      { email: { contains: variant, mode: insensitive } },
+      { currentPosition: { contains: variant, mode: insensitive } },
+      { city: { contains: variant, mode: insensitive } },
+      // Должности и компании из опыта работы.
+      {
+        experience: {
+          some: {
+            OR: [
+              { companyName: { contains: variant, mode: insensitive } },
+              { position: { contains: variant, mode: insensitive } },
+            ],
+          },
+        },
+      },
+      // И текст самого резюме: слово из описания проекта найдётся,
+      // даже если его нет ни в одном поле карточки.
+      {
+        resumes: {
+          some: { parsedText: { contains: variant, mode: insensitive } },
+        },
+      },
+    ]),
+  ];
 }

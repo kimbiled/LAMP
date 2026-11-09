@@ -9,6 +9,7 @@ import {
   ChartColumn,
   Ellipsis,
   LayoutDashboard,
+  NotebookPen,
   Settings,
   ShieldCheck,
   UserCog,
@@ -46,6 +47,9 @@ export const NAV_ITEMS: {
     icon: ChartColumn,
     permission: "analytics.view",
   },
+  // Личный блокнот: дела на день и заметки по кандидатам.
+  // Есть у всех — у каждого свой.
+  { href: "/notebook", label: "Блокнот", icon: NotebookPen },
   {
     href: "/users",
     label: "Пользователи",

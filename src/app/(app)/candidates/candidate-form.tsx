@@ -34,6 +34,7 @@ export type CandidateFormValues = {
   languages: string;
   source: string;
   sourceChannel: string;
+  referredBy: string;
   note: string;
 };
 
@@ -82,8 +83,8 @@ export function CandidateForm({
         </div>
       )}
 
-      {/* Найден человек с такими же контактами. Форма не потеряна:
-          всё введённое на месте, решение за рекрутером. */}
+      {/* Найден человек с такими же контактами. Второго не заводим:
+          всё введённое на месте, а работать нужно в его карточке. */}
       {state.duplicates && state.duplicates.length > 0 && (
         <div className="rounded-lg border border-line bg-glow p-4">
           <p className="text-sm font-medium text-ink">
@@ -92,8 +93,8 @@ export function CandidateForm({
               : "Похожие люди уже есть в базе"}
           </p>
           <p className="mt-1 text-xs text-ink-soft">
-            Совпали контакты. Откройте карточку, чтобы не заводить второго — или
-            создайте нового, если это однофамилец.
+            Совпал телефон или почта. Второго такого же человека создать
+            нельзя — откройте его карточку и продолжайте работу в ней.
           </p>
 
           <ul className="mt-3 space-y-2">
@@ -120,18 +121,6 @@ export function CandidateForm({
             ))}
           </ul>
 
-          {/* Второй заход формы приходит с этой отметкой,
-              и проверка дублей пропускается. */}
-          <label className="mt-3 flex items-center gap-2 text-sm text-ink">
-            <input
-              type="checkbox"
-              name="ignoreDuplicates"
-              value="true"
-              defaultChecked
-              className="h-4 w-4 rounded border-line accent-accent"
-            />
-            Это другой человек — создать всё равно
-          </label>
         </div>
       )}
 
@@ -186,6 +175,21 @@ export function CandidateForm({
               ? "Нажмите ещё раз, чтобы снять отметку"
               : "Необязательно. Сами нашли, откликнулся сам или привели свои"}
           </p>
+
+          {/* У реферала важно, кто его привёл: этого человека потом
+              благодарят, а иногда и платят ему бонус. */}
+          {channel === "REFERRAL" && (
+            <div className="mt-3 max-w-md">
+              <TextField
+                label="Кто порекомендовал"
+                name="referredBy"
+                defaultValue={v.referredBy}
+                placeholder="Например: Айгерим Сапарова, отдел продаж"
+                hint="Будет видно в карточке рядом с меткой «Реферал»"
+                error={state.fieldErrors?.referredBy}
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

@@ -27,6 +27,12 @@ import { Modal as Dialog, useConfirm } from "@/components/ui/dialog";
 import { NETWORK_ERROR, useToast } from "@/components/ui/toast";
 import { ALERT_CLASSES, buttonClass, inputClass } from "@/components/ui/styles";
 import { WE_DECLINED_REASONS } from "@/lib/rejection";
+import {
+  MeetingDetails,
+  MeetingForm,
+  meetingStyle,
+  type CalendarMeeting,
+} from "./meeting-parts";
 
 // Недельная сетка интервью.
 //
@@ -61,10 +67,14 @@ export type CalendarEvent = {
 };
 
 type Person = { id: string; fullName: string };
-type CandidateOption = { id: string; fullName: string };
+type CandidateOption = { id: string; fullName: string; jobTitle?: string | null };
+
+// Что назначаем по нажатию на свободное время.
+type CreateKind = "INTERVIEW" | "DAILY" | "REMINDER";
 
 type Dialog =
   | { kind: "create"; date: string; time: string }
+  | { kind: "meeting"; meeting: CalendarMeeting }
   | { kind: "event"; event: CalendarEvent }
   | { kind: "edit"; event: CalendarEvent }
   // Пачка встреч на одно время: сначала показываем список, из него
@@ -252,12 +262,14 @@ const TYPES = [
 ];
 
 const fieldClass =
-  "mt-1.5 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-accent";
+  "mt-1.5 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-ink focus:ring-[3px] focus:ring-accent/40";
 
 export function WeekCalendar({
   days,
   hours,
   events,
+  meetings,
+  colleagues,
   candidates,
   users,
   canManage,
@@ -271,6 +283,10 @@ export function WeekCalendar({
   days: CalendarDay[];
   hours: { hour: number; label: string }[];
   events: CalendarEvent[];
+  // Собрания и напоминания, куда позвали этого человека.
+  meetings: CalendarMeeting[];
+  // Коллеги, которых можно позвать на собрание.
+  colleagues: Person[];
   candidates: CandidateOption[];
   users: Person[];
   canManage: boolean;
@@ -286,6 +302,9 @@ export function WeekCalendar({
   dayEndHour: number;
 }) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  // Интервью назначает тот, у кого есть право; собрание и напоминание —
+  // любой сотрудник.
+  const [createKind, setCreateKind] = useState<CreateKind>(canManage ? "INTERVIEW" : "DAILY");
 
   const totalMinutes = (dayEndHour - dayStartHour) * 60;
   const gridHeight = (totalMinutes / 30) * SLOT_HEIGHT;
@@ -364,13 +383,13 @@ export function WeekCalendar({
                     />
                   ))}
 
-                  {/* Пустые получасовые ячейки: нажатие назначает интервью */}
-                  {canManage &&
-                    slotsPerDay.map((minutes) => (
+                  {/* Пустые получасовые ячейки: нажатие назначает интервью,
+                      собрание или напоминание — на выбор. */}
+                  {slotsPerDay.map((minutes) => (
                       <button
                         key={minutes}
                         type="button"
-                        title={`Назначить на ${minuteText(minutes)}`}
+                        title={`Создать на ${minuteText(minutes)}`}
                         // Больше сотни пустых ячеек не должны стоять на пути
                         // клавиши Tab: с клавиатуры встречу назначают кнопкой
                         // «Назначить интервью» над календарём.
@@ -484,6 +503,50 @@ export function WeekCalendar({
                       </button>
                     );
                   })}
+
+                  {/* Собрания и напоминания. Если в это же время есть
+                      интервью, встреча занимает правую половину колонки,
+                      чтобы не закрывать его. Отказался — её нет в сетке. */}
+                  {meetings
+                    .filter((meeting) => meeting.date === day.date && meeting.myStatus !== "DECLINED")
+                    .map((meeting) => {
+                      const end = meeting.startMinutes + meeting.durationMinutes;
+                      const overlaps = dayEvents.some(
+                        (event) =>
+                          event.startMinutes < end &&
+                          event.startMinutes + event.durationMinutes > meeting.startMinutes,
+                      );
+                      return (
+                        <button
+                          key={meeting.id}
+                          type="button"
+                          onClick={() => setDialog({ kind: "meeting", meeting })}
+                          title={
+                            meeting.myStatus === "PENDING"
+                              ? `${meeting.title} — ждёт вашего ответа`
+                              : meeting.title
+                          }
+                          className={`absolute ${overlaps ? "left-1/2" : "left-1"} right-1 z-30 overflow-hidden rounded-md border px-2 py-0.5 text-left text-xs leading-snug transition hover:brightness-95 ${meetingStyle(meeting)}`}
+                          style={{
+                            top: offsetOf(meeting.startMinutes),
+                            height: blockHeight(meeting.durationMinutes),
+                          }}
+                        >
+                          <span className="block truncate font-medium">
+                            {meeting.timeText} {meeting.title}
+                          </span>
+                          {blockHeight(meeting.durationMinutes) > 36 && (
+                            <span className="block truncate opacity-75">
+                              {meeting.myStatus === "PENDING"
+                                ? "ждёт ответа"
+                                : meeting.kind === "REMINDER"
+                                  ? "напоминание"
+                                  : `собрание · ${meeting.attendees.length}`}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                 </div>
               );
             })}
@@ -492,7 +555,51 @@ export function WeekCalendar({
       </div>
 
       {dialog?.kind === "create" && (
-        <Modal title="Назначить интервью" onClose={() => setDialog(null)}>
+        <Modal
+          title={
+            createKind === "INTERVIEW"
+              ? "Назначить интервью"
+              : createKind === "DAILY"
+                ? "Назначить собрание"
+                : "Напоминание"
+          }
+          onClose={() => setDialog(null)}
+        >
+          {/* Что создаём: интервью с кандидатом, собрание с коллегами
+              или напоминание себе. */}
+          <div role="tablist" aria-label="Что создать" className="mb-4 inline-flex rounded-lg border border-line-strong bg-surface p-0.5">
+            {(
+              [
+                ...(canManage ? [{ id: "INTERVIEW", label: "Интервью" }] : []),
+                { id: "DAILY", label: "Собрание" },
+                { id: "REMINDER", label: "Напоминание" },
+              ] as { id: CreateKind; label: string }[]
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={createKind === tab.id}
+                onClick={() => setCreateKind(tab.id)}
+                className={`rounded-md px-3 py-1.5 text-sm transition ${
+                  createKind === tab.id ? "bg-ink-strong font-medium text-canvas" : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {createKind !== "INTERVIEW" ? (
+            <MeetingForm
+              key={createKind}
+              kind={createKind}
+              date={dialog.date}
+              time={dialog.time}
+              colleagues={colleagues}
+              onDone={() => setDialog(null)}
+            />
+          ) : (
           <InterviewForm
             mode="create"
             candidates={candidates}
@@ -510,6 +617,13 @@ export function WeekCalendar({
             meetingLink={meetingLink}
             onDone={() => setDialog(null)}
           />
+          )}
+        </Modal>
+      )}
+
+      {dialog?.kind === "meeting" && (
+        <Modal title={dialog.meeting.title} onClose={() => setDialog(null)}>
+          <MeetingDetails meeting={dialog.meeting} onDone={() => setDialog(null)} />
         </Modal>
       )}
 
@@ -1166,6 +1280,8 @@ function InterviewForm({
         id="cal-meetingUrl"
         defaultValue={defaults.meetingUrl}
         companyLink={meetingLink}
+        candidateName={candidates.find((item) => item.id === candidateId)?.fullName ?? null}
+        jobTitle={candidates.find((item) => item.id === candidateId)?.jobTitle ?? null}
         error={state.fieldErrors?.meetingUrl}
       />
 

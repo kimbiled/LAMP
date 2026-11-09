@@ -1,14 +1,19 @@
-import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
-import { candidateVisibilityFilter } from "@/lib/permissions";
-import { loadFile } from "@/lib/storage";
 import { logAction } from "@/lib/audit";
 import { renderCandidatePdf } from "@/lib/pdf/candidate-resume";
+import {
+  attachmentHeader,
+  exportFileName,
+  loadCandidateExport,
+  readExportMode,
+} from "@/lib/export/candidate-export";
 
 // Выгрузка резюме кандидата в PDF.
 //
-// /api/candidates/<id>/pdf             — с контактами
-// /api/candidates/<id>/pdf?contacts=0  — без телефона, почты и Telegram
+// /api/candidates/<id>/pdf                 — с контактами
+// /api/candidates/<id>/pdf?mode=nocontacts — без телефона, почты и Telegram
+// /api/candidates/<id>/pdf?mode=anonymous  — без имени, фото и контактов
+// (старое ?contacts=0 тоже работает)
 //
 // Проверки те же, что у файла резюме: только своя компания и только
 // если кандидат виден этому человеку. Компания берётся из сессии,
@@ -24,56 +29,20 @@ export async function GET(
   }
 
   const { id } = await params;
+  const mode = readExportMode(new URL(request.url));
 
-  const candidate = await db.candidate.findFirst({
-    where: {
-      id,
-      companyId: session.user.companyId,
-      ...candidateVisibilityFilter(session.user),
-    },
-    include: {
-      experience: { orderBy: { sortOrder: "asc" } },
-      education: { orderBy: { sortOrder: "asc" } },
-    },
+  const loaded = await loadCandidateExport({
+    candidateId: id,
+    user: session.user,
+    companyName: session.company.name,
+    mode,
   });
 
-  if (!candidate) {
+  if (!loaded) {
     return new Response("Кандидат не найден", { status: 404 });
   }
 
-  const showContacts =
-    new URL(request.url).searchParams.get("contacts") !== "0";
-
-  // Фото не обязательно: если файла нет в хранилище, выгружаем без него.
-  let photo: Buffer | null = null;
-  if (candidate.photoKey) {
-    try {
-      photo = await loadFile(candidate.photoKey);
-    } catch {
-      photo = null;
-    }
-  }
-
-  const pdf = await renderCandidatePdf({
-    fullName: candidate.fullName,
-    currentPosition: candidate.currentPosition,
-    city: candidate.city,
-    birthDate: candidate.birthDate,
-    experienceYears: candidate.experienceYears,
-    experienceMonths: candidate.experienceMonths,
-    salaryExpectation: candidate.salaryExpectation,
-    currency: candidate.currency,
-    phone: candidate.phone,
-    email: candidate.email,
-    telegram: candidate.telegram,
-    skills: candidate.skills,
-    languages: candidate.languages,
-    experience: candidate.experience,
-    education: candidate.education,
-    photo,
-    companyName: session.company.name,
-    showContacts,
-  });
+  const pdf = await renderCandidatePdf(loaded.data);
 
   // Резюме с личными данными уходит за пределы системы — записываем,
   // кто и когда его выгрузил.
@@ -82,19 +51,18 @@ export async function GET(
     userId: session.user.id,
     action: "CANDIDATE_PDF_EXPORTED",
     entityType: "Candidate",
-    entityId: candidate.id,
-    meta: { contacts: showContacts },
+    entityId: loaded.id,
+    meta: { format: "pdf", mode, contacts: mode === "full" },
   });
-
-  // Имя файла по-русски — через filename*, а для старых программ
-  // запасное латиницей.
-  const fileName = `${candidate.fullName} — резюме.pdf`;
 
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Length": String(pdf.length),
-      "Content-Disposition": `attachment; filename="resume.pdf"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      "Content-Disposition": attachmentHeader(
+        exportFileName(loaded.fullName, mode, "pdf"),
+        "resume.pdf",
+      ),
       "Cache-Control": "private, no-store",
     },
   });

@@ -3,14 +3,18 @@
 import { changeJobStatus } from "@/app/actions/jobs";
 import { InstantSelect } from "@/components/ui/instant-select";
 import type { JobStatus } from "@/generated/prisma/enums";
+import { JOB_STATUSES } from "@/lib/job-status";
 
 // Быстрая смена статуса вакансии прямо на её странице.
+// У каждого статуса своя иконка и цвет — те же, что на метке в списке.
 
-const STATUS_OPTIONS = [
-  { value: "OPEN", label: "Открыта" },
-  { value: "PAUSED", label: "Приостановлена" },
-  { value: "CLOSED", label: "Закрыта" },
-];
+const STATUS_OPTIONS = JOB_STATUSES.map((item) => ({
+  value: item.value,
+  label: item.label,
+  icon: item.icon,
+  tone: item.tone,
+  surface: `${item.badge} font-medium`,
+}));
 
 export function JobStatusSelect({
   jobId,

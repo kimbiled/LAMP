@@ -9,6 +9,10 @@ import { GlobalSearch } from "@/components/global-search";
 import { NotificationBell } from "@/components/notification-bell";
 import { ToastProvider } from "@/components/ui/toast";
 import { ConfirmProvider } from "@/components/ui/dialog";
+import { MeetingDefaultsProvider } from "@/components/meeting-defaults";
+import { db } from "@/lib/db";
+import { Mascot } from "@/components/mascot";
+import { readLook } from "@/lib/mascot";
 
 // Оболочка всех внутренних страниц.
 // requireSession() проверяет вход НА СЕРВЕРЕ: без сессии страница
@@ -21,9 +25,29 @@ export default async function AppLayout({
 }) {
   const session = await requireSession();
 
+  // Своя комната Google Meet и шаблон приглашения — для кнопок
+  // в формах интервью на любой странице. Если своей ссылки нет,
+  // берётся старая общая ссылка компании.
+  const [me, company] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: { meetingLink: true, inviteTemplate: true, mascot: true },
+    }),
+    db.company.findUnique({
+      where: { id: session.user.companyId },
+      select: { meetingLink: true },
+    }),
+  ]);
+
   return (
     <ToastProvider>
     <ConfirmProvider>
+    <MeetingDefaultsProvider
+      link={me?.meetingLink ?? company?.meetingLink ?? null}
+      template={me?.inviteTemplate ?? ""}
+      recruiterName={session.user.fullName}
+      companyName={session.company.name}
+    >
     <div className="min-h-screen md:flex">
       <NavMemory />
 
@@ -44,12 +68,22 @@ export default async function AppLayout({
         />
 
         <div className="mt-auto border-t border-sidebar-border pt-4">
-          <p className="truncate px-1 text-sm font-medium text-sidebar-text-active">
-            {session.user.fullName}
-          </p>
-          <p className="truncate px-1 text-xs text-sidebar-text">
-            {ROLE_LABELS[session.user.role]}
-          </p>
+          {/* Персонаж и имя: нажатие открывает примерочную. */}
+          <Link
+            href="/mascot"
+            title="Мой персонаж — нарядить"
+            className="flex items-center gap-2 rounded-lg px-1 py-1 transition hover:bg-sidebar-hover"
+          >
+            <Mascot look={readLook(me?.mascot)} size={40} title="Мой персонаж" className="shrink-0" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium text-sidebar-text-active">
+                {session.user.fullName}
+              </span>
+              <span className="block truncate text-xs text-sidebar-text">
+                {ROLE_LABELS[session.user.role]}
+              </span>
+            </span>
+          </Link>
           <form action={logout} className="mt-3">
             <button
               type="submit"
@@ -87,12 +121,12 @@ export default async function AppLayout({
           <Link
             href="/candidates"
             aria-label="Поиск кандидатов"
-            className="ml-auto rounded-lg p-2.5 text-ink-soft transition hover:bg-muted hover:text-ink md:hidden"
+            className="ml-auto inline-flex items-center justify-center rounded-lg p-2.5 text-ink-soft transition hover:bg-muted hover:text-ink md:hidden"
           >
             <Search className="h-5 w-5" strokeWidth={1.8} />
           </Link>
 
-          <div className="md:ml-0">
+          <div className="flex md:ml-0">
             <NotificationBell count={session.unreadNotifications} />
           </div>
 
@@ -124,6 +158,7 @@ export default async function AppLayout({
         </div>
       </div>
     </div>
+    </MeetingDefaultsProvider>
     </ConfirmProvider>
     </ToastProvider>
   );

@@ -129,6 +129,14 @@ export async function POST(request: Request) {
     return Response.json({ error: created.error }, { status: 400 });
   }
 
+  if (created.existing) {
+    return Response.json({
+      status: "already",
+      candidateId: created.candidateId,
+      fullName: created.fullName,
+    });
+  }
+
   return Response.json({
     status: "created",
     candidateId: created.candidateId,

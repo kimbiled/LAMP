@@ -24,9 +24,10 @@ export type CandidateSource = {
 
 export type CreatedCandidate = {
   candidateId: string;
-  // Похожие люди, уже заведённые в этой компании. Карточку всё равно
-  // создаём: файл уже загружен, и терять его из-за подозрения нельзя.
-  // Наверху решают, как об этом предупредить.
+  // true — второго человека не заводили: телефон или почта совпали
+  // с уже существующей карточкой, и новое резюме легло в неё.
+  existing: boolean;
+  fullName: string;
   duplicates: Awaited<ReturnType<typeof findDuplicates>>;
 };
 
@@ -63,6 +64,71 @@ export async function createCandidateFromResume(params: {
     extension: params.file.extension,
     mimeType: params.file.mimeType,
   });
+
+  // Дублей не заводим. Если телефон или почта из резюме уже есть
+  // у кандидата этой компании — это тот же человек: новый файл
+  // становится его текущим резюме, а данные карточки не трогаем
+  // (их мог поправить рекрутер). Раньше заводилась вторая карточка,
+  // и история человека расползалась на две.
+  if (duplicates.length > 0) {
+    const target = duplicates[0];
+    await db.resume.updateMany({
+      where: { candidateId: target.id },
+      data: { isCurrent: false },
+    });
+    await db.resume.create({
+      data: {
+        companyId: params.companyId,
+        candidateId: target.id,
+        fileName: params.file.fileName,
+        storageKey,
+        mimeType: params.file.mimeType,
+        sizeBytes: params.file.data.length,
+        parsedText: text.slice(0, 100_000),
+        textSource: params.processed.source,
+        parseScore: params.processed.quality.score,
+        uploadedById: params.actorId,
+      },
+    });
+
+    const current = await db.candidate.findUnique({
+      where: { id: target.id },
+      select: { photoKey: true, sourceUrl: true },
+    });
+    const update: { photoKey?: string; sourceUrl?: string } = {};
+    if (!current?.photoKey && params.processed.photo) {
+      update.photoKey = await saveFile({
+        companyId: params.companyId,
+        data: params.processed.photo.data,
+        extension: params.processed.photo.extension,
+        mimeType: params.processed.photo.mimeType,
+      });
+    }
+    // Запоминаем ссылку на hh: при следующем импорте человек
+    // узнается сразу, ещё до разбора файла.
+    if (!current?.sourceUrl && params.source.url) {
+      update.sourceUrl = params.source.url;
+    }
+    if (Object.keys(update).length > 0) {
+      await db.candidate.update({ where: { id: target.id }, data: update });
+    }
+
+    await addHistory({
+      companyId: params.companyId,
+      candidateId: target.id,
+      type: "RESUME_UPLOADED",
+      comment: `${params.file.fileName} — повторно, новая карточка не создавалась`,
+      actorId: params.actorId,
+      actorName: params.actorName,
+    });
+
+    return {
+      candidateId: target.id,
+      existing: true,
+      fullName: target.fullName,
+      duplicates,
+    };
+  }
 
   // Фотография лежит отдельным файлом: так её можно отдать в карточке
   // и в списках, не читая каждый раз всё резюме.
@@ -147,5 +213,10 @@ export async function createCandidateFromResume(params: {
     actorName: params.actorName,
   });
 
-  return { candidateId: candidate.id, duplicates };
+  return {
+    candidateId: candidate.id,
+    existing: false,
+    fullName: parsed.fullName ?? params.file.fileName,
+    duplicates,
+  };
 }

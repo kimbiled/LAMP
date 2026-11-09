@@ -113,6 +113,7 @@ function readForm(formData: FormData) {
     languages: list(formData, "languages"),
     source: text(formData, "source"),
     sourceChannel: text(formData, "sourceChannel"),
+    referredBy: text(formData, "referredBy"),
     note: text(formData, "note"),
   };
 }
@@ -135,6 +136,8 @@ const FORM_FIELDS = [
   "skills",
   "languages",
   "source",
+  "sourceChannel",
+  "referredBy",
   "note",
 ];
 
@@ -198,19 +201,18 @@ export async function createCandidate(
     };
   }
 
-  // Не запрещаем, а предупреждаем: бывают и однофамильцы с общим
-  // рабочим телефоном. Решение остаётся за рекрутером — второй раз
-  // та же форма приходит с отметкой «создавать всё равно».
-  if (text(formData, "ignoreDuplicates") !== "true") {
-    const duplicates = await findDuplicates({
-      companyId: scope.companyId,
-      phone: parsed.data.phone,
-      email: parsed.data.email,
-    });
+  // Дублей не заводим: если телефон или почта уже есть у кандидата
+  // компании, показываем его карточку вместо создания второй.
+  // Раньше можно было отметить «создать всё равно» — так в базе
+  // и появились люди, заведённые по два-три раза.
+  const duplicates = await findDuplicates({
+    companyId: scope.companyId,
+    phone: parsed.data.phone,
+    email: parsed.data.email,
+  });
 
-    if (duplicates.length > 0) {
-      return { duplicates, values: rawValues(formData) };
-    }
+  if (duplicates.length > 0) {
+    return { duplicates, values: rawValues(formData) };
   }
 
   const candidate = await db.candidate.create({
@@ -233,6 +235,12 @@ export async function createCandidate(
       languages: parsed.data.languages,
       source: parsed.data.source || null,
       sourceChannel: parsed.data.sourceChannel || null,
+      // Рекомендатель имеет смысл только у реферала: сменили канал —
+      // имя не должно остаться висеть в карточке.
+      referredBy:
+        parsed.data.sourceChannel === "REFERRAL"
+          ? parsed.data.referredBy || null
+          : null,
       note: parsed.data.note || null,
       createdById: scope.session.user.id,
       experience: { create: readExperience(formData) },
@@ -300,6 +308,23 @@ export async function updateCandidate(
     };
   }
 
+  // При правке тоже не даём «склеить» контакты с другим человеком:
+  // иначе два кандидата с одним телефоном появились бы через редактирование.
+  const contactsChanged =
+    phoneKey(parsed.data.phone) !== existing.phoneKey ||
+    (parsed.data.email || "").toLowerCase() !== (existing.email ?? "").toLowerCase();
+  if (contactsChanged) {
+    const duplicates = await findDuplicates({
+      companyId: scope.companyId,
+      phone: parsed.data.phone,
+      email: parsed.data.email,
+      exceptId: existing.id,
+    });
+    if (duplicates.length > 0) {
+      return { duplicates, values: rawValues(formData) };
+    }
+  }
+
   const stageChanged = stageId !== existing.stageId;
 
   await db.candidate.update({
@@ -322,6 +347,12 @@ export async function updateCandidate(
       languages: parsed.data.languages,
       source: parsed.data.source || null,
       sourceChannel: parsed.data.sourceChannel || null,
+      // Рекомендатель имеет смысл только у реферала: сменили канал —
+      // имя не должно остаться висеть в карточке.
+      referredBy:
+        parsed.data.sourceChannel === "REFERRAL"
+          ? parsed.data.referredBy || null
+          : null,
       note: parsed.data.note || null,
       ...(stageChanged ? { stageChangedAt: new Date() } : {}),
       // Списки заменяем, только если форма их прислала. Если полей нет

@@ -143,19 +143,18 @@ export async function createCandidateFromResume(
     return { formError: created.error };
   }
 
-  // Заводить кандидата всё равно нужно — файл уже загружен, и просить
-  // выбрать его заново было бы издевательством. Поэтому о совпадении
-  // предупреждаем на следующем шаге, при проверке распознанных данных.
-  //
+  // Тот же человек уже был в базе — резюме легло в его карточку.
+  // Ведём туда, а не в форму проверки: заполнять заново нечего.
+  if (created.existing) {
+    redirect(`/candidates/${created.candidateId}?resumeAdded=1`, "replace");
+  }
+
   // "replace" — этот шаг не добавляется в историю браузера, а заменяет
   // собой страницу добавления. Добавление кандидата — путь из трёх
   // экранов (выбор файла → проверка данных → карточка), и промежуточные
   // в истории не нужны: вернуться человек хочет к списку кандидатов,
   // а не к форме, которую только что заполнил.
-  redirect(
-    `/candidates/${created.candidateId}/edit?parsed=1${created.duplicates.length > 0 ? "&duplicate=1" : ""}`,
-    "replace",
-  );
+  redirect(`/candidates/${created.candidateId}/edit?parsed=1`, "replace");
 }
 
 export async function attachResume(

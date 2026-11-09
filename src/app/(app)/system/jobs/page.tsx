@@ -51,7 +51,7 @@ export default async function SystemJobsPage({
           name="company"
           defaultValue={filters.company ?? ""}
           aria-label="Компания"
-          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40"
         >
           <option value="">Все компании</option>
           {companies.map((company) => (

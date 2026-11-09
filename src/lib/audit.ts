@@ -28,6 +28,7 @@ export type AuditAction =
   | "FEEDBACK_DELETED"
   | "RESUME_DELETED"
   | "JOB_DELETED"
+  | "OFFER_PROPOSED"
   | "STAGE_CREATED"
   | "STAGE_RENAMED"
   | "STAGE_DELETED"

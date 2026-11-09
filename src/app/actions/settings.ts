@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { logAction } from "@/lib/audit";
+import { normalizeMeetingUrl } from "@/lib/meeting";
+import { MAX_TEMPLATE_LENGTH } from "@/lib/invite-template";
+import { done, fail, type ActionResult } from "@/lib/action-result";
 import {
   companySettingsSchema,
   fieldErrorsFrom,
@@ -53,11 +56,19 @@ export async function updateCompany(
     };
   }
 
+  const staleDays = parseStaleDays(text(formData, "staleDays"));
+  if (staleDays === "invalid") {
+    return {
+      fieldErrors: { staleDays: "Укажите число дней от 1 до 365" },
+    };
+  }
+
   await db.company.update({
     where: { id: scope.companyId },
     data: {
       name: parsed.data.name,
       meetingLink: meetingLink || null,
+      ...(staleDays !== null ? { staleDays } : {}),
     },
   });
 
@@ -159,4 +170,84 @@ export async function updateOwnProfile(
   revalidatePath("/settings");
 
   return { success: "Профиль сохранён" };
+}
+
+// Срок простоя: целое число дней от 1 до 365. Пустое поле — «не задан».
+function parseStaleDays(raw: string): number | null | "invalid" {
+  if (raw === "") return null;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1 || value > 365) return "invalid";
+  return value;
+}
+
+// Личные рабочие настройки: своя комната Google Meet, текст
+// приглашения и — у рекрутера — свой срок простоя для своих кандидатов.
+export async function updateWorkSettings(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const scope = await getScope();
+
+  const rawLink = text(formData, "meetingLink");
+  const meetingLink = normalizeMeetingUrl(rawLink);
+  if (meetingLink === "invalid") {
+    return {
+      fieldErrors: {
+        meetingLink: "Это не похоже на ссылку. Пример: https://meet.google.com/abc-defg-hij",
+      },
+    };
+  }
+
+  const inviteTemplate = text(formData, "inviteTemplate");
+  if (inviteTemplate.length > MAX_TEMPLATE_LENGTH) {
+    return {
+      fieldErrors: {
+        inviteTemplate: `Слишком длинный текст: не больше ${MAX_TEMPLATE_LENGTH} знаков`,
+      },
+    };
+  }
+
+  // Свой срок простоя задаёт только рекрутер — для кандидатов,
+  // которых завёл сам. Администратор задаёт общий срок в блоке
+  // «Компания»; нанимающий менеджер кандидатов не ведёт.
+  let staleDays: number | null | undefined = undefined;
+  if (scope.session.user.role === "RECRUITER") {
+    const parsed = parseStaleDays(text(formData, "staleDays"));
+    if (parsed === "invalid") {
+      return { fieldErrors: { staleDays: "Укажите число дней от 1 до 365 или оставьте пустым" } };
+    }
+    staleDays = parsed;
+  }
+
+  await db.user.update({
+    where: { id: scope.session.user.id },
+    data: {
+      meetingLink,
+      inviteTemplate: inviteTemplate || null,
+      ...(staleDays !== undefined ? { staleDays } : {}),
+    },
+  });
+
+  revalidatePath("/", "layout");
+
+  return { success: "Сохранено" };
+}
+
+// Сохранить свою постоянную ссылку из окна «Google Meet» в интервью.
+export async function saveMyMeetingLink(formData: FormData): Promise<ActionResult> {
+  const scope = await getScope();
+  const link = normalizeMeetingUrl(text(formData, "meetingLink"));
+
+  if (!link || link === "invalid") {
+    return fail("Вставьте ссылку на встречу, например https://meet.google.com/abc-defg-hij");
+  }
+
+  await db.user.update({
+    where: { id: scope.session.user.id },
+    data: { meetingLink: link },
+  });
+
+  revalidatePath("/", "layout");
+
+  return done(link);
 }

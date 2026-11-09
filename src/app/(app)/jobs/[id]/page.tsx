@@ -4,6 +4,7 @@ import { buttonClass } from "@/components/ui/styles";
 import { Pencil, Plus } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
+import { staleLimit } from "@/lib/stale";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { jobVisibilityFilter } from "@/lib/permissions";
 import { JobStatusBadge } from "@/components/job-status-badge";
@@ -65,6 +66,7 @@ export default async function JobPage({
         stageId: true,
         stageChangedAt: true,
         photoKey: true,
+        createdBy: { select: { role: true, staleDays: true } },
       },
       orderBy: { stageChangedAt: "desc" },
     }),
@@ -80,6 +82,15 @@ export default async function JobPage({
   // быть одно число, а не пересчитанное по часовому поясу браузера.
   const today = todayLocal();
 
+  // Срок простоя: общий у компании, свой — у рекрутера для его кандидатов.
+  const companyStaleDays =
+    (
+      await db.company.findUnique({
+        where: { id: scope.companyId },
+        select: { staleDays: true },
+      })
+    )?.staleDays ?? null;
+
   const candidateViews = candidates.map((candidate) => ({
     id: candidate.id,
     fullName: candidate.fullName,
@@ -88,6 +99,7 @@ export default async function JobPage({
     stageId: candidate.stageId,
     hasPhoto: Boolean(candidate.photoKey),
     daysOnStage: daysBetween(placeInDay(candidate.stageChangedAt).date, today),
+    staleDays: staleLimit(companyStaleDays, candidate.createdBy),
   }));
 
   const stageViews = stages.map((stage) => ({

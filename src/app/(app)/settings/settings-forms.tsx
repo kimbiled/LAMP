@@ -1,12 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   changeOwnPassword,
   updateCompany,
   updateOwnProfile,
+  updateWorkSettings,
   type SettingsFormState,
 } from "@/app/actions/settings";
+import {
+  DEFAULT_INVITE_TEMPLATE,
+  INVITE_PLACEHOLDERS,
+  MAX_TEMPLATE_LENGTH,
+} from "@/lib/invite-template";
+import { ERROR_TEXT_CLASS, HINT_CLASS, LABEL_CLASS, inputClass } from "@/components/ui/styles";
 import { TextField } from "@/components/ui/text-field";
 import { SubmitButton } from "@/components/ui/submit-button";
 
@@ -33,9 +40,11 @@ function Message({ state }: { state: SettingsFormState }) {
 export function CompanyForm({
   name,
   meetingLink,
+  staleDays,
 }: {
   name: string;
   meetingLink: string;
+  staleDays: number;
 }) {
   const [state, formAction] = useActionState(updateCompany, initialState);
 
@@ -52,13 +61,24 @@ export function CompanyForm({
       />
 
       <TextField
-        label="Постоянная ссылка на встречу"
+        label="Общая ссылка на встречу"
         name="meetingLink"
         placeholder="https://meet.google.com/abc-defg-hij"
-        hint="Создайте комнату один раз и вставьте адрес сюда. При назначении интервью её можно подставить одной кнопкой"
+        hint="Запасная: подставляется тем, кто ещё не назначил свою ссылку в блоке «Встречи и приглашения»"
         defaultValue={meetingLink}
         error={state.fieldErrors?.meetingLink}
       />
+
+      <div className="max-w-xs">
+        <TextField
+          label="Срок простоя кандидата, дней"
+          name="staleDays"
+          type="number"
+          defaultValue={String(staleDays)}
+          hint="Сколько дней кандидат может стоять на одном этапе, прежде чем его подсветят жёлтым. Действует для всех; рекрутер может задать свой срок для своих кандидатов"
+          error={state.fieldErrors?.staleDays}
+        />
+      </div>
 
       <div className="sm:w-48">
         <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
@@ -138,6 +158,102 @@ export function ProfileForm({
         defaultValue={position}
         error={state.fieldErrors?.position}
       />
+
+      <div className="sm:w-48">
+        <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+// Встречи и приглашения: своя постоянная комната Google Meet, текст
+// приглашения для кнопки «Скопировать приглашение» и (у рекрутера)
+// свой срок простоя для своих кандидатов.
+export function WorkForm({
+  meetingLink,
+  inviteTemplate,
+  staleDays,
+  companyStaleDays,
+  showStaleDays,
+}: {
+  meetingLink: string;
+  inviteTemplate: string;
+  staleDays: number | null;
+  companyStaleDays: number;
+  showStaleDays: boolean;
+}) {
+  const [state, formAction] = useActionState(updateWorkSettings, initialState);
+  const [template, setTemplate] = useState(inviteTemplate || DEFAULT_INVITE_TEMPLATE);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <Message state={state} />
+
+      <TextField
+        label="Моя ссылка Google Meet"
+        name="meetingLink"
+        placeholder="https://meet.google.com/abc-defg-hij"
+        hint="Постоянная комната: кнопка «Google Meet» в интервью подставит её сама. Создать комнату: meet.google.com/new"
+        defaultValue={meetingLink}
+        error={state.fieldErrors?.meetingLink}
+      />
+
+      <div>
+        <label htmlFor="inviteTemplate" className={LABEL_CLASS}>
+          Текст приглашения
+        </label>
+        <textarea
+          id="inviteTemplate"
+          name="inviteTemplate"
+          rows={12}
+          maxLength={MAX_TEMPLATE_LENGTH}
+          value={template}
+          onChange={(event) => setTemplate(event.target.value)}
+          className={inputClass(state.fieldErrors?.inviteTemplate, "mt-1.5 font-mono text-[13px] leading-relaxed")}
+        />
+        {state.fieldErrors?.inviteTemplate && (
+          <p className={ERROR_TEXT_CLASS}>{state.fieldErrors.inviteTemplate}</p>
+        )}
+        <p className={HINT_CLASS}>
+          Копируется кнопкой «Скопировать приглашение» в форме интервью.
+          Метки в фигурных скобках заменяются данными встречи — нажмите
+          на метку, чтобы добавить её в конец текста:
+        </p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {INVITE_PLACEHOLDERS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              title={item.hint}
+              onClick={() => setTemplate((value) => `${value}{${item.key}}`)}
+              className="rounded-md border border-line bg-canvas px-2 py-0.5 font-mono text-xs text-ink transition hover:border-ink-soft"
+            >
+              {`{${item.key}}`}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setTemplate(DEFAULT_INVITE_TEMPLATE)}
+            className="rounded-md px-2 py-0.5 text-xs text-ink-soft underline transition hover:text-ink"
+          >
+            Вернуть текст по умолчанию
+          </button>
+        </div>
+      </div>
+
+      {showStaleDays && (
+        <div className="max-w-xs">
+          <TextField
+            label="Срок простоя моих кандидатов, дней"
+            name="staleDays"
+            type="number"
+            defaultValue={staleDays === null ? "" : String(staleDays)}
+            placeholder={String(companyStaleDays)}
+            hint={`Для кандидатов, которых добавили вы. Пусто — общий срок компании: ${companyStaleDays} дн.`}
+            error={state.fieldErrors?.staleDays}
+          />
+        </div>
+      )}
 
       <div className="sm:w-48">
         <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>

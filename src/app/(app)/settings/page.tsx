@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { ROLE_LABELS } from "@/lib/labels";
-import { CompanyForm, PasswordForm, ProfileForm } from "./settings-forms";
+import { CompanyForm, PasswordForm, ProfileForm, WorkForm } from "./settings-forms";
 import { StageEditor } from "./stage-editor";
 
 export const metadata: Metadata = { title: "Настройки — LAMP" };
@@ -15,16 +15,19 @@ export default async function SettingsPage() {
 
   // Должность в сессии не лежит: она нужна редко, а сессия читается
   // на каждой странице.
-  const company = canManageCompany
-    ? await db.company.findUnique({
-        where: { id: scope.companyId },
-        select: { meetingLink: true },
-      })
-    : null;
+  const company = await db.company.findUnique({
+    where: { id: scope.companyId },
+    select: { meetingLink: true, staleDays: true },
+  });
 
   const profile = await db.user.findUnique({
     where: { id: scope.session.user.id },
-    select: { position: true },
+    select: {
+      position: true,
+      meetingLink: true,
+      inviteTemplate: true,
+      staleDays: true,
+    },
   });
 
   const stages = canManageStages
@@ -59,6 +62,23 @@ export default async function SettingsPage() {
         />
       </section>
 
+      <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-ink-strong">
+          Встречи и приглашения
+        </h2>
+        <p className="mt-1 mb-4 text-xs text-ink-soft">
+          Ваша комната Google Meet и текст, который копируется кандидату
+          одной кнопкой.
+        </p>
+        <WorkForm
+          meetingLink={profile?.meetingLink ?? ""}
+          inviteTemplate={profile?.inviteTemplate ?? ""}
+          staleDays={profile?.staleDays ?? null}
+          companyStaleDays={company?.staleDays ?? 14}
+          showStaleDays={scope.session.user.role === "RECRUITER"}
+        />
+      </section>
+
       {canManageCompany && (
         <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
           <h2 className="mb-4 text-base font-semibold text-ink-strong">
@@ -67,6 +87,7 @@ export default async function SettingsPage() {
           <CompanyForm
             name={scope.session.company.name}
             meetingLink={company?.meetingLink ?? ""}
+            staleDays={company?.staleDays ?? 14}
           />
         </section>
       )}

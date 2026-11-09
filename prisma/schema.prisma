@@ -100,6 +100,27 @@ enum NotificationType {
   FEEDBACK_REQUESTED
   FEEDBACK_ADDED
   STAGE_CHANGED
+  // Нанимающий менеджер предложил сделать кандидату оффер.
+  OFFER_PROPOSED
+  // Позвали на собрание (дэйлик) — можно принять или отказаться.
+  MEETING_INVITE
+  // Участник ответил на приглашение.
+  MEETING_RESPONSE
+}
+
+// Встречи без кандидата: собрание команды и личное напоминание.
+// Интервью с кандидатом живут отдельно, в Interview.
+enum MeetingKind {
+  DAILY // собрание: дэйлик, планёрка — с приглашёнными коллегами
+  REMINDER // напоминание самому себе
+}
+
+// Ответ участника на приглашение. Пока он не ответил, встреча
+// у него в календаре серая.
+enum AttendeeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }
 
 // ---------- Компания и люди ----------
@@ -111,10 +132,15 @@ model Company {
   // комнату в Google Meet или Jitsi и вставляем её в интервью кнопкой.
   // Так не нужно подключать календарь Google по API.
   meetingLink String?
+  // Сколько дней кандидат может стоять на одном этапе, прежде чем
+  // его подсветят как «застрявшего». Задаёт администратор для всех.
+  staleDays   Int      @default(14)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   users         User[]
+  tasks         Task[]
+  meetings      Meeting[]
   stages        Stage[]
   tags          Tag[]
   jobs          Job[]
@@ -147,6 +173,17 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   lastLoginAt  DateTime?
+  // Свой срок простоя для кандидатов, которых завёл этот рекрутер.
+  // Пусто — действует общий срок компании (Company.staleDays).
+  staleDays    Int?
+  // Постоянная комната в Google Meet: назначается один раз, дальше
+  // кнопка «Google Meet» в интервью подставляет её сама.
+  meetingLink  String?
+  // Шаблон приглашения на интервью, который копируется кнопкой.
+  // Пусто — используется шаблон по умолчанию.
+  inviteTemplate String?
+  // Как одет персонаж-помощник: { color, hat, item, shoes }.
+  mascot       Json?
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -163,6 +200,9 @@ model User {
   shareLinks              ShareLink[]
   notifications           Notification[]
   auditLogs               AuditLog[]
+  tasks                   Task[]
+  meetingsCreated         Meeting[]          @relation("MeetingCreatedBy")
+  meetingInvites          MeetingAttendee[]
 
   @@index([companyId])
 }
@@ -215,6 +255,9 @@ model Job {
   recruiterId     String?
   hiringManagerId String?
   createdById     String
+  // Когда вакансию закрыли. Нужна для аналитики «время найма»
+  // и для подсчёта закрытых вакансий рекрутера за месяц.
+  closedAt        DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -260,6 +303,9 @@ model Candidate {
   languages         String[]
   source            String?
   sourceChannel     SourceChannel?
+  // Кто порекомендовал человека, если канал — реферал:
+  // «Айгерим, отдел продаж». Пишется рекрутером в форме.
+  referredBy        String?
   // Откуда пришёл человек, ссылкой: например, его резюме на hh.
   // Заполняется расширением, руками не вводится.
   sourceUrl         String?
@@ -286,6 +332,7 @@ model Candidate {
   feedbacks  Feedback[]
   history    CandidateHistory[]
   shareLinks ShareLink[]
+  tasks      Task[]
 
   @@index([companyId])
   @@index([companyId, stageId])
@@ -511,4 +558,66 @@ model Tag {
 
   @@unique([companyId, name])
   @@index([companyId])
+}
+
+// ---------- Блокнот и встречи без кандидата ----------
+
+// Дело в блокноте: «позвонить Айдане», «обновить вакансию».
+// Личное — видит только автор. Можно привязать к кандидату,
+// тогда заметка видна и в его карточке (тоже только автору).
+model Task {
+  id          String    @id @default(cuid())
+  companyId   String
+  userId      String
+  title       String
+  note        String?
+  // День, на который запланировано. Без даты — «когда-нибудь».
+  dueAt       DateTime?
+  done        Boolean   @default(false)
+  doneAt      DateTime?
+  candidateId String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  candidate Candidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  @@index([userId, done])
+  @@index([candidateId])
+}
+
+// Собрание или напоминание в календаре.
+model Meeting {
+  id              String      @id @default(cuid())
+  companyId       String
+  kind            MeetingKind
+  title           String
+  scheduledAt     DateTime
+  durationMinutes Int         @default(30)
+  meetingUrl      String?
+  comment         String?
+  createdById     String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User              @relation("MeetingCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  attendees MeetingAttendee[]
+
+  @@index([companyId, scheduledAt])
+}
+
+model MeetingAttendee {
+  id          String         @id @default(cuid())
+  meetingId   String
+  userId      String
+  status      AttendeeStatus @default(PENDING)
+  respondedAt DateTime?
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
 }

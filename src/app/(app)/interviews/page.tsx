@@ -21,6 +21,7 @@ import {
   weekTitle,
 } from "@/lib/calendar";
 import { WeekCalendar, type CalendarEvent } from "./week-calendar";
+import type { CalendarMeeting } from "./meeting-parts";
 import { joinUrl } from "@/lib/meeting";
 
 export const metadata: Metadata = { title: "Интервью — LAMP" };
@@ -136,7 +137,7 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
             companyId: scope.companyId,
             ...candidateVisibilityFilter(scope.session.user),
           },
-          select: { id: true, fullName: true },
+          select: { id: true, fullName: true, job: { select: { title: true } } },
           orderBy: { createdAt: "desc" },
           take: 300,
         })
@@ -154,6 +155,56 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
       select: { meetingLink: true },
     }),
   ]);
+
+  const me = scope.session.user.id;
+
+  // Собрания и напоминания недели — только те, куда позвали меня
+  // (организатор тоже в списке участников). И коллеги для приглашения.
+  const [meetingRows, colleagues] = await Promise.all([
+    db.meeting.findMany({
+      where: {
+        companyId: scope.companyId,
+        scheduledAt: { gte: from, lt: to },
+        attendees: { some: { userId: me } },
+      },
+      include: {
+        createdBy: { select: { fullName: true } },
+        attendees: {
+          include: { user: { select: { id: true, fullName: true } } },
+          orderBy: { user: { fullName: "asc" } },
+        },
+      },
+      orderBy: { scheduledAt: "asc" },
+    }),
+    db.user.findMany({
+      where: { companyId: scope.companyId, isActive: true, id: { not: me } },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+    }),
+  ]);
+
+  const meetings: CalendarMeeting[] = meetingRows.map((meeting) => {
+    const { date, minutes } = placeInDay(meeting.scheduledAt);
+    return {
+      id: meeting.id,
+      kind: meeting.kind,
+      title: meeting.title,
+      date,
+      startMinutes: minutes,
+      durationMinutes: meeting.durationMinutes,
+      timeText: timeText(meeting.scheduledAt),
+      meetingUrl: meeting.meetingUrl,
+      comment: meeting.comment,
+      organizerName: meeting.createdBy.fullName,
+      isOrganizer: meeting.createdById === me,
+      myStatus: meeting.attendees.find((item) => item.userId === me)?.status ?? "PENDING",
+      attendees: meeting.attendees.map((item) => ({
+        id: item.user.id,
+        name: item.user.fullName,
+        status: item.status,
+      })),
+    };
+  });
 
   // Раскладываем по сетке на сервере: день и минуты от полуночи
   // считаются в часовом поясе компании, а не в браузере.
@@ -230,7 +281,13 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
         days={days}
         hours={hourLabels()}
         events={events}
-        candidates={candidates}
+        meetings={meetings}
+        colleagues={colleagues}
+        candidates={candidates.map((candidate) => ({
+          id: candidate.id,
+          fullName: candidate.fullName,
+          jobTitle: candidate.job?.title ?? null,
+        }))}
         users={users}
         canManage={canManage}
         canDecide={scope.can("feedback.create")}
@@ -243,8 +300,8 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
 
       <p className="mt-3 text-xs text-ink-soft">
         {canManage
-          ? "Нажмите на свободное место в сетке, чтобы назначить интервью на это время. Кнопка «Подобрать время» найдёт ближайшие окна сама."
-          : "Здесь видны интервью ваших кандидатов. Назначает их рекрутер."}
+          ? "Нажмите на свободное место в сетке, чтобы назначить интервью, собрание или напоминание на это время. Серым — приглашения, на которые вы ещё не ответили."
+          : "Здесь видны интервью ваших кандидатов. Нажмите на свободное время, чтобы назначить собрание с коллегами или напоминание себе."}
       </p>
     </div>
   );

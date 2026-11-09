@@ -10,7 +10,7 @@ export function NotificationBell({ count }: { count: number }) {
       aria-label={
         count > 0 ? `Уведомления: ${count} новых` : "Уведомления"
       }
-      className="relative rounded-lg p-2.5 text-ink-soft transition hover:bg-muted hover:text-ink"
+      className="relative inline-flex items-center justify-center rounded-lg p-2.5 text-ink-soft transition hover:bg-muted hover:text-ink"
     >
       <Bell className="h-5 w-5" strokeWidth={1.8} />
       {count > 0 && (

@@ -12,7 +12,7 @@ import { TONE_STYLES, stageTone } from "@/lib/stages";
 export const metadata: Metadata = { title: "Все кандидаты — LAMP" };
 
 const selectClass =
-  "rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent";
+  "rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40";
 
 // Кусочек резюме вокруг найденного слова.
 function snippet(text: string | null, query: string): string | null {
@@ -142,7 +142,7 @@ export default async function SystemCandidatesPage({
             defaultValue={query}
             placeholder="Имя, телефон, почта, должность, компания, текст резюме"
             aria-label="Поиск по всей базе"
-            className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent"
+            className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-[3px] focus:ring-accent/40"
           />
         </div>
 

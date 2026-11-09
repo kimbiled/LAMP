@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
 import { extractText, getDocumentProxy } from "unpdf";
+import { renderCandidateDocx } from "@/lib/export/candidate-docx";
 import {
   renderCandidatePdf,
   type CandidatePdfData,
@@ -64,6 +65,7 @@ const base: CandidatePdfData = {
   photo: photoJpeg(),
   companyName: "Тестовая компания",
   showContacts: true,
+  anonymous: false,
 };
 
 async function textOf(pdf: Buffer) {
@@ -120,5 +122,62 @@ describe("резюме в PDF", () => {
     });
     const { text } = await textOf(pdf);
     expect(text).toContain("Әлібекова");
+  }, 60_000);
+
+  it("анонимно: без имени, даты рождения и контактов, но с возрастом", async () => {
+    const pdf = await renderCandidatePdf({
+      ...base,
+      showContacts: false,
+      anonymous: true,
+      photo: null,
+    });
+    if (process.env.PDF_TEST_OUT) {
+      writeFileSync(`${process.env.PDF_TEST_OUT}/anonymous.pdf`, pdf);
+    }
+    const { text } = await textOf(pdf);
+
+    expect(text).toContain("Кандидат");
+    expect(text).toContain("Менеджер по закупкам");
+    expect(text).not.toContain("Әлібекова");
+    expect(text).not.toContain("12 марта 1994");
+    expect(text).toMatch(/\d+ (год|года|лет)/);
+    expect(text).not.toContain("+7 701 000 00 00");
+  }, 60_000);
+});
+
+describe("резюме в Word", () => {
+  async function docxText(buffer: Buffer) {
+    const { default: JSZip } = await import("jszip");
+    const zip = await JSZip.loadAsync(buffer);
+    return zip.file("word/document.xml")!.async("string");
+  }
+
+  it("собирает DOCX с опытом, образованием и фото", async () => {
+    const docx = await renderCandidateDocx(base);
+    if (process.env.PDF_TEST_OUT) {
+      writeFileSync(`${process.env.PDF_TEST_OUT}/resume.docx`, docx);
+    }
+    expect(docx.subarray(0, 2).toString()).toBe("PK");
+
+    const xml = await docxText(docx);
+    expect(xml).toContain("Әлібекова Қуаныш Өмірзаққызы");
+    expect(xml).toContain("ТОО «Компания 1»");
+    expect(xml).toContain("Казахский национальный университет");
+    expect(xml).toContain("+7 701 000 00 00");
+    expect(xml).toContain("<w:drawing>");
+  }, 60_000);
+
+  it("анонимный DOCX без имени, фото и контактов", async () => {
+    const docx = await renderCandidateDocx({
+      ...base,
+      showContacts: false,
+      anonymous: true,
+      photo: null,
+    });
+    const xml = await docxText(docx);
+    expect(xml).toContain("Кандидат");
+    expect(xml).not.toContain("Әлібекова");
+    expect(xml).not.toContain("kuanysh@example.kz");
+    expect(xml).not.toContain("<w:drawing>");
   }, 60_000);
 });

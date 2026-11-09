@@ -152,6 +152,32 @@
   --color-info-line: #b9cbd8;
   --color-info-ink: #24445c;
 
+  /* --- Статусы вакансии: три разных цвета, чтобы различать сразу --- */
+  /* Открыта — зелёный (идёт работа), пауза — янтарный (ждёт решения),
+     закрыта — холодный серый (больше не трогаем). Текст на фоне ≥ 6:1. */
+  --color-open-soft: #e3f1dc;
+  --color-open-ink: #2c5a22;
+  --color-open-dot: #4f9a3e;
+  --color-paused-soft: #fdecc8;
+  --color-paused-ink: #7a4a05;
+  --color-paused-dot: #e0a020;
+  --color-closed-soft: #e6e7ea;
+  --color-closed-ink: #4a4d55;
+  --color-closed-dot: #8d919b;
+
+  /* --- Каналы привлечения --- */
+  /* Холодный — синий лёд, тёплый — оранжевый огонь,
+     реферал — фиолетовый «свои люди». */
+  --color-cold-soft: #e1ecfb;
+  --color-cold-line: #9fbfe9;
+  --color-cold-ink: #1d4f8f;
+  --color-warm-soft: #fde6d6;
+  --color-warm-line: #f2b48a;
+  --color-warm-ink: #8a3a0c;
+  --color-referral-soft: #eee6fa;
+  --color-referral-line: #c4ade9;
+  --color-referral-ink: #5a3790;
+
   /* Обводка фокуса при работе с клавиатуры. */
   --color-focus: #1f1f1f;
 
@@ -174,9 +200,16 @@ body {
 
 /* Видимая обводка у всего, что нажимается, — но только при работе
    с клавиатуры (Tab), мышью она не мешает. */
-:where(a, button, summary, [role="button"], [tabindex], input, select, textarea):focus-visible {
+:where(a, button, summary, [role="button"], [tabindex]):focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/* У полей ввода своя, тонкая подсветка: тёмная рамка и мягкое жёлтое
+   свечение. Раньше поверх неё рисовалась ещё и чёрная обводка —
+   получалась толстая двойная рамка. */
+:where(input, select, textarea):focus-visible {
+  outline: none;
 }
 
 

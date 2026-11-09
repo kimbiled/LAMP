@@ -124,3 +124,57 @@ export async function extractPhotoFromPdf(
     return null;
   }
 }
+
+// Фото из Word (DOCX). Документ — это zip-архив, картинки в нём лежат
+// отдельными файлами в папке word/media. Правило выбора то же, что
+// и для PDF: самая крупная картинка с пропорциями портрета.
+export async function extractPhotoFromDocx(
+  data: Buffer,
+): Promise<ExtractedPhoto | null> {
+  try {
+    const { default: JSZip } = await import("jszip");
+    const { createCanvas, loadImage } = await import("@napi-rs/canvas");
+    const zip = await JSZip.loadAsync(data);
+
+    const media = Object.values(zip.files).filter(
+      (file) =>
+        !file.dir && /^word\/media\/.+\.(png|jpe?g|webp)$/i.test(file.name),
+    );
+
+    let best: { image: Awaited<ReturnType<typeof loadImage>>; area: number } | null =
+      null;
+
+    for (const file of media) {
+      try {
+        const image = await loadImage(await file.async("nodebuffer"));
+        const fake = { width: image.width, height: image.height } as RawImage;
+        if (!looksLikePortrait(fake)) continue;
+        const area = image.width * image.height;
+        if (!best || area > best.area) best = { image, area };
+      } catch {
+        // Битая или неподдерживаемая картинка — просто пропускаем.
+      }
+    }
+
+    if (!best) return null;
+
+    const { image } = best;
+    const scale = Math.min(MAX_SIDE / image.width, MAX_SIDE / image.height, 1);
+    const width = Math.round(image.width * scale);
+    const height = Math.round(image.height * scale);
+    const canvas = createCanvas(width, height);
+    const context = canvas.getContext("2d");
+    // Белый фон: у PNG с прозрачностью в JPEG иначе вышел бы чёрный.
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    return {
+      data: canvas.toBuffer("image/jpeg", 88),
+      mimeType: "image/jpeg",
+      extension: "jpg",
+    };
+  } catch {
+    return null;
+  }
+}

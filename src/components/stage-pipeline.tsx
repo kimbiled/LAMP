@@ -179,7 +179,7 @@ export function StagePipeline({
                   rows={2}
                   placeholder="Подробности — по желанию"
                   aria-label="Комментарий к отказу"
-                  className="mt-3 w-full rounded-lg border border-line-strong bg-canvas px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent"
+                  className="mt-3 w-full rounded-lg border border-line-strong bg-canvas px-3 py-2 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-[3px] focus:ring-accent/40"
                 />
 
                 <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/action-result";
 import { useConfirm } from "./dialog";
 import { NETWORK_ERROR, useToast } from "./toast";
-import { inputClass } from "./styles";
+import { Select, type SelectOption } from "./select";
 
 // Выпадающий список, который сохраняет выбор сразу, без кнопки «Сохранить»:
 // роль сотрудника, статус и приоритет вакансии.
@@ -26,7 +26,7 @@ export function InstantSelect({
   className = "",
 }: {
   value: string;
-  options: { value: string; label: string }[];
+  options: SelectOption[];
   action: (formData: FormData) => Promise<ActionResult>;
   // Поля формы для действия: id записи и новое значение.
   buildForm: (next: string) => Record<string, string>;
@@ -76,19 +76,13 @@ export function InstantSelect({
   }
 
   return (
-    <select
+    <Select
       value={current}
+      options={options}
       disabled={disabled || pending}
-      aria-label={label}
-      aria-busy={pending || undefined}
-      onChange={(event) => change(event.target.value)}
-      className={inputClass(false, `w-auto ${className}`)}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+      label={label}
+      onChange={change}
+      className={`w-auto min-w-48 ${className}`}
+    />
   );
 }

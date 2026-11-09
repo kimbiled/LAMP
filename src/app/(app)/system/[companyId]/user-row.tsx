@@ -103,7 +103,7 @@ export function UserRow({
                   ["role", event.target.value],
                 ])
               }
-              className="rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-accent disabled:opacity-60"
+              className="rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-ink outline-none transition focus:border-ink focus:ring-[3px] focus:ring-accent/40 disabled:opacity-60"
             >
               <option value="ADMIN">Администратор</option>
               <option value="RECRUITER">Рекрутер</option>

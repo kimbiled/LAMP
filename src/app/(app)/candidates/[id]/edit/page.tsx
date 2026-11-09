@@ -178,6 +178,7 @@ export default async function EditCandidatePage({
             languages: candidate.languages.join(", "),
             source: candidate.source ?? "",
             sourceChannel: candidate.sourceChannel ?? "",
+            referredBy: candidate.referredBy ?? "",
             note: candidate.note ?? "",
           }}
         />

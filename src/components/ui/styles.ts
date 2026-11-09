@@ -70,7 +70,7 @@ export function inputClass(error?: boolean | string, className = ""): string {
   return [
     ownWidth ? "" : "w-full",
     "rounded-lg border bg-surface px-3 py-2 text-sm text-ink outline-none transition",
-    "placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent",
+    "placeholder:text-ink-faint focus:border-ink focus:ring-[3px] focus:ring-accent/40",
     "disabled:cursor-not-allowed disabled:bg-muted disabled:text-ink-soft",
     error ? "border-danger" : "border-line-strong",
     className,

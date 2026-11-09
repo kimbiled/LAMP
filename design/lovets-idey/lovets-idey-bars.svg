@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="1000" viewBox="0 0 900 1000">
+<g id="lovets-idey-bars">
+  <defs>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4F6F9"/>
+      <stop offset="1" stop-color="#D3DBE5"/>
+    </linearGradient>
+    <linearGradient id="hood" gradientUnits="userSpaceOnUse" x1="0" y1="430" x2="0" y2="705">
+      <stop offset="0" stop-color="#2B3357"/>
+      <stop offset="1" stop-color="#171C36"/>
+    </linearGradient>
+    <linearGradient id="rod" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3A4265"/>
+      <stop offset="1" stop-color="#20263F"/>
+    </linearGradient>
+    <radialGradient id="glowA">
+      <stop offset="0" stop-color="#FFE68F" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#FFD34D" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#FFD34D" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB">
+      <stop offset="0" stop-color="#8FD3FF" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#3392FF" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="hex" width="30" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-35) scale(0.8)">
+      <path d="M15 1 L28 8 V21 L15 28 L2 21 V8 Z" fill="none" stroke="#7CC4FF" stroke-width="1.6" opacity="0.75"/>
+    </pattern>
+  </defs>
+  <style>
+    .k{stroke:#1B1F33;stroke-width:8;stroke-linejoin:round;stroke-linecap:round}
+    .k5{stroke:#1B1F33;stroke-width:5;stroke-linejoin:round;stroke-linecap:round}
+    .mono{font-family:Consolas,'Courier New',monospace;font-weight:700}
+  </style>
+
+  <!-- shadow -->
+  <ellipse cx="440" cy="888" rx="240" ry="24" fill="#1B1F33" opacity="0.14"/>
+
+  <!-- tail (behind body, curling right) -->
+  <path d="M540 700 C690 725 775 650 745 570 C730 520 675 525 650 578" fill="none" stroke="#1B1F33" stroke-width="66" stroke-linecap="round"/>
+  <path d="M540 700 C690 725 775 650 745 570 C730 520 675 525 650 578" fill="none" stroke="#E6EAF0" stroke-width="50" stroke-linecap="round"/>
+  <g fill="#4A5568">
+    <ellipse cx="640" cy="701" rx="11" ry="7" transform="rotate(10 640 701)"/>
+    <ellipse cx="710" cy="674" rx="11" ry="7" transform="rotate(-40 710 674)"/>
+    <ellipse cx="747" cy="627" rx="10" ry="7" transform="rotate(-70 747 627)"/>
+    <ellipse cx="727" cy="543" rx="10" ry="6" transform="rotate(20 727 543)"/>
+    <circle cx="676" cy="712" r="4"/><circle cx="735" cy="588" r="4"/><circle cx="695" cy="556" r="3.5"/>
+  </g>
+  <circle cx="650" cy="578" r="25" fill="#4A5568"/>
+
+  <!-- legs -->
+  <rect class="k" x="298" y="680" width="112" height="150" rx="34" fill="#2A3050"/>
+  <rect class="k" x="452" y="680" width="112" height="150" rx="34" fill="#2A3050"/>
+  <!-- sneakers -->
+  <rect class="k" x="280" y="836" width="164" height="36" rx="16" fill="#FFFFFF"/>
+  <rect class="k" x="286" y="800" width="140" height="48" rx="20" fill="#E2231A"/>
+  <rect x="330" y="808" width="70" height="12" rx="6" fill="#FFFFFF" opacity="0.9"/>
+  <rect class="k" x="436" y="836" width="164" height="36" rx="16" fill="#FFFFFF"/>
+  <rect class="k" x="454" y="800" width="140" height="48" rx="20" fill="#E2231A"/>
+  <rect x="482" y="808" width="70" height="12" rx="6" fill="#FFFFFF" opacity="0.9"/>
+
+  <!-- torso (hoodie) -->
+  <path class="k" fill="url(#hood)" d="M270 455 Q430 428 590 455 C612 520 618 620 612 705 L248 705 C242 620 248 520 270 455 Z"/>
+
+  <!-- left arm hanging -->
+  <path d="M282 500 C256 548 250 600 262 645" fill="none" stroke="#1B1F33" stroke-width="58" stroke-linecap="round"/>
+  <path d="M282 500 C256 548 250 600 262 645" fill="none" stroke="url(#hood)" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="282" cy="500" r="29" fill="url(#hood)"/>
+  <circle class="k" cx="264" cy="656" r="31" fill="url(#fur)"/>
+  <circle cx="248" cy="642" r="5" fill="#4A5568"/><circle cx="264" cy="636" r="5" fill="#4A5568"/><circle cx="280" cy="642" r="5" fill="#4A5568"/>
+  <!-- kangaroo pocket -->
+  <path class="k5" fill="#1A1F3B" d="M302 606 H558 L546 690 Q430 702 314 690 Z"/>
+  <!-- collar / hood -->
+  <path class="k" fill="#141834" d="M262 470 Q430 400 598 470 Q560 520 430 522 Q300 520 262 470 Z"/>
+  <!-- drawstrings -->
+  <path d="M404 500 L392 585 M456 500 L468 585" stroke="#E2231A" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <circle cx="391" cy="590" r="6" fill="#1B1F33"/><circle cx="469" cy="590" r="6" fill="#1B1F33"/>
+  <!-- chest badge -->
+  <circle class="k5" cx="518" cy="560" r="24" fill="#E2231A"/>
+  <circle cx="518" cy="556" r="9" fill="#FFFFFF"/>
+  <rect x="513" y="565" width="10" height="6" rx="2" fill="#FFFFFF"/>
+
+  <!-- energy net -->
+  <path d="M723 200 C735 290 820 330 880 270 C900 210 890 150 867 100 C878 175 795 240 723 200 Z" fill="#3392FF" fill-opacity="0.16"/>
+  <path d="M723 200 C735 290 820 330 880 270 C900 210 890 150 867 100 C878 175 795 240 723 200 Z" fill="url(#hex)" stroke="#7CC4FF" stroke-width="3" stroke-opacity="0.9" stroke-linejoin="round"/>
+  <circle cx="815" cy="235" r="48" fill="url(#glowA)"/>
+  <rect class="k5" x="805" y="250" width="20" height="11" rx="3" fill="#A9B2C3"/>
+  <circle class="k5" cx="815" cy="233" r="18" fill="#FFD34D"/>
+  <ellipse cx="795" cy="150" rx="88" ry="52" transform="rotate(-35 795 150)" fill="none" stroke="#7CC4FF" stroke-width="30" opacity="0.28"/>
+  <ellipse cx="795" cy="150" rx="88" ry="52" transform="rotate(-35 795 150)" fill="none" stroke="#1B1F33" stroke-width="24"/>
+  <ellipse cx="795" cy="150" rx="88" ry="52" transform="rotate(-35 795 150)" fill="none" stroke="#3392FF" stroke-width="12"/>
+  <!-- rod -->
+  <line x1="728" y1="205" x2="655" y2="428" stroke="#1B1F33" stroke-width="28" stroke-linecap="round"/>
+  <line x1="728" y1="205" x2="655" y2="428" stroke="url(#rod)" stroke-width="16" stroke-linecap="round"/>
+  <line x1="722" y1="222" x2="668" y2="388" stroke="#3392FF" stroke-width="4" stroke-linecap="round"/>
+  <!-- data bits -->
+  <g fill="#7CC4FF">
+    <rect x="700" y="120" width="8" height="8" rx="2"/>
+    <rect x="740" y="60" width="10" height="10" rx="2"/>
+    <rect x="860" y="320" width="8" height="8" rx="2"/>
+    <rect x="690" y="290" width="6" height="6" rx="1"/>
+  </g>
+
+  <!-- right arm -->
+  <path d="M586 498 C640 512 664 476 658 436" fill="none" stroke="#1B1F33" stroke-width="58" stroke-linecap="round"/>
+  <path d="M586 498 C640 512 664 476 658 436" fill="none" stroke="url(#hood)" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="586" cy="498" r="29" fill="url(#hood)"/>
+  <!-- paw -->
+  <circle class="k" cx="656" cy="428" r="31" fill="url(#fur)"/>
+  <circle cx="640" cy="414" r="5" fill="#4A5568"/><circle cx="656" cy="408" r="5" fill="#4A5568"/><circle cx="672" cy="414" r="5" fill="#4A5568"/>
+
+  <!-- headphone band (behind ears, over head) -->
+  <path d="M285 305 C270 110 590 110 575 305" fill="none" stroke="#1B1F33" stroke-width="28" stroke-linecap="round"/>
+  <path d="M285 305 C270 110 590 110 575 305" fill="none" stroke="#2B3357" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- ears -->
+  <circle class="k" cx="320" cy="190" r="42" fill="url(#fur)"/>
+  <ellipse cx="322" cy="194" rx="22" ry="26" fill="#4A5568"/>
+  <circle class="k" cx="540" cy="190" r="42" fill="url(#fur)"/>
+  <ellipse cx="538" cy="194" rx="22" ry="26" fill="#4A5568"/>
+
+  <!-- head -->
+  <path class="k" fill="url(#fur)" d="M430 165 C520 165 580 220 582 290 C585 330 575 360 560 385 L585 400 L555 415 L575 440 L540 445 C510 445 480 440 430 440 C380 440 350 445 320 445 L285 440 L305 415 L275 400 L300 385 C285 360 275 330 278 290 C280 220 340 165 430 165 Z"/>
+  <!-- rosettes -->
+  <g fill="#4A5568">
+    <ellipse cx="392" cy="212" rx="10" ry="6" transform="rotate(-20 392 212)"/>
+    <ellipse cx="468" cy="208" rx="10" ry="6" transform="rotate(20 468 208)"/>
+    <ellipse cx="430" cy="188" rx="7" ry="10"/>
+    <ellipse cx="345" cy="252" rx="7" ry="5"/>
+    <ellipse cx="515" cy="250" rx="7" ry="5"/>
+    <ellipse cx="308" cy="345" rx="8" ry="5"/>
+    <ellipse cx="552" cy="345" rx="8" ry="5"/>
+    <ellipse cx="322" cy="405" rx="6" ry="4"/>
+    <ellipse cx="538" cy="405" rx="6" ry="4"/>
+  </g>
+
+  <!-- headphone cups -->
+  <rect class="k" x="258" y="268" width="50" height="76" rx="22" fill="#262D4D"/>
+  <circle cx="283" cy="306" r="12" fill="none" stroke="#E2231A" stroke-width="4"/>
+  <rect class="k" x="552" y="268" width="50" height="76" rx="22" fill="#262D4D"/>
+  <circle cx="577" cy="306" r="12" fill="none" stroke="#E2231A" stroke-width="4"/>
+  <circle cx="577" cy="306" r="3" fill="#7CC4FF"/>
+
+  <!-- muzzle -->
+  <ellipse cx="430" cy="372" rx="72" ry="46" fill="#FFFFFF" stroke="#C9D1DC" stroke-width="3"/>
+  <!-- whiskers -->
+  <path d="M378 386 L326 378 M380 398 L332 410 M482 386 L534 378 M480 398 L528 410" stroke="#C9D1DC" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <g fill="#9AA3B5">
+    <circle cx="396" cy="386" r="2.5"/><circle cx="404" cy="397" r="2.5"/><circle cx="392" cy="405" r="2.5"/>
+    <circle cx="464" cy="386" r="2.5"/><circle cx="456" cy="397" r="2.5"/><circle cx="468" cy="405" r="2.5"/>
+  </g>
+  <!-- nose + smirk + fang -->
+  <path d="M416 346 Q430 339 444 346 Q444 361 430 368 Q416 361 416 346 Z" fill="#1B1F33"/>
+  <path d="M430 368 V380" stroke="#1B1F33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M430 380 Q456 394 480 372" stroke="#1B1F33" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M462 385 L468 402 L476 384 Z" fill="#FFFFFF" stroke="#1B1F33" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- eyes -->
+  <ellipse cx="375" cy="300" rx="30" ry="26" fill="#FFFFFF"/>
+  <circle cx="378" cy="303" r="18" fill="#8FD3FF" stroke="#2F8FE0" stroke-width="3"/>
+  <ellipse cx="379" cy="304" rx="6" ry="12" fill="#1B1F33"/>
+  <circle cx="371" cy="294" r="5" fill="#FFFFFF"/>
+  <ellipse cx="485" cy="300" rx="30" ry="26" fill="#FFFFFF"/>
+  <circle cx="482" cy="303" r="18" fill="#8FD3FF" stroke="#2F8FE0" stroke-width="3"/>
+  <ellipse cx="481" cy="304" rx="6" ry="12" fill="#1B1F33"/>
+  <circle cx="474" cy="294" r="5" fill="#FFFFFF"/>
+  <!-- eyelids (half-closed, cool) -->
+  <ellipse cx="375" cy="268" rx="36" ry="19" fill="#EAEEF3"/>
+  <path d="M343 283 Q375 270 409 288" stroke="#1B1F33" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <ellipse cx="485" cy="266" rx="36" ry="19" fill="#EAEEF3"/>
+  <path d="M451 286 Q485 266 517 280" stroke="#1B1F33" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <!-- brows -->
+  <path d="M338 250 L406 262" stroke="#1B1F33" stroke-width="9" stroke-linecap="round"/>
+  <path d="M454 256 L522 240" stroke="#1B1F33" stroke-width="9" stroke-linecap="round"/>
+  <!-- brow scar -->
+  <path d="M494 232 L500 264 M508 229 L514 261" stroke="#1B1F33" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- AR scanner lens over left eye -->
+  <rect x="304" y="270" width="118" height="62" rx="18" fill="#3392FF" fill-opacity="0.22" stroke="#3392FF" stroke-width="4"/>
+  <line x1="312" y1="301" x2="414" y2="301" stroke="#7CC4FF" stroke-width="2" opacity="0.9"/>
+  <circle cx="316" cy="282" r="4" fill="#E2231A"/>
+  <path d="M400 278 H412 V290 M400 324 H412 V312" stroke="#7CC4FF" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- holo chat tag -->
+  <g transform="translate(96,236)">
+    <rect x="0" y="0" width="150" height="54" rx="12" fill="#1B2140" stroke="#3392FF" stroke-width="3"/>
+    <text class="mono" x="14" y="36" font-size="24" fill="#7CC4FF">&gt; идея_</text>
+    <path d="M40 54 L30 72 L62 54" fill="#1B2140" stroke="#3392FF" stroke-width="3" stroke-linejoin="round"/>
+    <rect x="34" y="50" width="26" height="6" fill="#1B2140"/>
+  </g>
+
+  <!-- sparks -->
+  <g fill="#FFD34D">
+    <path transform="translate(650,90)" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4 Z"/>
+    <path transform="translate(120,440) scale(0.7)" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4 Z"/>
+  </g>
+  <g fill="#7CC4FF">
+    <path transform="translate(724,472) scale(0.8)" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4 Z"/>
+  </g>
+</g>
+</svg>

@@ -23,7 +23,7 @@ import { SOURCE_CHANNELS } from "@/lib/source-channel";
 export const metadata: Metadata = { title: "Кандидаты — LAMP" };
 
 const selectClass =
-  "w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent";
+  "w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40";
 
 // Кусочек резюме вокруг найденного слова — чтобы было видно,
 // почему человек попал в выдачу.
@@ -210,7 +210,7 @@ export default async function CandidatesPage({
               defaultValue={query}
               placeholder="Имя, телефон, почта, должность, компания, текст резюме"
               aria-label="Поиск кандидатов"
-              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-2 focus:ring-accent"
+              className="w-full rounded-lg border border-line-strong bg-surface py-2.5 pr-3 pl-9 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-ink focus:ring-[3px] focus:ring-accent/40"
             />
           </div>
 

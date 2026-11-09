@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { CANDIDATE_FORMS, DAY_FORMS, plural } from "@/lib/format";
 import { LayoutGrid, SquareKanban } from "lucide-react";
@@ -28,6 +29,9 @@ export type JobCandidate = {
   // Сколько дней человек сидит на текущем этапе. Считается на сервере,
   // чтобы у всех было одно и то же число независимо от часового пояса.
   daysOnStage: number;
+  // После скольких дней на этапе человека подсвечивать: общий срок
+  // компании или свой срок рекрутера, который его завёл.
+  staleDays: number;
 };
 
 export type JobStage = {
@@ -38,9 +42,6 @@ export type JobStage = {
   rejectionSide: RejectionSide | null;
 };
 
-// С какого срока простой на этапе стоит заметить. Две недели —
-// граница, после которой кандидат обычно уже остыл.
-const SLOW_DAYS = 14;
 
 export function JobCandidates({
   stages,
@@ -55,10 +56,37 @@ export function JobCandidates({
   // и переключателем вида, а не отдельной ступенькой над ними.
   action?: React.ReactNode;
 }) {
-  const [active, setActive] = useState<string>("");
+  // Выбранный вид и вкладка этапа живут в адресе страницы (?view=…&stage=…).
+  // Раньше они хранились только в памяти страницы: открыл карточку
+  // кандидата, нажал «Назад» — и фильтр сбрасывался на «Все».
+  // Теперь браузер возвращает тот же адрес, а с ним и выбор.
+  const params = useSearchParams();
+  const [active, setActiveState] = useState<string>(params.get("stage") ?? "");
   // Рекрутеру по умолчанию доска: на ней кандидатов двигают.
   // Тому, кто только смотрит, привычнее карточки.
-  const [view, setView] = useState<"board" | "cards">(canMove ? "board" : "cards");
+  const urlView = params.get("view");
+  const [view, setViewState] = useState<"board" | "cards">(
+    urlView === "board" || urlView === "cards" ? urlView : canMove ? "board" : "cards",
+  );
+
+  function remember(key: string, value: string) {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+    // replaceState, а не push: переключение вкладки — не новая
+    // страница, и «Назад» не должен по ним шагать.
+    window.history.replaceState(window.history.state, "", url);
+  }
+
+  function setActive(value: string) {
+    setActiveState(value);
+    remember("stage", value);
+  }
+
+  function setView(value: "board" | "cards") {
+    setViewState(value);
+    remember("view", value);
+  }
 
   const counts = new Map<string, number>();
   for (const candidate of candidates) {
@@ -168,7 +196,7 @@ export function JobCandidates({
         {shown.map((candidate) => {
           const stage = stageById.get(candidate.stageId);
           const tone = TONE_STYLES[stage?.tone ?? "muted"];
-          const slow = candidate.daysOnStage >= SLOW_DAYS;
+          const slow = candidate.daysOnStage >= candidate.staleDays;
 
           return (
             <Link
@@ -223,7 +251,7 @@ export function JobCandidates({
 
       <p className="mt-3 text-xs text-ink-soft">
         Показано {shown.length} {plural(shown.length, CANDIDATE_FORMS)}. Жёлтым
-        отмечены те, кто не двигался дольше двух недель.
+        отмечены те, кто стоит на этапе дольше срока простоя (задаётся в «Настройках»).
       </p>
     </section>
   );

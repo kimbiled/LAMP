@@ -60,7 +60,7 @@ function ShareLinkAddress({ url }: { url: string }) {
         value={url}
         aria-label="Адрес ссылки"
         onFocus={(event) => event.currentTarget.select()}
-        className="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-1.5 font-mono text-xs text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
+        className="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-3 py-1.5 font-mono text-xs text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40"
       />
 
       <button

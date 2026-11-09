@@ -94,6 +94,7 @@ export default async function NewCandidatePage({
             languages: "",
             source: "",
             sourceChannel: "",
+            referredBy: "",
             note: "",
           }}
         />

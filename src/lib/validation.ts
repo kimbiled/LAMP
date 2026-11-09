@@ -145,6 +145,8 @@ export const candidateSchema = z.object({
   sourceChannel: z
     .union([z.literal(""), z.enum(["COLD", "WARM", "REFERRAL"])])
     .optional(),
+  // Кто привёл человека — только для канала «Реферал».
+  referredBy: z.string().max(200, "Слишком длинное значение").optional(),
   note: z.string().max(5000, "Слишком длинный комментарий"),
 });
 

@@ -101,6 +101,7 @@ export async function createJob(
       salaryMax: parsed.data.salaryMax,
       currency: parsed.data.currency,
       status: parsed.data.status,
+      closedAt: parsed.data.status === "CLOSED" ? new Date() : null,
       priority: parsed.data.priority,
       recruiterId: await validUserId(parsed.data.recruiterId, scope.companyId),
       hiringManagerId: await validUserId(
@@ -128,7 +129,7 @@ export async function updateJob(
   // findFirst с companyId: чужая вакансия просто не найдётся.
   const existing = await db.job.findFirst({
     where: { id: jobId, companyId: scope.companyId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!existing) {
@@ -150,6 +151,7 @@ export async function updateJob(
       salaryMax: parsed.data.salaryMax,
       currency: parsed.data.currency,
       status: parsed.data.status,
+      ...closedAtChange(existing.status, parsed.data.status),
       priority: parsed.data.priority,
       recruiterId: await validUserId(parsed.data.recruiterId, scope.companyId),
       hiringManagerId: await validUserId(
@@ -177,7 +179,7 @@ export async function changeJobStatus(formData: FormData): Promise<ActionResult>
 
   const job = await db.job.findFirst({
     where: { id: jobId, companyId: scope.companyId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!job) {
@@ -186,7 +188,10 @@ export async function changeJobStatus(formData: FormData): Promise<ActionResult>
 
   await db.job.update({
     where: { id: job.id },
-    data: { status: status as JobStatus },
+    data: {
+      status: status as JobStatus,
+      ...closedAtChange(job.status, status as JobStatus),
+    },
   });
 
   revalidatePath("/jobs");
@@ -267,4 +272,13 @@ export async function deleteJob(formData: FormData): Promise<void> {
   revalidatePath("/dashboard");
   revalidatePath("/candidates");
   redirect("/jobs");
+}
+
+// Дата закрытия: ставим, когда вакансию закрыли, и снимаем, если её
+// открыли снова. По ней считаются «время найма» и закрытые вакансии
+// рекрутера за месяц.
+function closedAtChange(before: JobStatus, after: JobStatus): { closedAt?: Date | null } {
+  if (after === "CLOSED" && before !== "CLOSED") return { closedAt: new Date() };
+  if (after !== "CLOSED" && before === "CLOSED") return { closedAt: null };
+  return {};
 }

@@ -1,4 +1,5 @@
-import { daysAgo } from "@/lib/time";
+import { currentTime, daysAgo } from "@/lib/time";
+import { TeamSection } from "./team-section";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { requireScope } from "@/lib/tenant";
@@ -292,7 +293,7 @@ export default async function AnalyticsPage({
           name="period"
           defaultValue={period ?? ""}
           aria-label="Период"
-          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40"
         >
           {PERIODS.map((item) => (
             <option key={item.label} value={item.value}>
@@ -305,7 +306,7 @@ export default async function AnalyticsPage({
           name="job"
           defaultValue={job ?? ""}
           aria-label="Вакансия"
-          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40"
         >
           <option value="">Все вакансии</option>
           {jobs.map((item) => (
@@ -319,7 +320,7 @@ export default async function AnalyticsPage({
           name="recruiter"
           defaultValue={recruiter ?? ""}
           aria-label="Рекрутер"
-          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
+          className="rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40"
         >
           <option value="">Все рекрутеры</option>
           {recruiters.map((item) => (
@@ -514,6 +515,11 @@ export default async function AnalyticsPage({
           </ol>
         )}
       </section>
+
+      {/* Скорость работы команды — только администратору. */}
+      {scope.can("users.manage") && (
+        <TeamSection companyId={scope.companyId} since={since} now={currentTime()} />
+      )}
 
       <p className="mt-4 text-xs text-ink-soft">
         Фильтр по рекрутеру отбирает кандидатов по вакансиям, где этот человек

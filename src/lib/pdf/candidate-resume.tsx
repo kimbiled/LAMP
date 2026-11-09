@@ -20,6 +20,7 @@ import {
 import { formatMonths } from "@/lib/resume/score";
 import {
   YEAR_FORMS,
+  ageFrom,
   formatBirth,
   formatDate,
   formatMoney,
@@ -43,6 +44,12 @@ import {
 // в outputFileTracingIncludes в next.config.ts.
 const FONT_DIR = join(process.cwd(), "src", "lib", "pdf", "fonts");
 
+//
+// Шрифт подключается заново перед каждой выгрузкой. Библиотека держит
+// загруженный шрифт между документами, и после резюме с казахской «Қ»
+// (внутри она собрана из обычной «К») следующий файл терял букву «К»:
+// «Кандидат» печатался как «андидат». Свежая загрузка шрифта на каждый
+// документ стоит миллисекунды и убирает эту ошибку.
 Font.register({
   family: "Inter",
   fonts: [
@@ -55,6 +62,22 @@ Font.register({
 // Без этого библиотека переносит слова по английским правилам
 // и режет русские слова в странных местах. Не переносим вовсе.
 Font.registerHyphenationCallback((word) => [word]);
+
+// Встроенный Font.reset() не годится: он стирает и стандартные шрифты
+// библиотеки, но не даёт загрузить их заново, и следующая выгрузка
+// падает. Поэтому сбрасываем только Inter — и данные, и признак
+// «уже загружен», чтобы библиотека прочитала файлы ещё раз.
+type FontSourceLike = { data: unknown; loadResultPromise: unknown };
+function reloadInter() {
+  const family = Font.getRegisteredFonts()["Inter"] as
+    | { sources?: FontSourceLike[] }
+    | undefined;
+  for (const source of family?.sources ?? []) {
+    source.data = null;
+    source.loadResultPromise = null;
+  }
+}
+
 
 // Цвета — из палитры интерфейса (src/app/globals.css).
 const INK = "#181818";
@@ -231,10 +254,35 @@ export type CandidatePdfData = {
   // false — выгрузка без телефона, почты и Telegram: например,
   // для заказчика, который не должен связываться с кандидатом напрямую.
   showContacts: boolean;
+  // Анонимно: ни имени, ни фото, ни контактов, ни даты рождения —
+  // только возраст. Для заказчика, который выбирает по опыту,
+  // а не по фамилии.
+  anonymous: boolean;
 };
 
+// Что написать вместо имени и как подписать возраст и город
+// в анонимной выгрузке. Общее для PDF и Word.
+export function exportHeading(data: CandidatePdfData): {
+  name: string;
+  meta: string;
+} {
+  if (data.anonymous) {
+    const age = ageFrom(data.birthDate);
+    return {
+      name: "Кандидат",
+      meta: [age !== null ? `${age} ${plural(age, YEAR_FORMS)}` : null, data.city]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  }
+  return {
+    name: data.fullName,
+    meta: [formatBirth(data.birthDate), data.city].filter(Boolean).join(" · "),
+  };
+}
+
 // Стаж: сначала посчитанный по датам мест работы, он точнее.
-function experienceText(data: CandidatePdfData): string | null {
+export function experienceText(data: CandidatePdfData): string | null {
   if (data.experienceMonths && data.experienceMonths > 0) {
     return formatMonths(data.experienceMonths);
   }
@@ -394,9 +442,8 @@ function Chips({ items }: { items: string[] }) {
 }
 
 function CandidateResume({ data }: { data: CandidatePdfData }) {
-  const metaLine = [formatBirth(data.birthDate), data.city]
-    .filter(Boolean)
-    .join(" · ");
+  const heading = exportHeading(data);
+  const metaLine = heading.meta;
 
   const facts = [
     { label: "Опыт работы", value: experienceText(data) },
@@ -421,7 +468,7 @@ function CandidateResume({ data }: { data: CandidatePdfData }) {
 
   return (
     <Document
-      title={`${data.fullName} — резюме`}
+      title={`${heading.name} — резюме`}
       author={data.companyName}
       creator="LAMP"
       producer="LAMP"
@@ -437,7 +484,7 @@ function CandidateResume({ data }: { data: CandidatePdfData }) {
             />
           )}
           <View style={styles.headerText}>
-            <Text style={styles.name}>{data.fullName}</Text>
+            <Text style={styles.name}>{heading.name}</Text>
             {data.currentPosition && (
               <Text style={styles.position}>{data.currentPosition}</Text>
             )}
@@ -521,5 +568,6 @@ function CandidateResume({ data }: { data: CandidatePdfData }) {
 export async function renderCandidatePdf(
   data: CandidatePdfData,
 ): Promise<Buffer> {
+  reloadInter();
   return renderToBuffer(<CandidateResume data={data} />);
 }

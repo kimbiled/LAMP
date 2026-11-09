@@ -13,6 +13,7 @@ import { addHistory } from "@/lib/history";
 import { logAction } from "@/lib/audit";
 import { FEEDBACK_RESULT_LABELS } from "@/lib/labels";
 import { jobWatchers, notify } from "@/lib/notifications";
+import { done, fail, type ActionResult } from "@/lib/action-result";
 
 export type FeedbackFormState = {
   formError?: string;
@@ -237,4 +238,99 @@ export async function deleteFeedback(
   revalidatePath(`/candidates/${feedback.candidateId}`);
 
   return { success: "Отзыв удалён" };
+}
+
+// «Предложить оффер» — кнопка нанимающего менеджера.
+//
+// Двигать кандидатов по этапам менеджер не может: это работа рекрутера.
+// Но решение «берём» обычно принимает именно он, и раньше о нём
+// узнавали в мессенджере. Теперь кнопка оставляет положительный отзыв
+// с пометкой «Предлагаю оффер» и сразу сообщает администраторам
+// компании и рекрутеру вакансии — колокольчиком в шапке.
+export async function proposeOffer(formData: FormData): Promise<ActionResult> {
+  const scope = await getScope();
+
+  if (!scope.can("feedback.create")) {
+    return fail("Недостаточно прав");
+  }
+
+  const candidateId = text(formData, "candidateId");
+  const comment = text(formData, "comment").slice(0, 2000);
+
+  const candidate = await db.candidate.findFirst({
+    where: {
+      id: candidateId,
+      companyId: scope.companyId,
+      ...candidateVisibilityFilter(scope.session.user),
+    },
+    select: {
+      id: true,
+      stageId: true,
+      jobId: true,
+      fullName: true,
+      createdById: true,
+      job: { select: { title: true, recruiterId: true } },
+    },
+  });
+
+  if (!candidate) {
+    return fail("Кандидат не найден");
+  }
+
+  await db.feedback.create({
+    data: {
+      companyId: scope.companyId,
+      candidateId: candidate.id,
+      stageId: candidate.stageId,
+      result: "POSITIVE",
+      comment: comment ? `Предлагаю сделать оффер. ${comment}` : "Предлагаю сделать оффер.",
+      authorId: scope.session.user.id,
+      authorName: scope.session.user.fullName,
+    },
+  });
+
+  await addHistory({
+    companyId: scope.companyId,
+    candidateId: candidate.id,
+    type: "FEEDBACK_ADDED",
+    comment: "Предложен оффер",
+    actorId: scope.session.user.id,
+    actorName: scope.session.user.fullName,
+  });
+
+  // Кому сообщить: все активные администраторы и рекрутер вакансии.
+  // Если вакансии нет — тот, кто завёл кандидата.
+  const admins = await db.user.findMany({
+    where: { companyId: scope.companyId, role: "ADMIN", isActive: true },
+    select: { id: true },
+  });
+
+  await notify({
+    companyId: scope.companyId,
+    userIds: [
+      ...admins.map((admin) => admin.id),
+      candidate.job?.recruiterId ?? candidate.createdById,
+    ],
+    actorId: scope.session.user.id,
+    type: "OFFER_PROPOSED",
+    title: `Предлагают оффер: ${candidate.fullName}`,
+    body:
+      `${scope.session.user.fullName}` +
+      (candidate.job ? ` · ${candidate.job.title}` : "") +
+      (comment ? ` — «${comment}»` : ""),
+    entityType: "Candidate",
+    entityId: candidate.id,
+  });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "OFFER_PROPOSED",
+    entityType: "Candidate",
+    entityId: candidate.id,
+  });
+
+  revalidatePath(`/candidates/${candidate.id}`);
+
+  return done("Готово: администратор и рекрутер получили уведомление");
 }

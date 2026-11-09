@@ -28,6 +28,8 @@
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@react-pdf/renderer": "^4.9.0",
+    "docx": "9.13.0",
+    "jszip": "3.10.2",
     "lucide-react": "^1.47.0",
     "mammoth": "^1.12.3",
     "next": "16.3.5",

@@ -95,3 +95,9 @@ export function daysBetween(from: string, to: string): number {
 export function daysAgo(days: number): Date | null {
   return days > 0 ? new Date(Date.now() - days * 86_400_000) : null;
 }
+
+// Текущий момент — для страниц, которым нужно «сейчас» (аналитика
+// команды). Отдельной функцией по той же причине, что и daysAgo.
+export function currentTime(): Date {
+  return new Date();
+}

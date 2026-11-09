@@ -1,20 +1,19 @@
 import type { JobStatus } from "@/generated/prisma/enums";
-import { JOB_STATUS_LABELS } from "@/lib/labels";
+import { jobStatus } from "@/lib/job-status";
 
-// Цветная метка статуса вакансии.
-
-const STYLES: Record<JobStatus, string> = {
-  OPEN: "bg-khaki-soft text-khaki-ink",
-  PAUSED: "bg-muted text-ink-soft",
-  CLOSED: "bg-ink-strong/10 text-ink-soft",
-};
+// Цветная метка статуса вакансии: зелёная «Открыта»,
+// янтарная «Приостановлена», серая «Закрыта».
 
 export function JobStatusBadge({ status }: { status: JobStatus }) {
+  const item = jobStatus(status);
+  const Icon = item.icon;
+
   return (
     <span
-      className={`inline-flex shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${STYLES[status]}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${item.badge}`}
     >
-      {JOB_STATUS_LABELS[status]}
+      <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+      {item.label}
     </span>
   );
 }

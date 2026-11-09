@@ -8,6 +8,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { BackButton } from "@/components/back-button";
+import { OfferButton } from "./offer-button";
+import { AddTaskForm, TaskItem } from "@/components/tasks";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
@@ -50,10 +52,13 @@ export const metadata: Metadata = { title: "Кандидат — LAMP" };
 
 export default async function CandidatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ resumeAdded?: string }>;
 }) {
   const { id } = await params;
+  const { resumeAdded } = await searchParams;
   const scope = await getScope();
 
   // Независимые запросы запускаем одновременно, а не по очереди.
@@ -129,6 +134,18 @@ export default async function CandidatePage({
 
   assertOwnCompany(candidate, scope.companyId);
   if (!candidate) return null;
+
+  // Мои заметки по этому человеку из «Блокнота». Только свои:
+  // блокнот личный, чужие записи коллег сюда не попадают.
+  const myTasks = await db.task.findMany({
+    where: {
+      companyId: scope.companyId,
+      userId: scope.session.user.id,
+      candidateId: candidate.id,
+    },
+    orderBy: [{ done: "asc" }, { dueAt: "asc" }, { createdAt: "desc" }],
+    take: 30,
+  });
 
   const canEdit = scope.can("candidates.edit");
   const canMove = scope.can("candidates.move");
@@ -229,6 +246,18 @@ export default async function CandidatePage({
         fallbackLabel="К списку кандидатов"
       />
 
+      {/* Загрузили резюме человека, который уже был в базе: второй
+          карточки нет, файл лёг сюда. Говорим об этом прямо. */}
+      {resumeAdded && (
+        <div role="status" className="mt-4 rounded-xl border border-info-line bg-info-soft px-4 py-3 text-sm text-info-ink">
+          <p className="font-medium">Этот человек уже был в базе</p>
+          <p className="mt-0.5">
+            Совпал телефон или почта, поэтому новую карточку не создавали.
+            Резюме добавлено сюда и стало текущим, прежние остались в истории.
+          </p>
+        </div>
+      )}
+
       {/* Шапка карточки: сначала человек, потом всё остальное. */}
       <section
         className={`mt-4 rounded-xl border p-5 ${tone.border} ${tone.card}`}
@@ -253,6 +282,12 @@ export default async function CandidatePage({
                 />
                 <ChannelBadge channel={candidate.sourceChannel} />
               </div>
+
+              {candidate.sourceChannel === "REFERRAL" && candidate.referredBy && (
+                <p className="mt-1 text-sm text-referral-ink">
+                  Порекомендовал(а): <span className="font-medium">{candidate.referredBy}</span>
+                </p>
+              )}
 
               {birthText && (
                 <p className="mt-1 text-sm text-ink-soft">{birthText}</p>
@@ -290,38 +325,64 @@ export default async function CandidatePage({
           </div>
 
           <div className="flex flex-wrap items-start gap-2">
-            {/* Выгрузка в PDF. Обычный details, как у «Истории»:
-                работает без кода в браузере. Вариант без контактов —
-                для заказчика, который не должен звонить кандидату сам. */}
+            {/* Выгрузка резюме: PDF или Word, в трёх вариантах.
+                Обычный details, как у «Истории»: работает без кода
+                в браузере. Без контактов — для заказчика, который не
+                должен звонить кандидату сам; анонимно — ещё и без
+                имени и фото, когда выбирают только по опыту. */}
             <details className="group relative">
               <summary
                 className={`${buttonClass({ variant: "secondary" })} cursor-pointer list-none`}
               >
                 <FileDown className="h-4 w-4" strokeWidth={1.8} />
-                Скачать PDF
+                Скачать резюме
                 <ChevronDown
                   className="h-4 w-4 transition group-open:rotate-180"
                   strokeWidth={1.8}
                 />
               </summary>
-              <div className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg">
-                <a
-                  href={`/api/candidates/${candidate.id}/pdf`}
-                  className="block px-3 py-2 text-sm text-ink transition hover:bg-canvas"
-                >
-                  С контактами
-                </a>
-                <a
-                  href={`/api/candidates/${candidate.id}/pdf?contacts=0`}
-                  className="block px-3 py-2 text-sm text-ink transition hover:bg-canvas"
-                >
-                  Без контактов
-                  <span className="block text-xs text-ink-soft">
-                    без телефона, почты и Telegram
-                  </span>
-                </a>
+              <div className="absolute right-0 z-20 mt-1 w-72 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-lg">
+                {(
+                  [
+                    { format: "pdf", title: "PDF", hint: "для отправки" },
+                    { format: "docx", title: "Word (DOCX)", hint: "можно поправить перед отправкой" },
+                  ] as const
+                ).map((group) => (
+                  <div key={group.format} className="py-1 first:pt-0 last:pb-0">
+                    <p className="px-3 pt-1.5 pb-1 text-xs font-medium text-ink-soft">
+                      {group.title} · {group.hint}
+                    </p>
+                    {(
+                      [
+                        { mode: "full", label: "С контактами", hint: null },
+                        { mode: "nocontacts", label: "Без контактов", hint: "без телефона, почты и Telegram" },
+                        { mode: "anonymous", label: "Анонимно", hint: "без имени, фото и контактов" },
+                      ] as const
+                    ).map((item) => (
+                      <a
+                        key={item.mode}
+                        href={`/api/candidates/${candidate.id}/${group.format}?mode=${item.mode}`}
+                        className="block rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-muted"
+                      >
+                        {item.label}
+                        {item.hint && (
+                          <span className="block text-xs text-ink-soft">{item.hint}</span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                ))}
               </div>
             </details>
+
+            {/* Нанимающий менеджер не двигает кандидатов по этапам,
+                но решение «берём» обычно за ним: кнопка сообщает
+                администратору и рекрутеру. */}
+            {scope.session.user.role === "HIRING_MANAGER" &&
+              candidate.stage.key !== "OFFER" &&
+              candidate.stage.key !== "HIRED" && (
+                <OfferButton candidateId={candidate.id} candidateName={candidate.fullName} />
+              )}
 
             {canEdit && (
               <Link
@@ -406,6 +467,8 @@ export default async function CandidatePage({
         <div className="lg:col-start-1 lg:row-start-1">
           <InterviewsBlock
             candidateId={candidate.id}
+            candidateName={candidate.fullName}
+            jobTitle={candidate.job?.title ?? null}
             interviews={interviewViews}
             users={users}
             canManage={canManageInterviews}
@@ -427,6 +490,46 @@ export default async function CandidatePage({
               canCreate={scope.can("feedback.create")}
               canManage={scope.can("feedback.manage")}
             />
+
+            {/* Личные заметки и дела по этому человеку — из «Блокнота». */}
+            <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-base font-semibold text-ink-strong">Мои заметки</h2>
+                <Link href="/notebook" className="text-sm text-ink-soft underline hover:text-ink">
+                  Блокнот
+                </Link>
+              </div>
+              <AddTaskForm
+                defaultDay={null}
+                candidates={[]}
+                fixedCandidate={{
+                  id: candidate.id,
+                  fullName: candidate.fullName,
+                  position: candidate.currentPosition,
+                }}
+                placeholder="Заметка или дело: «перезвонить в пятницу»"
+              />
+              {myTasks.length > 0 && (
+                <ul className="mt-2">
+                  {myTasks.map((task) => (
+                    <TaskItem
+                      key={`${task.id}-${task.done}`}
+                      today={todayLocal()}
+                      showCandidate={false}
+                      task={{
+                        id: task.id,
+                        title: task.title,
+                        note: task.note,
+                        day: task.dueAt ? task.dueAt.toISOString().slice(0, 10) : null,
+                        done: task.done,
+                        candidate: null,
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 text-xs text-ink-soft">Видны только вам.</p>
+            </section>
 
             {/* «Поделиться» — рядом с мнениями: ссылку отправляют
                 именно затем, чтобы собрать ещё одно мнение. */}

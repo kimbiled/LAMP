@@ -22,6 +22,8 @@ export function JobPrioritySelect({
       options={JOB_PRIORITIES.map((item) => ({
         value: item.value,
         label: `${item.label} приоритет`,
+        icon: item.icon,
+        tone: item.tone,
       }))}
       action={changeJobPriority}
       buildForm={(next) => ({ jobId, priority: next })}

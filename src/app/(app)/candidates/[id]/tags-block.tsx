@@ -102,7 +102,7 @@ export function TagsBlock({
                 }
               }}
               onBlur={submit}
-              className="min-h-8 w-44 rounded-md border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-ink focus:ring-2 focus:ring-accent"
+              className="min-h-8 w-44 rounded-md border border-line-strong bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40"
             />
             <datalist id="tag-suggestions">
               {suggestions.map((name) => (

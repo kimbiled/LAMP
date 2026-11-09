@@ -23,8 +23,6 @@ import type { JobCandidate, JobStage } from "./job-candidates";
 // Раньше этап менялся только внутри карточки кандидата: чтобы
 // разобрать 30 откликов, нужно было открыть 30 страниц.
 
-const SLOW_DAYS = 14;
-
 export function JobBoard({
   stages,
   candidates,
@@ -135,7 +133,7 @@ export function JobBoard({
 
                 <ul className="mt-1 flex min-h-24 flex-col gap-2">
                   {inColumn.map((candidate) => {
-                    const slow = candidate.daysOnStage >= SLOW_DAYS;
+                    const slow = candidate.daysOnStage >= candidate.staleDays;
                     return (
                       <li
                         key={candidate.id}

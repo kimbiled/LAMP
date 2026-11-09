@@ -20,6 +20,8 @@ export const JOB_PRIORITIES: {
   active: string;
   // Метка в списке вакансий и в шапке карточки.
   badge: string;
+  // Цвет иконки в выпадающем списке.
+  tone: string;
 }[] = [
   {
     value: "HIGH",
@@ -28,6 +30,7 @@ export const JOB_PRIORITIES: {
     icon: ChevronsUp,
     active: "border-danger bg-danger-soft text-danger-ink",
     badge: "bg-danger-soft text-danger-ink",
+    tone: "text-danger",
   },
   {
     value: "MEDIUM",
@@ -36,6 +39,7 @@ export const JOB_PRIORITIES: {
     icon: Equal,
     active: "border-accent bg-glow text-ink",
     badge: "bg-glow text-ink",
+    tone: "text-accent-ink",
   },
   {
     value: "LOW",
@@ -44,6 +48,7 @@ export const JOB_PRIORITIES: {
     icon: ChevronsDown,
     active: "border-ink-soft bg-muted text-ink",
     badge: "bg-muted text-ink-soft",
+    tone: "text-ink-soft",
   },
 ];
 

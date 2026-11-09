@@ -74,6 +74,7 @@ function InterviewFields({
   defaults,
   users,
   meetingLink,
+  invite,
   errors,
 }: {
   defaults: {
@@ -87,6 +88,8 @@ function InterviewFields({
   };
   users: Person[];
   meetingLink: string | null;
+  // Для кнопки «Скопировать приглашение»: кого и на какую вакансию зовём.
+  invite: { candidateName: string; jobTitle: string | null };
   errors: InterviewFormState["fieldErrors"];
 }) {
   return (
@@ -149,6 +152,8 @@ function InterviewFields({
       <MeetingUrlField
         defaultValue={defaults.meetingUrl}
         companyLink={meetingLink}
+        candidateName={invite.candidateName}
+        jobTitle={invite.jobTitle}
         error={errors?.meetingUrl}
       />
     </>
@@ -163,8 +168,12 @@ export function InterviewsBlock({
   defaultDate,
   defaultInterviewerId,
   meetingLink,
+  candidateName,
+  jobTitle,
 }: {
   candidateId: string;
+  candidateName: string;
+  jobTitle: string | null;
   interviews: InterviewView[];
   users: Person[];
   canManage: boolean;
@@ -240,6 +249,7 @@ export function InterviewsBlock({
             }}
             users={users}
             meetingLink={meetingLink}
+            invite={{ candidateName, jobTitle }}
             errors={state.fieldErrors}
           />
 
@@ -286,6 +296,7 @@ export function InterviewsBlock({
                     }}
                     users={users}
                     meetingLink={meetingLink}
+            invite={{ candidateName, jobTitle }}
                     errors={editState.fieldErrors}
                   />
 
