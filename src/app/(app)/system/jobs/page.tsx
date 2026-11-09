@@ -7,7 +7,7 @@ import { requireOwner } from "@/lib/superadmin";
 import { JobStatusBadge } from "@/components/job-status-badge";
 import { formatDate, formatSalary } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Все вакансии — LAMP" };
+export const metadata: Metadata = { title: "Все вакансии — Skillo" };
 
 export default async function SystemJobsPage({
   searchParams,
@@ -43,7 +43,7 @@ export default async function SystemJobsPage({
         Все вакансии
       </h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Вакансии всех компаний LAMP. Всего: {jobs.length}
+        Вакансии всех компаний Skillo. Всего: {jobs.length}
       </p>
 
       <form className="mt-5 flex flex-wrap gap-3">

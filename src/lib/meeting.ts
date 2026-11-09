@@ -64,6 +64,27 @@ export function meetingUrlFromText(text: string | null): string | null {
   return null;
 }
 
+export type InterviewFormatValue = "ONLINE" | "OFFICE";
+
+// Значение переключателя «Онлайн / В офисе» из формы. undefined —
+// переключателя в форме нет (открыта старая версия страницы).
+export function readInterviewFormat(
+  raw: FormDataEntryValue | null,
+): InterviewFormatValue | undefined {
+  return raw === "ONLINE" || raw === "OFFICE" ? raw : undefined;
+}
+
+// Формат встречи. У интервью, заведённых до переключателя, поля нет:
+// есть ссылка — онлайн, нет — неизвестно (null).
+export function interviewFormat(interview: {
+  format: InterviewFormatValue | null;
+  meetingUrl: string | null;
+  comment: string | null;
+}): InterviewFormatValue | null {
+  if (interview.format) return interview.format;
+  return joinUrl(interview) ? "ONLINE" : null;
+}
+
 // Ссылка для кнопки «Подключиться»: из поля, а если его нет — из комментария.
 export function joinUrl(interview: {
   meetingUrl: string | null;

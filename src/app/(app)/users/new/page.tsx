@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireScope } from "@/lib/tenant";
 import { NewUserForm } from "./new-user-form";
 
-export const metadata: Metadata = { title: "Новый пользователь — LAMP" };
+export const metadata: Metadata = { title: "Новый пользователь — Skillo" };
 
 export default async function NewUserPage() {
   await requireScope("users.manage");

@@ -4,7 +4,7 @@ import { requireScope } from "@/lib/tenant";
 import { createJob } from "@/app/actions/jobs";
 import { JobForm } from "../job-form";
 
-export const metadata: Metadata = { title: "Новая вакансия — LAMP" };
+export const metadata: Metadata = { title: "Новая вакансия — Skillo" };
 
 export default async function NewJobPage() {
   const scope = await requireScope("jobs.manage");

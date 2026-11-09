@@ -17,7 +17,7 @@ import { GuestFeedbackForm } from "./guest-feedback-form";
 // видно ровно одного кандидата и ничего больше.
 
 export const metadata: Metadata = {
-  title: "Кандидат — LAMP",
+  title: "Кандидат — Skillo",
   // Страницу не должны находить поисковики.
   robots: { index: false, follow: false },
 };
@@ -26,7 +26,7 @@ function Invalid({ reason }: { reason: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
       <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-xl font-semibold text-ink">
-        L
+        S
       </span>
       <h1 className="mt-6 text-xl font-semibold text-ink-strong">
         Ссылка недоступна
@@ -104,7 +104,7 @@ export default async function SharePage({
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center gap-2">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-ink">
-          L
+          S
         </span>
         <p className="text-sm text-ink-soft">
           {candidate.company.name} · карточка кандидата
@@ -271,7 +271,7 @@ export default async function SharePage({
       </div>
 
       <p className="mt-8 text-center text-xs text-ink-soft">
-        LAMP · система подбора персонала
+        Skillo · система подбора персонала
       </p>
     </div>
   );

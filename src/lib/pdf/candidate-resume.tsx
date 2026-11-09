@@ -28,7 +28,7 @@ import {
 } from "@/lib/format";
 
 // Резюме кандидата одним PDF-файлом — чтобы отправить заказчику
-// или руководителю, у которого нет доступа в LAMP.
+// или руководителю, у которого нет доступа в Skillo.
 //
 // Собирается из карточки кандидата, а не из исходного файла: так все
 // резюме выглядят одинаково, сколько бы разных форматов ни прислали
@@ -470,8 +470,8 @@ function CandidateResume({ data }: { data: CandidatePdfData }) {
     <Document
       title={`${heading.name} — резюме`}
       author={data.companyName}
-      creator="LAMP"
-      producer="LAMP"
+      creator="Skillo"
+      producer="Skillo"
       language="ru"
     >
       <Page size="A4" style={styles.page}>

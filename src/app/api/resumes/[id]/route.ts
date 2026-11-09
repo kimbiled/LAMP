@@ -70,7 +70,7 @@ function missingFilePage(fileName: string): Response {
   const html = `<!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Файл резюме недоступен — LAMP</title>
+<title>Файл резюме недоступен — Skillo</title>
 <style>
   body{margin:0;font-family:Inter,system-ui,sans-serif;background:#f7f5ef;color:#181818}
   main{max-width:560px;margin:12vh auto;padding:28px;background:#fffefb;border:1px solid #ded8cc;border-radius:16px}
@@ -81,7 +81,7 @@ function missingFilePage(fileName: string): Response {
 <body><main>
   <h1>Файл «${escapeHtml(fileName)}» не найден в хранилище</h1>
   <p>Запись о резюме есть, а самого файла на этом сервере нет. Скорее всего,
-  его загрузили на другом компьютере или в другой копии LAMP: файлы сейчас
+  его загрузили на другом компьютере или в другой копии Skillo: файлы сейчас
   хранятся на диске того устройства, где их загрузили.</p>
   <p>Что сделать: загрузите резюме ещё раз в карточке кандидата.
   Чтобы такого больше не было, файлы нужно хранить в общем облачном

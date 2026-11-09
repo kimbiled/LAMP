@@ -2,11 +2,11 @@
 //
 // Работает на страницах hh.kz и hh.ru, пока вы там залогинены под своим
 // аккаунтом работодателя. Собранное копится в памяти расширения, а потом
-// выгружается одним файлом — его вы загружаете в LAMP.
+// выгружается одним файлом — его вы загружаете в Skillo.
 //
 // Главный принцип: НЕ вычитывать поля из вёрстки hh. Вёрстка меняется,
 // и такой сборщик ломался бы каждые пару месяцев. Вместо этого берём
-// тот же PDF, который hh отдаёт по своей кнопке «Скачать», — его LAMP
+// тот же PDF, который hh отдаёт по своей кнопке «Скачать», — его Skillo
 // разбирает сам, и делает это лучше, чем любое чтение разметки.
 //
 // Из разметки берём только подсказки (имя, должность) — чтобы в списке
@@ -285,7 +285,7 @@
           done += 1;
         } catch (error) {
           failed += 1;
-          console.warn("[LAMP] не удалось собрать", hash, error);
+          console.warn("[Skillo] не удалось собрать", hash, error);
         }
 
         // Пауза не нужна после последнего.
@@ -299,7 +299,7 @@
         failed > 0 ? "warn" : "ok",
       );
     } catch (error) {
-      console.error("[LAMP]", error);
+      console.error("[Skillo]", error);
       toast(`Не получилось: ${error.message}`, "error");
     } finally {
       busy = false;
@@ -315,7 +315,7 @@
     button.id = "lamp-collect-button";
     button.className = "lamp-button";
     button.type = "button";
-    button.textContent = "Собрать в LAMP";
+    button.textContent = "Собрать в Skillo";
     button.addEventListener("click", run);
 
     document.body.appendChild(button);

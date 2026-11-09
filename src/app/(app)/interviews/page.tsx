@@ -22,9 +22,9 @@ import {
 } from "@/lib/calendar";
 import { WeekCalendar, type CalendarEvent } from "./week-calendar";
 import type { CalendarMeeting } from "./meeting-parts";
-import { joinUrl } from "@/lib/meeting";
+import { interviewFormat, joinUrl } from "@/lib/meeting";
 
-export const metadata: Metadata = { title: "Интервью — LAMP" };
+export const metadata: Metadata = { title: "Интервью — Skillo" };
 
 const LIST_FILTERS = [
   { value: "list", label: "Предстоящие" },
@@ -234,6 +234,7 @@ async function CalendarView({ week, scope }: { week?: string; scope: Scope }) {
       interviewerName: interview.interviewer?.fullName ?? null,
       comment: interview.comment,
       joinUrl: joinUrl(interview),
+      format: interviewFormat(interview),
       meetingUrl: interview.meetingUrl ?? "",
     };
   });

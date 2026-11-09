@@ -4,7 +4,7 @@ import { requireScope, assertOwnCompany } from "@/lib/tenant";
 import { updateJob } from "@/app/actions/jobs";
 import { JobForm } from "../../job-form";
 
-export const metadata: Metadata = { title: "Редактирование вакансии — LAMP" };
+export const metadata: Metadata = { title: "Редактирование вакансии — Skillo" };
 
 export default async function EditJobPage({
   params,

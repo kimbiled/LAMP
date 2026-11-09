@@ -1,16 +1,22 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Check, Copy, ExternalLink, Settings2, Video } from "lucide-react";
-import { NEW_GOOGLE_MEET_URL } from "@/lib/meeting";
+import Link from "next/link";
+import { Building2, Check, Copy, ExternalLink, MapPin, Settings2, Video } from "lucide-react";
+import { NEW_GOOGLE_MEET_URL, type InterviewFormatValue } from "@/lib/meeting";
 import { fillInviteTemplate } from "@/lib/invite-template";
+import { firstNameOf } from "@/lib/person-name";
 import { saveMyMeetingLink } from "@/app/actions/settings";
 import { useMeetingDefaults } from "@/components/meeting-defaults";
 import { Modal } from "@/components/ui/dialog";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 import { NETWORK_ERROR, useToast } from "@/components/ui/toast";
 
-// Поле «Ссылка на встречу» в форме интервью.
+// Блок «Формат встречи» в форме интервью.
+//
+// Переключатель «Онлайн | В офисе» уходит в форму скрытым полем
+// format. Онлайн — поле ссылки; в офисе — адрес и кабинет из
+// «Настроек», а ссылка при сохранении стирается.
 //
 // Кнопка «Google Meet»:
 //  • если у человека уже есть постоянная комната — подставляет её;
@@ -58,8 +64,14 @@ function formValue(form: HTMLFormElement | null, name: string): string {
   return field && "value" in field ? String((field as { value: unknown }).value) : "";
 }
 
+const FORMAT_OPTIONS: { value: InterviewFormatValue; label: string; icon: typeof Video }[] = [
+  { value: "ONLINE", label: "Онлайн", icon: Video },
+  { value: "OFFICE", label: "В офисе", icon: Building2 },
+];
+
 export function MeetingUrlField({
   defaultValue,
+  defaultFormat,
   companyLink,
   candidateName,
   jobTitle,
@@ -67,6 +79,9 @@ export function MeetingUrlField({
   id = "meetingUrl",
 }: {
   defaultValue: string;
+  // Сохранённый формат. Нет — новое интервью или заведённое до
+  // переключателя без ссылки: начинаем с «Онлайн».
+  defaultFormat?: InterviewFormatValue | null;
   // Старая постоянная ссылка компании — запасной вариант, если
   // у человека своей ещё нет.
   companyLink?: string | null;
@@ -76,12 +91,14 @@ export function MeetingUrlField({
   id?: string;
 }) {
   const [value, setValue] = useState(defaultValue);
+  const [format, setFormat] = useState<InterviewFormatValue>(defaultFormat ?? "ONLINE");
+  const online = format === "ONLINE";
   const [asking, setAsking] = useState(false);
   const [draft, setDraft] = useState("");
   const [draftError, setDraftError] = useState("");
   const [copied, setCopied] = useState(false);
   const [pending, startTransition] = useTransition();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const defaults = useMeetingDefaults();
   const toast = useToast();
 
@@ -119,21 +136,26 @@ export function MeetingUrlField({
   }
 
   async function copyInvite() {
-    const form = inputRef.current?.form ?? null;
-    const text = fillInviteTemplate(defaults.template, {
-      // ФИО как в карточке: угадывать, где имя, а где фамилия, ненадёжно —
-      // у «Zhanar Mussina» и «Оспанов Данияр» порядок разный.
-      name: candidateName ?? "",
+    const form = rootRef.current?.closest("form") ?? null;
+    const text = fillInviteTemplate(
+      defaults.template,
+      {
+      // Только имя: «Здравствуйте, Данияр!». Где в ФИО имя, а где
+      // фамилия, узнаём по окончаниям — у «Zhanar Mussina» и
+      // «Оспанов Данияр» порядок разный.
+      name: firstNameOf(candidateName ?? ""),
       position: jobTitle ?? "",
       date: humanDate(formValue(form, "date")),
       time: formValue(form, "time"),
       duration: DURATION_TEXT[formValue(form, "durationMinutes")] ?? "",
-      link: value.trim(),
+      link: online ? value.trim() : "",
       company: defaults.companyName,
       address: defaults.officeAddress,
       room: defaults.officeRoom,
       recruiter: defaults.recruiterName,
-    });
+      },
+      { online },
+    );
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -145,34 +167,90 @@ export function MeetingUrlField({
   }
 
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
-        Ссылка на встречу
-      </label>
-      <input
-        ref={inputRef}
-        id={id}
-        name="meetingUrl"
-        type="text"
-        inputMode="url"
-        autoComplete="off"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        placeholder="https://meet.google.com/abc-defg-hij"
-        aria-invalid={error ? true : undefined}
-        className={inputClass(error, "mt-1.5")}
-      />
-      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+    <div ref={rootRef}>
+      <p className="text-sm font-medium text-ink">Формат встречи</p>
+      <input type="hidden" name="format" value={format} />
+
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {FORMAT_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const chosen = format === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={chosen}
+              onClick={() => setFormat(option.value)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition ${
+                chosen
+                  ? "border-accent bg-accent font-medium text-ink"
+                  : "border-line text-ink-soft hover:border-ink-soft hover:text-ink"
+              }`}
+            >
+              <Icon className="h-4 w-4" strokeWidth={1.8} aria-hidden />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {online ? (
+        <div className="mt-3">
+          <label htmlFor={id} className="block text-sm text-ink">
+            Ссылка на встречу
+          </label>
+          <input
+            id={id}
+            name="meetingUrl"
+            type="text"
+            inputMode="url"
+            autoComplete="off"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder="https://meet.google.com/abc-defg-hij"
+            aria-invalid={error ? true : undefined}
+            className={inputClass(error, "mt-1.5")}
+          />
+          {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+        </div>
+      ) : (
+        // Адрес не вводится в каждом интервью: он общий для компании
+        // и лежит в «Настройках». Здесь только показываем, что уйдёт.
+        <div className="mt-3 rounded-lg border border-line bg-canvas px-3 py-2.5 text-sm">
+          {defaults.officeAddress ? (
+            <p className="flex items-start gap-1.5 text-ink">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-soft" strokeWidth={1.8} aria-hidden />
+              <span>
+                {defaults.officeAddress}
+                {defaults.officeRoom && `, кабинет ${defaults.officeRoom}`}
+              </span>
+            </p>
+          ) : (
+            <p className="text-warning-ink">
+              Адрес офиса не указан — в приглашении его не будет.
+            </p>
+          )}
+          <p className="mt-1 text-xs text-ink-soft">
+            Адрес и кабинет меняются в{" "}
+            <Link href="/settings" className="underline hover:text-ink">
+              Настройках
+            </Link>
+            .
+          </p>
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap gap-2">
-        {(!myLink || value.trim() !== myLink) && (
+        {online && (!myLink || value.trim() !== myLink) && (
           <button type="button" onClick={onMeetClick} className={hintClass}>
             <Video className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden />
             {myLink ? "Вставить мою ссылку Google Meet" : "Google Meet"}
           </button>
         )}
 
-        {value.trim() && (
+        {/* Онлайн без ссылки приглашение не собираем: кандидату
+            не по чему будет подключиться. */}
+        {(!online || value.trim()) && (
           <button type="button" onClick={copyInvite} className={hintClass}>
             {copied ? (
               <Check className="h-3.5 w-3.5 text-success" strokeWidth={2} aria-hidden />
@@ -255,6 +333,16 @@ export function MeetingUrlField({
         </div>
       </Modal>
     </div>
+  );
+}
+
+// Пометка «В офисе» у назначенной встречи — вместо «Подключиться».
+export function OfficeBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs text-ink">
+      <Building2 className="h-3.5 w-3.5 text-ink-soft" strokeWidth={1.8} aria-hidden />
+      В офисе
+    </span>
   );
 }
 

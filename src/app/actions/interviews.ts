@@ -13,7 +13,7 @@ import { formatDateTime } from "@/lib/format";
 import { suggestSlots, type Suggestion } from "@/lib/slots";
 import { nextProgressStage } from "@/lib/stages";
 import { isKnownReason, rejectionLabel } from "@/lib/rejection";
-import { normalizeMeetingUrl } from "@/lib/meeting";
+import { normalizeMeetingUrl, readInterviewFormat } from "@/lib/meeting";
 import type { InterviewStatus } from "@/generated/prisma/enums";
 
 export type InterviewFormState = {
@@ -84,6 +84,7 @@ export async function createInterview(
   if (!meetingUrl.ok) {
     return { fieldErrors: MEETING_URL_ERROR };
   }
+  const format = readInterviewFormat(formData.get("format"));
 
   const scheduledAt = localToDate(parsed.data.date, parsed.data.time);
   if (!scheduledAt) {
@@ -114,7 +115,9 @@ export async function createInterview(
       durationMinutes: parsed.data.durationMinutes,
       interviewerId,
       comment: parsed.data.comment || null,
-      meetingUrl: meetingUrl.value ?? null,
+      // В офисе ссылка не нужна: стираем, чтобы не было «Подключиться».
+      meetingUrl: format === "OFFICE" ? null : (meetingUrl.value ?? null),
+      format: format ?? (meetingUrl.value ? "ONLINE" : null),
       createdById: scope.session.user.id,
     },
   });
@@ -279,6 +282,7 @@ export async function rescheduleInterview(
   if (!meetingUrl.ok) {
     return { fieldErrors: MEETING_URL_ERROR };
   }
+  const format = readInterviewFormat(formData.get("format"));
 
   const scheduledAt = localToDate(parsed.data.date, parsed.data.time);
   if (!scheduledAt) {
@@ -308,7 +312,12 @@ export async function rescheduleInterview(
       durationMinutes: parsed.data.durationMinutes,
       interviewerId,
       comment: parsed.data.comment || null,
-      ...(meetingUrl.value !== undefined ? { meetingUrl: meetingUrl.value } : {}),
+      ...(format ? { format } : {}),
+      ...(format === "OFFICE"
+        ? { meetingUrl: null }
+        : meetingUrl.value !== undefined
+          ? { meetingUrl: meetingUrl.value }
+          : {}),
     },
   });
 

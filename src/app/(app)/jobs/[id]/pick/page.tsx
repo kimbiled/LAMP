@@ -14,7 +14,7 @@ import { BackButton } from "@/components/back-button";
 import { AssignToJobButton } from "@/components/assign-to-job";
 import { buttonClass, inputClass } from "@/components/ui/styles";
 
-export const metadata: Metadata = { title: "Подбор из базы — LAMP" };
+export const metadata: Metadata = { title: "Подбор из базы — Skillo" };
 
 // Подбор из базы на вакансию.
 //

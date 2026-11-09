@@ -11,7 +11,7 @@ import { UserRow } from "./user-row";
 import { AddUserForm } from "./add-user-form";
 import { DeleteCompanyForm } from "./delete-company-form";
 
-export const metadata: Metadata = { title: "Компания — LAMP" };
+export const metadata: Metadata = { title: "Компания — Skillo" };
 
 export default async function SystemCompanyPage({
   params,

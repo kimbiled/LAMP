@@ -14,7 +14,7 @@ import {
 } from "@/lib/format";
 import type { JobStatus, StageKey } from "@/generated/prisma/enums";
 
-export const metadata: Metadata = { title: "Вакансии — LAMP" };
+export const metadata: Metadata = { title: "Вакансии — Skillo" };
 
 const FILTERS: { value: string; label: string }[] = [
   { value: "", label: "Все" },

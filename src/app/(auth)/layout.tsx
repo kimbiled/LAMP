@@ -11,9 +11,9 @@ export default function AuthLayout({
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
       <Link href="/" className="mb-6 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-lg font-semibold text-ink">
-          L
+          S
         </span>
-        <span className="text-lg font-semibold text-ink-strong">LAMP</span>
+        <span className="text-lg font-semibold text-ink-strong">Skillo</span>
       </Link>
 
       <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-7">

@@ -25,7 +25,7 @@ import { TONE_STYLES, stageTone } from "@/lib/stages";
 import { rejectionLabel, rejectionSide } from "@/lib/rejection";
 import { ExperienceList } from "@/components/experience-list";
 
-export const metadata: Metadata = { title: "Кандидат — LAMP" };
+export const metadata: Metadata = { title: "Кандидат — Skillo" };
 
 // Карточка кандидата глазами владельца системы: всё, что есть в базе,
 // включая компанию, вакансию, резюме, интервью, отзывы и историю.

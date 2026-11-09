@@ -234,7 +234,7 @@ export async function renderCandidateDocx(data: CandidatePdfData): Promise<Buffe
   const document = new Document({
     title: `${heading.name} — резюме`,
     creator: data.companyName,
-    description: "Резюме, выгруженное из LAMP",
+    description: "Резюме, выгруженное из Skillo",
     sections: [
       {
         properties: {

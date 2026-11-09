@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LAMP — система подбора персонала",
+  title: "Skillo — система подбора персонала",
   description: "Мультитенантная ATS для рекрутинга",
 };
 

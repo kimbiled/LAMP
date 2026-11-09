@@ -20,7 +20,7 @@ import {
 } from "@/lib/candidate-filters";
 import { SOURCE_CHANNELS } from "@/lib/source-channel";
 
-export const metadata: Metadata = { title: "Кандидаты — LAMP" };
+export const metadata: Metadata = { title: "Кандидаты — Skillo" };
 
 const selectClass =
   "w-full min-w-0 rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40";

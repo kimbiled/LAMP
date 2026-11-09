@@ -11,7 +11,7 @@ import {
 } from "./settings-forms";
 import { StageEditor } from "./stage-editor";
 
-export const metadata: Metadata = { title: "Настройки — LAMP" };
+export const metadata: Metadata = { title: "Настройки — Skillo" };
 
 export default async function SettingsPage() {
   // Сюда пускаем всех вошедших, но блоки внутри показываем по правам.

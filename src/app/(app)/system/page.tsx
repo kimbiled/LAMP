@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/superadmin";
 import { formatDate } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Система — LAMP" };
+export const metadata: Metadata = { title: "Система — Skillo" };
 
 export default async function SystemPage() {
   // Раздел виден только владельцу системы. Остальные — включая
@@ -47,7 +47,7 @@ export default async function SystemPage() {
     <div>
       <h1 className="text-xl font-semibold text-ink-strong">Система</h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Все компании LAMP. Этот раздел видите только вы и другие владельцы
+        Все компании Skillo. Этот раздел видите только вы и другие владельцы
         системы.
       </p>
 

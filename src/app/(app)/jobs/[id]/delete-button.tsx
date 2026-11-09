@@ -6,7 +6,7 @@ import { deleteJob } from "@/app/actions/jobs";
 import { useConfirm } from "@/components/ui/dialog";
 import { buttonClass } from "@/components/ui/styles";
 
-// Удаление вакансии. Как и у кандидата, сначала спрашиваем в окне LAMP:
+// Удаление вакансии. Как и у кандидата, сначала спрашиваем в окне Skillo:
 // вернуть удалённую вакансию будет нельзя.
 
 export function DeleteJobButton({

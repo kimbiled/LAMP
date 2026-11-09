@@ -7,7 +7,7 @@ import { useConfirm } from "@/components/ui/dialog";
 import { buttonClass } from "@/components/ui/styles";
 
 // Удаление кандидата. Перед отправкой спрашиваем подтверждение
-// в окне LAMP — вернуть удалённого кандидата будет нельзя.
+// в окне Skillo — вернуть удалённого кандидата будет нельзя.
 
 export function DeleteCandidateButton({
   candidateId,

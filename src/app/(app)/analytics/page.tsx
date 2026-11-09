@@ -11,7 +11,7 @@ import { isProgressStep } from "@/lib/stages";
 import { LEGACY_ALIASES, daysToOffer, median, percent } from "@/lib/analytics";
 import { SOURCE_CHANNEL_LABELS } from "@/lib/labels";
 
-export const metadata: Metadata = { title: "Аналитика — LAMP" };
+export const metadata: Metadata = { title: "Аналитика — Skillo" };
 
 // Каналы в том порядке, в каком их выбирают в форме. «Не указан» —
 // кандидаты, заведённые до появления поля или без выбора.

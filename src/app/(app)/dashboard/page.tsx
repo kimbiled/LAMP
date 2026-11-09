@@ -21,7 +21,7 @@ import { Mascot } from "@/components/mascot";
 import { nextUnlock, readLook } from "@/lib/mascot";
 import { closedThisMonth } from "@/lib/mascot-progress";
 
-export const metadata: Metadata = { title: "Главная — LAMP" };
+export const metadata: Metadata = { title: "Главная — Skillo" };
 
 // Главная отвечает на вопрос «что мне сделать сегодня», а не показывает
 // счётчики за всё время. Раньше здесь было девять цифр — от «Всего
@@ -176,8 +176,8 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-ink-strong">
-            {/* Пользователи вводят «Имя Фамилия», поэтому имя — первое слово. */}
-            Здравствуйте, {scope.session.user.fullName.split(" ")[0]}
+            {/* Имя и фамилия — как человек их ввёл в профиле. */}
+            Здравствуйте, {scope.session.user.fullName}
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
             Рабочее пространство компании «{scope.session.company.name}»

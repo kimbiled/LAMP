@@ -5,7 +5,7 @@ import { jobVisibilityFilter } from "@/lib/permissions";
 import { BackButton } from "@/components/back-button";
 import { ImportForm } from "./import-form";
 
-export const metadata: Metadata = { title: "Импорт с hh — LAMP" };
+export const metadata: Metadata = { title: "Импорт с hh — Skillo" };
 
 export default async function ImportPage() {
   const scope = await requireScope("candidates.create");

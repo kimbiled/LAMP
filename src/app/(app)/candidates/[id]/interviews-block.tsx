@@ -13,7 +13,8 @@ import { SelectField, TextareaField } from "@/components/ui/fields";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ConfirmForm } from "@/components/ui/confirm-form";
 import { buttonClass } from "@/components/ui/styles";
-import { JoinMeetingLink, MeetingUrlField } from "@/components/meeting-url-field";
+import { JoinMeetingLink, MeetingUrlField, OfficeBadge } from "@/components/meeting-url-field";
+import type { InterviewFormatValue } from "@/lib/meeting";
 import { Linkify } from "@/components/linkify";
 
 // Интервью кандидата: список, форма назначения и изменение уже
@@ -36,6 +37,8 @@ export type InterviewView = {
   // из комментария. meetingUrl — то, что лежит в поле формы.
   joinUrl: string | null;
   meetingUrl: string;
+  // Онлайн или в офисе; null — старое интервью без ссылки.
+  format: InterviewFormatValue | null;
 
   type: string;
   date: string;
@@ -85,6 +88,7 @@ function InterviewFields({
     interviewerId: string;
     comment: string;
     meetingUrl: string;
+    format: InterviewFormatValue | null;
   };
   users: Person[];
   meetingLink: string | null;
@@ -145,12 +149,13 @@ function InterviewFields({
         name="comment"
         rows={2}
         defaultValue={defaults.comment}
-        placeholder="Адрес офиса, о чём спросить"
+        placeholder="О чём спросить, что взять с собой"
         error={errors?.comment}
       />
 
       <MeetingUrlField
         defaultValue={defaults.meetingUrl}
+        defaultFormat={defaults.format}
         companyLink={meetingLink}
         candidateName={invite.candidateName}
         jobTitle={invite.jobTitle}
@@ -246,6 +251,7 @@ export function InterviewsBlock({
               interviewerId: defaultInterviewerId,
               comment: "",
               meetingUrl: "",
+              format: null,
             }}
             users={users}
             meetingLink={meetingLink}
@@ -293,6 +299,7 @@ export function InterviewsBlock({
                       interviewerId: interview.interviewerId,
                       comment: interview.comment ?? "",
                       meetingUrl: interview.meetingUrl,
+                      format: interview.format,
                     }}
                     users={users}
                     meetingLink={meetingLink}
@@ -341,6 +348,12 @@ export function InterviewsBlock({
                     <p className="mt-1 text-sm whitespace-pre-wrap text-ink-soft">
                       <Linkify text={interview.comment} />
                     </p>
+                  )}
+
+                  {interview.status === "SCHEDULED" && interview.format === "OFFICE" && (
+                    <div className="mt-2">
+                      <OfficeBadge />
+                    </div>
                   )}
 
                   {interview.status === "SCHEDULED" && interview.joinUrl && (

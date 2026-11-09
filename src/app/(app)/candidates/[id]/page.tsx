@@ -32,7 +32,7 @@ import {
 } from "@/lib/labels";
 import { todayLocal } from "@/lib/time";
 import { minutesToTime, placeInDay } from "@/lib/calendar";
-import { joinUrl } from "@/lib/meeting";
+import { interviewFormat, joinUrl } from "@/lib/meeting";
 import { telLink } from "@/lib/contacts";
 import { publicBaseUrl } from "@/lib/app-url";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
@@ -49,7 +49,7 @@ import { DeleteCandidateButton } from "./delete-button";
 import { buttonClass } from "@/components/ui/styles";
 import { ExperienceList } from "@/components/experience-list";
 
-export const metadata: Metadata = { title: "Кандидат — LAMP" };
+export const metadata: Metadata = { title: "Кандидат — Skillo" };
 
 export default async function CandidatePage({
   params,
@@ -185,6 +185,7 @@ export default async function CandidatePage({
       interviewerName: interview.interviewer?.fullName ?? null,
       comment: interview.comment,
       joinUrl: joinUrl(interview),
+      format: interviewFormat(interview),
       meetingUrl: interview.meetingUrl ?? "",
 
       type: interview.type,

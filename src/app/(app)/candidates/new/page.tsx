@@ -8,7 +8,7 @@ import { createCandidateFromResume } from "@/app/actions/resumes";
 import { ResumeUploadForm } from "@/components/resume-upload-form";
 import { CandidateForm } from "../candidate-form";
 
-export const metadata: Metadata = { title: "Новый кандидат — LAMP" };
+export const metadata: Metadata = { title: "Новый кандидат — Skillo" };
 
 export default async function NewCandidatePage({
   searchParams,

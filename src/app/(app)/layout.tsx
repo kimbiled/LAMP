@@ -56,10 +56,10 @@ export default async function AppLayout({
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 md:flex">
         <div className="mb-6 flex items-center gap-3 px-1">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-base font-semibold text-ink">
-            L
+            S
           </span>
           <span className="text-base font-semibold text-sidebar-text-active">
-            LAMP
+            Skillo
           </span>
         </div>
 
@@ -102,7 +102,7 @@ export default async function AppLayout({
         <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3 md:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-3 md:flex-none">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-ink md:hidden">
-              L
+              S
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-ink">

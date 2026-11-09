@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
       <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent text-xl font-semibold text-ink">
-        L
+        S
       </span>
 
       <h1 className="mt-6 text-xl font-semibold text-ink-strong">

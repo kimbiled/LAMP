@@ -36,6 +36,24 @@ describe("шаблон приглашения", () => {
     expect(text).not.toContain("Ссылка для подключения");
   });
 
+  it("переключатель «В офисе» главнее ссылки", () => {
+    const text = fillInviteTemplate(
+      DEFAULT_INVITE_TEMPLATE,
+      { ...base, link: "https://meet.google.com/abc-defg-hij" },
+      { online: false },
+    );
+    expect(text).toContain("• Формат: Офлайн");
+    expect(text).toContain("Адрес: Астана, Туран 53В");
+    expect(text).not.toContain("meet.google.com");
+  });
+
+  it("переключатель «Онлайн» без ссылки — без адреса и без пустой строки ссылки", () => {
+    const text = fillInviteTemplate(DEFAULT_INVITE_TEMPLATE, base, { online: true });
+    expect(text).toContain("• Формат: Онлайн");
+    expect(text).not.toContain("Адрес");
+    expect(text).not.toContain("Ссылка для подключения");
+  });
+
   it("пустой кабинет — строка убирается", () => {
     const text = fillInviteTemplate(DEFAULT_INVITE_TEMPLATE, { ...base, room: "" });
     expect(text).not.toContain("Кабинет");

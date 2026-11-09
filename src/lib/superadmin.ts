@@ -2,7 +2,7 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { requireSession, type CurrentSession } from "@/lib/session";
 
-// Владелец системы — тот, кто отвечает за LAMP целиком, а не за одну
+// Владелец системы — тот, кто отвечает за Skillo целиком, а не за одну
 // компанию. Только он видит раздел «Система»: список всех компаний
 // и их пользователей.
 //

@@ -9,7 +9,7 @@ import { ROLE_LABELS } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
 import { RoleSelect } from "./role-select";
 
-export const metadata: Metadata = { title: "Пользователи — LAMP" };
+export const metadata: Metadata = { title: "Пользователи — Skillo" };
 
 export default async function UsersPage() {
   // Право users.manage есть только у администратора.

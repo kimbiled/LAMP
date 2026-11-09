@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { MeetingAnswerButtons } from "../interviews/meeting-parts";
 
-export const metadata: Metadata = { title: "Уведомления — LAMP" };
+export const metadata: Metadata = { title: "Уведомления — Skillo" };
 
 export default async function NotificationsPage() {
   const scope = await getScope();

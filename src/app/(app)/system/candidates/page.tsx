@@ -9,7 +9,7 @@ import { StageBadge } from "@/components/stage-badge";
 import { formatDate } from "@/lib/format";
 import { TONE_STYLES, stageTone } from "@/lib/stages";
 
-export const metadata: Metadata = { title: "Все кандидаты — LAMP" };
+export const metadata: Metadata = { title: "Все кандидаты — Skillo" };
 
 const selectClass =
   "rounded-lg border border-line-strong bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-ink focus:ring-[3px] focus:ring-accent/40";
@@ -126,7 +126,7 @@ export default async function SystemCandidatesPage({
         Все кандидаты
       </h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Единая база по всем компаниям LAMP. Видна только владельцу системы.
+        Единая база по всем компаниям Skillo. Видна только владельцу системы.
         {candidates.length > 0 ? ` Найдено: ${candidates.length}` : ""}
       </p>
 

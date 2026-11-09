@@ -36,7 +36,7 @@ const HEADER = [
   "Последнее место работы",
   "Образование",
   "Добавлен",
-  "Карточка в LAMP",
+  "Карточка в Skillo",
 ];
 
 export async function GET(request: Request) {

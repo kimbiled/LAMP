@@ -2,6 +2,8 @@
 // Никаких интеграций: это обычные ссылки, которые открывают
 // телефон, WhatsApp, Telegram или почтовую программу.
 
+import { firstNameOf } from "@/lib/person-name";
+
 export function phoneDigits(phone: string | null): string | null {
   if (!phone) return null;
   const digits = phone.replace(/\D/g, "");
@@ -81,9 +83,7 @@ export function firstMessage(params: {
   companyName: string;
   jobTitle?: string | null;
 }): string {
-  // ФИО пишется как «Петров Иван Сергеевич», поэтому имя — второе слово.
-  const parts = params.candidateName.trim().split(/\s+/);
-  const firstName = parts.length > 1 ? parts[1] : parts[0];
+  const firstName = firstNameOf(params.candidateName);
 
   const about = params.jobTitle
     ? `по поводу вакансии «${params.jobTitle}»`

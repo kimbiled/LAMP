@@ -19,7 +19,7 @@ import { JobPrioritySelect } from "./priority-select";
 import { JobCandidates } from "./job-candidates";
 import { DeleteJobButton } from "./delete-button";
 
-export const metadata: Metadata = { title: "Вакансия — LAMP" };
+export const metadata: Metadata = { title: "Вакансия — Skillo" };
 
 export default async function JobPage({
   params,

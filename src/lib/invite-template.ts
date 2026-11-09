@@ -8,8 +8,9 @@
 // {имя} тоже понимаем — так был устроен первый вариант шаблона.
 //
 // Блоки «Если онлайн:» и «Если офлайн:» (до пустой строки) остаются
-// только тот, что подходит: есть ссылка на встречу — онлайн,
-// нет ссылки — офлайн. Сами строки «Если онлайн:» в текст не попадают.
+// только тот, что подходит: что выбрано переключателем «Онлайн /
+// В офисе» в форме интервью. Сами строки «Если онлайн:» в текст
+// не попадают.
 
 export type InviteKey =
   | "name"
@@ -53,7 +54,7 @@ export const INVITE_PLACEHOLDERS = [
   { label: "Название должности", hint: "вакансия кандидата" },
   { label: "Дата", hint: "например 12 ноября, четверг" },
   { label: "Время", hint: "например 15:00" },
-  { label: "Онлайн / Офлайн", hint: "онлайн, если в интервью есть ссылка" },
+  { label: "Онлайн / Офлайн", hint: "по переключателю в форме интервью" },
   { label: "Ссылка", hint: "ссылка на Google Meet" },
   { label: "Адрес", hint: "адрес офиса из настроек" },
   { label: "Номер кабинета", hint: "кабинет из настроек" },
@@ -117,9 +118,12 @@ function pickFormatBlocks(text: string, online: boolean): string {
 export function fillInviteTemplate(
   template: string,
   values: Partial<Record<InviteKey, string | null | undefined>>,
+  // Что выбрано переключателем «Онлайн / В офисе». Не передали —
+  // решаем по ссылке, как раньше.
+  options: { online?: boolean } = {},
 ): string {
   const source = template.trim() ? template : DEFAULT_INVITE_TEMPLATE;
-  const online = Boolean(values.link?.trim());
+  const online = options.online ?? Boolean(values.link?.trim());
   const withFormat: Partial<Record<InviteKey, string | null | undefined>> = {
     ...values,
     format: values.format ?? (online ? "Онлайн" : "Офлайн"),

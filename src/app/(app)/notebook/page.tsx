@@ -9,7 +9,7 @@ import { shiftDate } from "@/lib/calendar";
 import { AddTaskForm, TaskItem, type TaskView } from "@/components/tasks";
 import { buttonClass } from "@/components/ui/styles";
 
-export const metadata: Metadata = { title: "Блокнот — LAMP" };
+export const metadata: Metadata = { title: "Блокнот — Skillo" };
 
 // Блокнот: личный список дел с календарём.
 //

@@ -6,7 +6,7 @@ import { closedThisMonth } from "@/lib/mascot-progress";
 import { plural } from "@/lib/format";
 import { MascotEditor } from "./mascot-editor";
 
-export const metadata: Metadata = { title: "Мой персонаж — LAMP" };
+export const metadata: Metadata = { title: "Мой персонаж — Skillo" };
 
 const JOB_FORMS: [string, string, string] = ["вакансию", "вакансии", "вакансий"];
 

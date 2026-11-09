@@ -12,7 +12,7 @@ import { CandidateForm } from "../../candidate-form";
 import { findDuplicates } from "@/lib/duplicates";
 import { ResumeText } from "./resume-text";
 
-export const metadata: Metadata = { title: "Редактирование кандидата — LAMP" };
+export const metadata: Metadata = { title: "Редактирование кандидата — Skillo" };
 
 export default async function EditCandidatePage({
   params,

@@ -21,7 +21,8 @@ import {
 import type { Suggestion } from "@/lib/slots";
 import type { CalendarDay } from "@/lib/calendar";
 import { Linkify } from "@/components/linkify";
-import { JoinMeetingLink, MeetingUrlField } from "@/components/meeting-url-field";
+import { JoinMeetingLink, MeetingUrlField, OfficeBadge } from "@/components/meeting-url-field";
+import type { InterviewFormatValue } from "@/lib/meeting";
 import { CANDIDATE_FORMS, plural } from "@/lib/format";
 import { Modal as Dialog, useConfirm } from "@/components/ui/dialog";
 import { NETWORK_ERROR, useToast } from "@/components/ui/toast";
@@ -64,6 +65,8 @@ export type CalendarEvent = {
   // и значение поля формы.
   joinUrl: string | null;
   meetingUrl: string;
+  // Онлайн или в офисе; null — старое интервью без ссылки.
+  format: InterviewFormatValue | null;
 };
 
 type Person = { id: string; fullName: string };
@@ -613,6 +616,7 @@ export function WeekCalendar({
               interviewerId: "",
               comment: "",
               meetingUrl: "",
+              format: null,
             }}
             meetingLink={meetingLink}
             onDone={() => setDialog(null)}
@@ -643,6 +647,7 @@ export function WeekCalendar({
               interviewerId: dialog.event.interviewerId ?? "",
               comment: dialog.event.comment ?? "",
               meetingUrl: dialog.event.meetingUrl,
+              format: dialog.event.format,
             }}
             meetingLink={meetingLink}
             onDone={() => setDialog(null)}
@@ -701,7 +706,7 @@ function minuteText(minutes: number): string {
   return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
-// Окна календаря — общее окно LAMP: закрывается по Esc,
+// Окна календаря — общее окно Skillo: закрывается по Esc,
 // держит фокус внутри и понятно экранному диктору.
 function Modal({
   title,
@@ -826,6 +831,11 @@ function EventDetails({
           <p className="mt-2 text-xs whitespace-pre-wrap text-ink-soft">
             <Linkify text={event.comment} />
           </p>
+        )}
+        {event.status === "SCHEDULED" && event.format === "OFFICE" && (
+          <div className="mt-2">
+            <OfficeBadge />
+          </div>
         )}
         {event.status === "SCHEDULED" && event.joinUrl && (
           <div className="mt-2">
@@ -1015,6 +1025,7 @@ function InterviewForm({
     interviewerId: string;
     comment: string;
     meetingUrl: string;
+    format: InterviewFormatValue | null;
   };
   onDone: () => void;
 }) {
@@ -1271,7 +1282,7 @@ function InterviewForm({
           name="comment"
           rows={2}
           defaultValue={defaults.comment}
-          placeholder="Адрес офиса, о чём спросить"
+          placeholder="О чём спросить, что взять с собой"
           className={fieldClass}
         />
       </div>
@@ -1279,6 +1290,7 @@ function InterviewForm({
       <MeetingUrlField
         id="cal-meetingUrl"
         defaultValue={defaults.meetingUrl}
+        defaultFormat={defaults.format}
         companyLink={meetingLink}
         candidateName={candidates.find((item) => item.id === candidateId)?.fullName ?? null}
         jobTitle={candidates.find((item) => item.id === candidateId)?.jobTitle ?? null}

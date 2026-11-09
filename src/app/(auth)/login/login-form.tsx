@@ -17,7 +17,7 @@ export function LoginForm() {
   return (
     <form action={formAction} className="space-y-4">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-ink-strong">Вход в LAMP</h1>
+        <h1 className="text-xl font-semibold text-ink-strong">Вход в Skillo</h1>
         <p className="mt-1 text-sm text-ink-soft">
           Войдите в рабочее пространство своей компании
         </p>
@@ -52,7 +52,7 @@ export function LoginForm() {
       {/* Сброса пароля по почте пока нет — подсказываем, к кому идти,
           чтобы человек не застрял на этой странице. */}
       <p className="text-sm text-ink-soft">
-        Забыли пароль? Обратитесь к администратору вашей компании в LAMP —
+        Забыли пароль? Обратитесь к администратору вашей компании в Skillo —
         он задаст новый.
       </p>
 
