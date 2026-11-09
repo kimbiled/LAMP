@@ -5,6 +5,7 @@ import {
   changeOwnPassword,
   updateCompany,
   updateOwnProfile,
+  updateInviteTemplate,
   updateWorkSettings,
   type SettingsFormState,
 } from "@/app/actions/settings";
@@ -166,24 +167,20 @@ export function ProfileForm({
   );
 }
 
-// Встречи и приглашения: своя постоянная комната Google Meet, текст
-// приглашения для кнопки «Скопировать приглашение» и (у рекрутера)
+// Мои встречи: своя постоянная комната Google Meet и (у рекрутера)
 // свой срок простоя для своих кандидатов.
 export function WorkForm({
   meetingLink,
-  inviteTemplate,
   staleDays,
   companyStaleDays,
   showStaleDays,
 }: {
   meetingLink: string;
-  inviteTemplate: string;
   staleDays: number | null;
   companyStaleDays: number;
   showStaleDays: boolean;
 }) {
   const [state, formAction] = useActionState(updateWorkSettings, initialState);
-  const [template, setTemplate] = useState(inviteTemplate || DEFAULT_INVITE_TEMPLATE);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -197,6 +194,44 @@ export function WorkForm({
         defaultValue={meetingLink}
         error={state.fieldErrors?.meetingLink}
       />
+
+      {showStaleDays && (
+        <div className="max-w-xs">
+          <TextField
+            label="Срок простоя моих кандидатов, дней"
+            name="staleDays"
+            type="number"
+            defaultValue={staleDays === null ? "" : String(staleDays)}
+            placeholder={String(companyStaleDays)}
+            hint={`Для кандидатов, которых добавили вы. Пусто — общий срок компании: ${companyStaleDays} дн.`}
+            error={state.fieldErrors?.staleDays}
+          />
+        </div>
+      )}
+
+      <div className="sm:w-48">
+        <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+// Общий шаблон приглашения компании + адрес и кабинет для офлайн-встреч.
+export function InviteTemplateForm({
+  inviteTemplate,
+  officeAddress,
+  officeRoom,
+}: {
+  inviteTemplate: string;
+  officeAddress: string;
+  officeRoom: string;
+}) {
+  const [state, formAction] = useActionState(updateInviteTemplate, initialState);
+  const [template, setTemplate] = useState(inviteTemplate || DEFAULT_INVITE_TEMPLATE);
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <Message state={state} />
 
       <div>
         <label htmlFor="inviteTemplate" className={LABEL_CLASS}>
@@ -215,20 +250,20 @@ export function WorkForm({
           <p className={ERROR_TEXT_CLASS}>{state.fieldErrors.inviteTemplate}</p>
         )}
         <p className={HINT_CLASS}>
-          Копируется кнопкой «Скопировать приглашение» в форме интервью.
-          Метки в фигурных скобках заменяются данными встречи — нажмите
+          Копируется кнопкой «Скопировать приглашение» в форме интервью. Блоки «Если онлайн:» и «Если офлайн:» (до пустой строки) подставляются сами: есть ссылка на встречу — онлайн, нет — офлайн.
+          Метки в квадратных скобках заменяются данными встречи — нажмите
           на метку, чтобы добавить её в конец текста:
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {INVITE_PLACEHOLDERS.map((item) => (
             <button
-              key={item.key}
+              key={item.label}
               type="button"
               title={item.hint}
-              onClick={() => setTemplate((value) => `${value}{${item.key}}`)}
+              onClick={() => setTemplate((value) => `${value}[${item.label}]`)}
               className="rounded-md border border-line bg-canvas px-2 py-0.5 font-mono text-xs text-ink transition hover:border-ink-soft"
             >
-              {`{${item.key}}`}
+              {`[${item.label}]`}
             </button>
           ))}
           <button
@@ -241,22 +276,26 @@ export function WorkForm({
         </div>
       </div>
 
-      {showStaleDays && (
-        <div className="max-w-xs">
-          <TextField
-            label="Срок простоя моих кандидатов, дней"
-            name="staleDays"
-            type="number"
-            defaultValue={staleDays === null ? "" : String(staleDays)}
-            placeholder={String(companyStaleDays)}
-            hint={`Для кандидатов, которых добавили вы. Пусто — общий срок компании: ${companyStaleDays} дн.`}
-            error={state.fieldErrors?.staleDays}
-          />
-        </div>
-      )}
+
+      <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
+        <TextField
+          label="Адрес офиса"
+          name="officeAddress"
+          placeholder="Астана, пр. Туран, 53В"
+          hint="Для метки [Адрес] в офлайн-приглашениях"
+          defaultValue={officeAddress}
+        />
+        <TextField
+          label="Кабинет"
+          name="officeRoom"
+          placeholder="305"
+          hint="Для метки [Номер кабинета]"
+          defaultValue={officeRoom}
+        />
+      </div>
 
       <div className="sm:w-48">
-        <SubmitButton pendingLabel="Сохраняем…">Сохранить</SubmitButton>
+        <SubmitButton pendingLabel="Сохраняем…">Сохранить шаблон</SubmitButton>
       </div>
     </form>
   );

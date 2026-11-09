@@ -1,55 +1,137 @@
-// Шаблон приглашения на интервью, который рекрутер копирует кнопкой
-// и отправляет кандидату в WhatsApp, Telegram или почту.
+// Шаблон приглашения на интервью — общий для компании. Рекрутер
+// копирует его кнопкой в форме интервью и отправляет кандидату
+// в WhatsApp, Telegram или почту. Менять шаблон могут администратор
+// и рекрутер в «Настройках».
 //
-// В тексте можно писать метки в фигурных скобках — при копировании
-// они заменяются данными встречи. Шаблон у каждого свой, меняется
-// в «Настройках». Пустой — используется этот, по умолчанию.
+// Метки пишутся в квадратных скобках: [Имя], [Дата], [Ссылка] —
+// при копировании они заменяются данными встречи. Фигурные скобки
+// {имя} тоже понимаем — так был устроен первый вариант шаблона.
+//
+// Блоки «Если онлайн:» и «Если офлайн:» (до пустой строки) остаются
+// только тот, что подходит: есть ссылка на встречу — онлайн,
+// нет ссылки — офлайн. Сами строки «Если онлайн:» в текст не попадают.
 
+export type InviteKey =
+  | "name"
+  | "company"
+  | "position"
+  | "date"
+  | "time"
+  | "duration"
+  | "format"
+  | "link"
+  | "address"
+  | "room"
+  | "recruiter";
+
+// Метка, как её пишут в тексте → что подставить. Сравниваем без учёта
+// регистра и лишних пробелов.
+const ALIASES: Record<string, InviteKey> = {
+  "имя": "name",
+  "название компании": "company",
+  "компания": "company",
+  "название должности": "position",
+  "должность": "position",
+  "вакансия": "position",
+  "дата": "date",
+  "время": "time",
+  "длительность": "duration",
+  "онлайн / офлайн": "format",
+  "онлайн/офлайн": "format",
+  "формат": "format",
+  "ссылка": "link",
+  "адрес": "address",
+  "номер кабинета": "room",
+  "кабинет": "room",
+  "рекрутер": "recruiter",
+};
+
+// Подсказки к меткам в «Настройках»: нажатием метка добавляется в текст.
 export const INVITE_PLACEHOLDERS = [
-  { key: "имя", hint: "имя кандидата" },
-  { key: "вакансия", hint: "название вакансии" },
-  { key: "дата", hint: "день встречи, например 12 ноября, среда" },
-  { key: "время", hint: "время начала, например 15:00" },
-  { key: "длительность", hint: "например 45 минут" },
-  { key: "ссылка", hint: "ссылка на Google Meet" },
-  { key: "компания", hint: "название вашей компании" },
-  { key: "рекрутер", hint: "ваше имя" },
+  { label: "Имя", hint: "имя кандидата" },
+  { label: "Название компании", hint: "из настроек компании" },
+  { label: "Название должности", hint: "вакансия кандидата" },
+  { label: "Дата", hint: "например 12 ноября, четверг" },
+  { label: "Время", hint: "например 15:00" },
+  { label: "Онлайн / Офлайн", hint: "онлайн, если в интервью есть ссылка" },
+  { label: "Ссылка", hint: "ссылка на Google Meet" },
+  { label: "Адрес", hint: "адрес офиса из настроек" },
+  { label: "Номер кабинета", hint: "кабинет из настроек" },
+  { label: "Рекрутер", hint: "имя того, кто копирует" },
 ] as const;
 
-export type InviteKey = (typeof INVITE_PLACEHOLDERS)[number]["key"];
+export const DEFAULT_INVITE_TEMPLATE = `Здравствуйте, [Имя]!
 
-export const DEFAULT_INVITE_TEMPLATE = `Здравствуйте, {имя}!
+Приглашаем вас на интервью в компанию [Название компании] на позицию [Название должности].
 
-Приглашаем вас на интервью на вакансию «{вакансия}» в компанию {компания}.
+Детали встречи:
 
-Дата: {дата}
-Время: {время} (по времени Астаны)
-Длительность: {длительность}
-Ссылка на встречу: {ссылка}
+• Дата: [Дата]
+• Время: [Время]
+• Формат: [Онлайн / Офлайн]
 
-Если время неудобно, напишите — подберём другое.
+Если онлайн:
+Ссылка для подключения: [Ссылка]
 
-С уважением,
-{рекрутер}`;
+Если офлайн:
+Адрес: [Адрес]
+Кабинет: [Номер кабинета]
+
+Пожалуйста, подтвердите своё участие.`;
 
 export const MAX_TEMPLATE_LENGTH = 3000;
 
-// Подставляет значения. Строка вида «Подпись: {метка}», у которой
-// значения нет, убирается целиком: «Ссылка на встречу:» без ссылки
-// в письме ни к чему.
+function keyOf(raw: string): InviteKey | null {
+  const normalized = raw.trim().toLowerCase().replace(/\s+/g, " ");
+  return ALIASES[normalized] ?? null;
+}
+
+// Оставить только подходящий блок «Если онлайн / Если офлайн».
+function pickFormatBlocks(text: string, online: boolean): string {
+  const lines = text.split("\n");
+  const result: string[] = [];
+  let mode: "online" | "offline" | null = null;
+
+  for (const line of lines) {
+    const header = line.trim().toLowerCase().replace(/\s+/g, " ");
+    if (/^если онлайн:?$/.test(header)) {
+      mode = "online";
+      continue;
+    }
+    if (/^если офлайн:?$/.test(header)) {
+      mode = "offline";
+      continue;
+    }
+    if (line.trim() === "") mode = null;
+
+    if (mode === "online" && !online) continue;
+    if (mode === "offline" && online) continue;
+    result.push(line);
+  }
+  return result.join("\n");
+}
+
+// Подставляет значения. Строка вида «Подпись: [метка]», у которой
+// значения нет, убирается целиком: «Кабинет:» без номера в письме
+// ни к чему.
 export function fillInviteTemplate(
   template: string,
   values: Partial<Record<InviteKey, string | null | undefined>>,
 ): string {
   const source = template.trim() ? template : DEFAULT_INVITE_TEMPLATE;
-  const result: string[] = [];
+  const online = Boolean(values.link?.trim());
+  const withFormat: Partial<Record<InviteKey, string | null | undefined>> = {
+    ...values,
+    format: values.format ?? (online ? "Онлайн" : "Офлайн"),
+  };
 
-  for (const line of source.split("\n")) {
+  const result: string[] = [];
+  for (const line of pickFormatBlocks(source, online).split("\n")) {
     let empty = false;
-    const filled = line.replace(/\{([^{}]+)\}/g, (whole, raw: string) => {
-      const key = raw.trim().toLowerCase() as InviteKey;
-      if (!INVITE_PLACEHOLDERS.some((item) => item.key === key)) return whole;
-      const value = values[key]?.trim();
+    const filled = line.replace(/\[([^[\]]+)\]|\{([^{}]+)\}/g, (whole, square, curly) => {
+      const key = keyOf(square ?? curly);
+      if (!key) return whole;
+      const value = withFormat[key]?.trim();
       if (!value) {
         empty = true;
         return "";
@@ -57,7 +139,8 @@ export function fillInviteTemplate(
       return value;
     });
 
-    if (empty && /^[^:]{0,40}:\s*(\([^)]*\))?\s*$/.test(filled.trim())) continue;
+    // «• Кабинет:» без значения — строку целиком убираем.
+    if (empty && /^[•\-–\s]*[^:]{0,40}:\s*(\([^)]*\))?\s*$/.test(filled.trim())) continue;
 
     result.push(
       empty

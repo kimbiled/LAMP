@@ -180,8 +180,8 @@ function parseStaleDays(raw: string): number | null | "invalid" {
   return value;
 }
 
-// Личные рабочие настройки: своя комната Google Meet, текст
-// приглашения и — у рекрутера — свой срок простоя для своих кандидатов.
+// Личные рабочие настройки: своя комната Google Meet и — у рекрутера —
+// свой срок простоя для своих кандидатов.
 export async function updateWorkSettings(
   _prevState: SettingsFormState,
   formData: FormData,
@@ -194,15 +194,6 @@ export async function updateWorkSettings(
     return {
       fieldErrors: {
         meetingLink: "Это не похоже на ссылку. Пример: https://meet.google.com/abc-defg-hij",
-      },
-    };
-  }
-
-  const inviteTemplate = text(formData, "inviteTemplate");
-  if (inviteTemplate.length > MAX_TEMPLATE_LENGTH) {
-    return {
-      fieldErrors: {
-        inviteTemplate: `Слишком длинный текст: не больше ${MAX_TEMPLATE_LENGTH} знаков`,
       },
     };
   }
@@ -223,7 +214,6 @@ export async function updateWorkSettings(
     where: { id: scope.session.user.id },
     data: {
       meetingLink,
-      inviteTemplate: inviteTemplate || null,
       ...(staleDays !== undefined ? { staleDays } : {}),
     },
   });
@@ -250,4 +240,49 @@ export async function saveMyMeetingLink(formData: FormData): Promise<ActionResul
   revalidatePath("/", "layout");
 
   return done(link);
+}
+
+// Общий шаблон приглашения компании, адрес офиса и кабинет.
+// Менять могут администратор и рекрутер: шаблоном пользуются оба.
+export async function updateInviteTemplate(
+  _prevState: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const scope = await getScope();
+  const role = scope.session.user.role;
+  if (role !== "ADMIN" && role !== "RECRUITER") {
+    return { formError: "Шаблон меняют администратор и рекрутер" };
+  }
+
+  const inviteTemplate = text(formData, "inviteTemplate");
+  if (inviteTemplate.length > MAX_TEMPLATE_LENGTH) {
+    return {
+      fieldErrors: {
+        inviteTemplate: `Слишком длинный текст: не больше ${MAX_TEMPLATE_LENGTH} знаков`,
+      },
+    };
+  }
+  const officeAddress = text(formData, "officeAddress").slice(0, 300);
+  const officeRoom = text(formData, "officeRoom").slice(0, 50);
+
+  await db.company.update({
+    where: { id: scope.companyId },
+    data: {
+      inviteTemplate: inviteTemplate || null,
+      officeAddress: officeAddress || null,
+      officeRoom: officeRoom || null,
+    },
+  });
+
+  await logAction({
+    companyId: scope.companyId,
+    userId: scope.session.user.id,
+    action: "COMPANY_UPDATED",
+    entityType: "Company",
+    entityId: scope.companyId,
+    meta: { inviteTemplate: true },
+  });
+
+  revalidatePath("/", "layout");
+  return { success: "Шаблон сохранён — он общий для всей компании" };
 }

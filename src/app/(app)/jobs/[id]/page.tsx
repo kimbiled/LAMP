@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonClass } from "@/components/ui/styles";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, DatabaseZap } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { db } from "@/lib/db";
 import { staleLimit } from "@/lib/stale";
@@ -165,15 +165,28 @@ export default async function JobPage({
           candidates={candidateViews}
           canMove={scope.can("candidates.move")}
           action={
-            scope.can("candidates.create") ? (
-              <Link
-                href={`/candidates/new?job=${job.id}`}
-                className={buttonClass({ variant: "primary" })}
-              >
-                <Plus className="h-4 w-4" strokeWidth={2} />
-                Добавить кандидата
-              </Link>
-            ) : null
+            <>
+              {/* Подобрать из базы: людей, которых рассматривали раньше,
+                  по названию и требованиям этой вакансии. */}
+              {scope.can("candidates.move") && (
+                <Link
+                  href={`/jobs/${job.id}/pick`}
+                  className={buttonClass({ variant: "secondary" })}
+                >
+                  <DatabaseZap className="h-4 w-4" strokeWidth={1.8} />
+                  Подобрать из базы
+                </Link>
+              )}
+              {scope.can("candidates.create") && (
+                <Link
+                  href={`/candidates/new?job=${job.id}`}
+                  className={buttonClass({ variant: "primary" })}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2} />
+                  Добавить кандидата
+                </Link>
+              )}
+            </>
           }
         />
       </div>

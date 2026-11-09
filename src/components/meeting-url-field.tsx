@@ -121,14 +121,18 @@ export function MeetingUrlField({
   async function copyInvite() {
     const form = inputRef.current?.form ?? null;
     const text = fillInviteTemplate(defaults.template, {
-      имя: candidateName ?? "",
-      вакансия: jobTitle ?? "",
-      дата: humanDate(formValue(form, "date")),
-      время: formValue(form, "time"),
-      длительность: DURATION_TEXT[formValue(form, "durationMinutes")] ?? "",
-      ссылка: value.trim(),
-      компания: defaults.companyName,
-      рекрутер: defaults.recruiterName,
+      // ФИО как в карточке: угадывать, где имя, а где фамилия, ненадёжно —
+      // у «Zhanar Mussina» и «Оспанов Данияр» порядок разный.
+      name: candidateName ?? "",
+      position: jobTitle ?? "",
+      date: humanDate(formValue(form, "date")),
+      time: formValue(form, "time"),
+      duration: DURATION_TEXT[formValue(form, "durationMinutes")] ?? "",
+      link: value.trim(),
+      company: defaults.companyName,
+      address: defaults.officeAddress,
+      room: defaults.officeRoom,
+      recruiter: defaults.recruiterName,
     });
     try {
       await navigator.clipboard.writeText(text);

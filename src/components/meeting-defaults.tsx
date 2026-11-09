@@ -14,6 +14,8 @@ type MeetingDefaults = {
   template: string;
   recruiterName: string;
   companyName: string;
+  officeAddress: string;
+  officeRoom: string;
   setLink: (link: string) => void;
 };
 
@@ -24,19 +26,31 @@ export function MeetingDefaultsProvider({
   template,
   recruiterName,
   companyName,
+  officeAddress,
+  officeRoom,
   children,
 }: {
   link: string | null;
   template: string;
   recruiterName: string;
   companyName: string;
+  officeAddress: string;
+  officeRoom: string;
   children: React.ReactNode;
 }) {
   const [current, setLink] = useState(link);
 
   return (
     <Context.Provider
-      value={{ link: current, template, recruiterName, companyName, setLink }}
+      value={{
+        link: current,
+        template,
+        recruiterName,
+        companyName,
+        officeAddress,
+        officeRoom,
+        setLink,
+      }}
     >
       {children}
     </Context.Provider>
@@ -50,6 +64,8 @@ export function useMeetingDefaults(): MeetingDefaults {
       template: "",
       recruiterName: "",
       companyName: "",
+      officeAddress: "",
+      officeRoom: "",
       setLink: () => {},
     }
   );

@@ -5,11 +5,12 @@ import {
   ExternalLink,
   FileDown,
   Pencil,
-  RefreshCw,
-} from "lucide-react";
+  RefreshCw, UserPlus } from "lucide-react";
 import { BackButton } from "@/components/back-button";
 import { OfferButton } from "./offer-button";
 import { AddTaskForm, TaskItem } from "@/components/tasks";
+import { AssignToJobPicker } from "@/components/assign-to-job";
+import { jobVisibilityFilter } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { getScope, assertOwnCompany } from "@/lib/tenant";
 import { candidateVisibilityFilter } from "@/lib/permissions";
@@ -146,6 +147,20 @@ export default async function CandidatePage({
     orderBy: [{ done: "asc" }, { dueAt: "asc" }, { createdAt: "desc" }],
     take: 30,
   });
+
+  // Открытые вакансии — чтобы вернуть человека из базы в работу
+  // на актуальную вакансию одним нажатием.
+  const openJobs = scope.can("candidates.move")
+    ? await db.job.findMany({
+        where: {
+          companyId: scope.companyId,
+          status: "OPEN",
+          ...jobVisibilityFilter(scope.session.user),
+        },
+        select: { id: true, title: true },
+        orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+      })
+    : [];
 
   const canEdit = scope.can("candidates.edit");
   const canMove = scope.can("candidates.move");
@@ -383,6 +398,32 @@ export default async function CandidatePage({
               candidate.stage.key !== "HIRED" && (
                 <OfferButton candidateId={candidate.id} candidateName={candidate.fullName} />
               )}
+
+            {canMove && canEdit && openJobs.some((job) => job.id !== candidate.job?.id) && (
+              <details className="group relative">
+                <summary
+                  className={`${buttonClass({ variant: "secondary" })} cursor-pointer list-none`}
+                >
+                  <UserPlus className="h-4 w-4" strokeWidth={1.8} />
+                  На вакансию
+                  <ChevronDown
+                    className="h-4 w-4 transition group-open:rotate-180"
+                    strokeWidth={1.8}
+                  />
+                </summary>
+                <div className="absolute right-0 z-20 mt-1 w-80 rounded-xl border border-line bg-surface p-3 shadow-lg">
+                  <p className="mb-2 text-xs text-ink-soft">
+                    Человек встанет на первый этап выбранной вакансии. Прошлые
+                    отзывы и история останутся в карточке.
+                  </p>
+                  <AssignToJobPicker
+                    candidateId={candidate.id}
+                    currentJobId={candidate.job?.id ?? null}
+                    jobs={openJobs}
+                  />
+                </div>
+              </details>
+            )}
 
             {canEdit && (
               <Link

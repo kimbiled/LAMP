@@ -158,9 +158,16 @@
   расчёты и рекомендации — `lib/team-analytics.ts`.
 - Срок простоя: `Company.staleDays` (администратор, для всех) и
   `User.staleDays` (рекрутер, для своих кандидатов) — `lib/stale.ts`.
-- Личная ссылка Google Meet и шаблон приглашения — `User.meetingLink`,
-  `User.inviteTemplate`, `lib/invite-template.ts`; в формы попадают
-  через `components/meeting-defaults.tsx`.
+- Личная ссылка Google Meet — `User.meetingLink`. Шаблон приглашения
+  общий для компании — `Company.inviteTemplate` (+ `officeAddress`,
+  `officeRoom`), меняют администратор и рекрутер. Метки в [квадратных]
+  скобках, блоки «Если онлайн:/Если офлайн:» выбираются по наличию
+  ссылки — `lib/invite-template.ts`. В формы попадает через
+  `components/meeting-defaults.tsx`.
+- Подбор из базы на вакансию — `/jobs/[id]/pick` (слова из описания,
+  `lib/job-match.ts`) и кнопка «На вакансию» в карточке;
+  действие `assignCandidateToJob`: первый этап, причина отказа
+  снимается, отзывы и история остаются.
 - Поиск: варианты запроса в другой раскладке и транслитом —
   `lib/search-variants.ts`.
 - Дубли не заводятся: совпал телефон или почта — резюме ложится

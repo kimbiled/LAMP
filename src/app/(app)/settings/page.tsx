@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { getScope } from "@/lib/tenant";
 import { ROLE_LABELS } from "@/lib/labels";
-import { CompanyForm, PasswordForm, ProfileForm, WorkForm } from "./settings-forms";
+import {
+  CompanyForm,
+  InviteTemplateForm,
+  PasswordForm,
+  ProfileForm,
+  WorkForm,
+} from "./settings-forms";
 import { StageEditor } from "./stage-editor";
 
 export const metadata: Metadata = { title: "Настройки — LAMP" };
@@ -17,7 +23,13 @@ export default async function SettingsPage() {
   // на каждой странице.
   const company = await db.company.findUnique({
     where: { id: scope.companyId },
-    select: { meetingLink: true, staleDays: true },
+    select: {
+      meetingLink: true,
+      staleDays: true,
+      inviteTemplate: true,
+      officeAddress: true,
+      officeRoom: true,
+    },
   });
 
   const profile = await db.user.findUnique({
@@ -25,7 +37,6 @@ export default async function SettingsPage() {
     select: {
       position: true,
       meetingLink: true,
-      inviteTemplate: true,
       staleDays: true,
     },
   });
@@ -64,20 +75,36 @@ export default async function SettingsPage() {
 
       <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
         <h2 className="text-base font-semibold text-ink-strong">
-          Встречи и приглашения
+          Мои встречи
         </h2>
         <p className="mt-1 mb-4 text-xs text-ink-soft">
-          Ваша комната Google Meet и текст, который копируется кандидату
-          одной кнопкой.
+          Ваша постоянная комната Google Meet для интервью.
         </p>
         <WorkForm
           meetingLink={profile?.meetingLink ?? ""}
-          inviteTemplate={profile?.inviteTemplate ?? ""}
           staleDays={profile?.staleDays ?? null}
           companyStaleDays={company?.staleDays ?? 14}
           showStaleDays={scope.session.user.role === "RECRUITER"}
         />
       </section>
+
+      {/* Шаблон общий для компании: им пользуются и администратор,
+          и рекрутеры. Нанимающий менеджер приглашений не рассылает. */}
+      {(scope.session.user.role === "ADMIN" || scope.session.user.role === "RECRUITER") && (
+        <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-ink-strong">
+            Шаблон приглашения на интервью
+          </h2>
+          <p className="mt-1 mb-4 text-xs text-ink-soft">
+            Общий для всей компании. Изменения сразу видны у всех рекрутеров.
+          </p>
+          <InviteTemplateForm
+            inviteTemplate={company?.inviteTemplate ?? ""}
+            officeAddress={company?.officeAddress ?? ""}
+            officeRoom={company?.officeRoom ?? ""}
+          />
+        </section>
+      )}
 
       {canManageCompany && (
         <section className="rounded-xl border border-line bg-surface p-6 shadow-sm">

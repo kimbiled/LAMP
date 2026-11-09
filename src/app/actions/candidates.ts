@@ -523,3 +523,91 @@ export async function deleteCandidate(formData: FormData): Promise<void> {
 
   redirect("/candidates");
 }
+
+// Добавить кандидата из базы на вакансию.
+//
+// Человека рассматривали раньше — на другую вакансию или на эту же
+// год назад, — отказали, и он остался в базе. Теперь он снова подходит:
+// рекрутер одним нажатием ставит его на актуальную вакансию.
+//
+// Кандидат встаёт на первый этап, прошлая причина отказа снимается.
+// Отзывы, интервью и история остаются в карточке — их видно, почему
+// в прошлый раз не сложилось. В историю пишется, откуда и куда перешёл.
+export async function assignCandidateToJob(formData: FormData): Promise<ActionResult> {
+  const scope = await getScope();
+
+  if (!scope.can("candidates.move") || !scope.can("candidates.edit")) {
+    return fail("Недостаточно прав");
+  }
+
+  const candidate = await db.candidate.findFirst({
+    where: { id: text(formData, "candidateId"), companyId: scope.companyId },
+    select: {
+      id: true,
+      fullName: true,
+      jobId: true,
+      stageId: true,
+      job: { select: { title: true } },
+      stage: { select: { name: true } },
+    },
+  });
+  if (!candidate) return fail("Кандидат не найден");
+
+  const jobId = await validJobId(text(formData, "jobId"), scope);
+  if (!jobId) return fail("Вакансия не найдена");
+
+  const [job, firstStage] = await Promise.all([
+    db.job.findUnique({ where: { id: jobId }, select: { title: true } }),
+    db.stage.findFirst({
+      where: { companyId: scope.companyId },
+      orderBy: { position: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  if (!firstStage) return fail("В компании не настроены этапы подбора");
+
+  if (candidate.jobId === jobId && candidate.stageId === firstStage.id) {
+    return done("Кандидат уже на этой вакансии");
+  }
+
+  await db.candidate.update({
+    where: { id: candidate.id },
+    data: {
+      jobId,
+      stageId: firstStage.id,
+      stageChangedAt: new Date(),
+      rejectionReason: null,
+      rejectionComment: null,
+    },
+  });
+
+  await addHistory({
+    companyId: scope.companyId,
+    candidateId: candidate.id,
+    type: "STAGE_CHANGED",
+    fromStageId: candidate.stageId,
+    toStageId: firstStage.id,
+    comment:
+      `Добавлен из базы на вакансию «${job?.title ?? ""}»` +
+      (candidate.job
+        ? ` (раньше: «${candidate.job.title}», этап «${candidate.stage.name}»)`
+        : ` (раньше: без вакансии, этап «${candidate.stage.name}»)`),
+    actorId: scope.session.user.id,
+    actorName: scope.session.user.fullName,
+  });
+
+  await notify({
+    companyId: scope.companyId,
+    userIds: await jobWatchers(jobId),
+    actorId: scope.session.user.id,
+    type: "CANDIDATE_ASSIGNED",
+    title: `Новый кандидат на вакансию: ${candidate.fullName}`,
+    body: `Добавлен из базы на «${job?.title ?? ""}»`,
+    entityType: "Candidate",
+    entityId: candidate.id,
+  });
+
+  revalidatePath(`/jobs/${jobId}`);
+  revalidatePath(`/candidates/${candidate.id}`);
+  return done(`${candidate.fullName} — на вакансии «${job?.title ?? ""}»`);
+}

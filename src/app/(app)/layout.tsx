@@ -31,11 +31,11 @@ export default async function AppLayout({
   const [me, company] = await Promise.all([
     db.user.findUnique({
       where: { id: session.user.id },
-      select: { meetingLink: true, inviteTemplate: true, mascot: true },
+      select: { meetingLink: true, mascot: true },
     }),
     db.company.findUnique({
       where: { id: session.user.companyId },
-      select: { meetingLink: true },
+      select: { meetingLink: true, inviteTemplate: true, officeAddress: true, officeRoom: true },
     }),
   ]);
 
@@ -44,7 +44,9 @@ export default async function AppLayout({
     <ConfirmProvider>
     <MeetingDefaultsProvider
       link={me?.meetingLink ?? company?.meetingLink ?? null}
-      template={me?.inviteTemplate ?? ""}
+      template={company?.inviteTemplate ?? ""}
+      officeAddress={company?.officeAddress ?? ""}
+      officeRoom={company?.officeRoom ?? ""}
       recruiterName={session.user.fullName}
       companyName={session.company.name}
     >
